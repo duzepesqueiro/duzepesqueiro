@@ -1,6 +1,6 @@
-# [Nome do projeto]
+# Pesque e Pague
 
-[Escreva um ou dois  parágrafo resumindo o objetivo do seu projeto.]
+[Resumo de proposta do projeto]
 
 ## Alunos integrantes da equipe
 
@@ -13,8 +13,9 @@
 
 ## Professores responsáveis
 
-* [Nome completo do professor 1]
-* [Nome completo do professor 2]
+* Luiz Carlos da Silva 
+* Michelle Hanne Soares de Andrade
+* Nelson Ribeiro de Carvalho Junior
 
 ## Instruções de utilização
 
