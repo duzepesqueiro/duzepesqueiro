@@ -4,10 +4,12 @@
 
 ## Alunos integrantes da equipe
 
-* [Nome completo do aluno 1]
-* [Nome completo do aluno 2]
-* [Nome completo do aluno 3]
-* [Nome completo do aluno 4]
+* Bernardo Augusto Pereira Lopes 
+* Cleverson Resende Rosa 
+* Felipe Paz Carvalho Batista 
+* Matheus Augusto Barbosa
+* Rafael Lopes de Souza da Fonseca 
+* Sofia Melo do Prado Rocha Duque
 
 ## Professores responsáveis
 
