@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
+enum PaymentDomain {
+  SALES
+  RENTAL
+  HOSTING
+  EVENT
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  AUTHORIZED
+  IN_PROCESS
+  IN_MEDIATION
+  REJECTED
+  CANCELLED
+  REFUNDED
+  CHARGED_BACK
+  FAILED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PIX
+}
+
+enum EventStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  UPCOMING
+}
+
+enum EventRegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  PAID
+}
+
+enum EventPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum KpiType {
+  ACTIVE_EVENTS
+  REGISTERED_PARTICIPANTS
+  REGISTRATION_PERCENTAGE
+  SOLD_OUT_EVENTS
+}
+
+model User {
+  id             String      @id @default(uuid())
+  username       String      @unique
+  passwordHash   String
+  role           UserRole    @default(CUSTOMER)
+  isActive       Boolean     @default(true)
+  status         UserStatus  @default(ACTIVE)
+  failedAttempts Int         @default(0)
+  lastLoginAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  profile        UserProfile?
+  emails         UserEmail[]
+  phones         UserPhone[]
+  payments       Payment[]
+  eventRegistrations EventRegistration[]
+
+  @@map("users")
+}
+
+model Payment {
+  id                String              @id @default(uuid())
+  externalId        Int?                @unique @map("external_id")
+  domain            PaymentDomain
+  entityId          String              @map("entity_id")
+  externalReference String              @unique @map("external_reference")
+  transactionAmount Decimal             @map("transaction_amount") @db.Decimal(10, 2)
+  netReceivedAmount Decimal?            @map("net_received_amount") @db.Decimal(10, 2)
+  installments      Int                 @default(1)
+  installmentAmount Decimal?            @map("installment_amount") @db.Decimal(10, 2)
+  status            PaymentStatus       @default(PENDING)
+  statusDetail      String?             @map("status_detail")
+  paymentMethod     PaymentMethod       @map("payment_method")
+  paymentMethodId   String?             @map("payment_method_id")
+  paymentTypeId     String?             @map("payment_type_id")
+  issuerId          String?             @map("issuer_id")
+  payerEmail        String              @map("payer_email")
+  payerName         String?             @map("payer_name")
+  payerDocument     String?             @map("payer_document")
+  payerDocumentType String?             @map("payer_document_type")
+  pixQrCode         String?             @map("pix_qr_code") @db.Text
+  pixQrCodeBase64   String?             @map("pix_qr_code_base64") @db.Text
+  pixTicketUrl      String?             @map("pix_ticket_url")
+  idempotencyKey    String              @unique @map("idempotency_key")
+  captured          Boolean             @default(false)
+  binaryMode        Boolean             @default(false) @map("binary_mode")
+  metadata          Json?
+  dateCreated       DateTime            @default(now()) @map("date_created")
+  dateApproved      DateTime?           @map("date_approved")
+  dateLastUpdated   DateTime            @updatedAt @map("date_last_updated")
+  dateOfExpiration  DateTime?           @map("date_of_expiration")
+  moneyReleaseDate  DateTime?           @map("money_release_date")
+  userId            String              @map("user_id")
+  user              User                @relation(fields: [userId], references: [id])
+  webhookLogs       PaymentWebhookLog[]
+  refunds           PaymentRefund[]
+
+  @@map("payments")
+  @@index([domain, entityId])
+  @@index([status])
+  @@index([externalReference])
+  @@index([payerEmail])
+  @@index([dateCreated])
+}
+
+model Event {
+  id             String              @id @default(uuid())
+  title          String
+  description    String
+  rules          String
+  location       String
+  imageUrl       String              @map("image_url")
+  imageKey       String              @map("image_key")
+  totalSlots     Int                 @map("total_slots")
+  availableSlots Int                 @map("available_slots")
+  eventDate      DateTime            @map("event_date")
+  eventTime      String              @map("event_time")
+  status         EventStatus         @default(SCHEDULED)
+  price          Decimal?            @db.Decimal(10, 2)
+  isPaid         Boolean             @default(false) @map("is_paid")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  deletedAt      DateTime?           @map("deleted_at")
+  registrations  EventRegistration[]
+
+  @@map("events")
+  @@index([eventDate])
+  @@index([status])
+}
+
+model EventRegistration {
+  id            String                  @id @default(uuid())
+  userId        String                  @map("user_id")
+  eventId       String                  @map("event_id")
+  status        EventRegistrationStatus @default(PENDING)
+  orderId       String?                 @map("order_id")
+  paymentStatus EventPaymentStatus?     @map("payment_status")
+  registeredAt  DateTime                @default(now()) @map("registered_at")
+  confirmedAt   DateTime?               @map("confirmed_at")
+  cancelledAt   DateTime?               @map("cancelled_at")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event         Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_registrations")
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@unique([userId, eventId])
+}
+
+model EventKpiGoal {
+  id          String   @id @default(uuid())
+  kpiType     KpiType  @map("kpi_type")
+  targetValue Decimal  @map("target_value") @db.Decimal(10, 2)
+  month       Int
+  year        Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("event_kpi_goals")
+  @@index([kpiType, month, year])
+  @@unique([kpiType, month, year])
+}
+
+model PaymentWebhookLog {
+  id            String   @id @default(uuid())
+  paymentId     String   @map("payment_id")
+  payment       Payment  @relation(fields: [paymentId], references: [id])
+  requestId     String   @unique @map("request_id")
+  action        String
+  type          String
+  payload       Json
+  processedAt   DateTime @default(now()) @map("processed_at")
+
+  @@map("payment_webhook_logs")
+}
+
+model PaymentRefund {
+  id         String   @id @default(uuid())
+  paymentId  String   @map("payment_id")
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+  externalId Int?     @map("external_id")
+  amount     Decimal  @db.Decimal(10, 2)
+  reason     String?
+  status     String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("payment_refunds")
+}
+
+model UserProfile {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  fullName  String
+  document  String?
+  birthDate DateTime?
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserEmail {
+  id         String   @id @default(uuid())
+  userId     String
+  email      String   @unique
+  isPrimary  Boolean  @default(false)
+  isVerified Boolean  @default(false)
+  token      String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_emails")
+}
+
+model UserPhone {
+  id               String    @id @default(uuid())
+  userId           String
+  phoneNumber      String
+  isPrimary        Boolean   @default(false)
+  isVerified       Boolean   @default(false)
+  verificationCode String?
+  verifiedAt       DateTime?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_phones")
+}

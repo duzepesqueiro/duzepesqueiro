@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: duzepesqueiro-api-prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+    env_file:
+      - ../.env.production
+
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+    networks:
+      - duzepesqueiro-network
+
+networks:
+  duzepesqueiro-network:
+    driver: bridge
