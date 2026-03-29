@@ -1,3 +1,11 @@
+---
+name: User Story
+about: Crie uma nova história de usuário para o backlog do DuZé
+title: '[US] '
+labels: 'story'
+assignees: ''
+---
+
 ## 📖 User Story
 **Como** [Persona: ex. Turista / Operador / Admin],
 **Eu quero** [Ação a ser realizada no sistema],
