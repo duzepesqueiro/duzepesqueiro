@@ -1,8 +1,7 @@
 ---
 name: User Story
 about: Crie uma nova história de usuário para o backlog do DuZé
-title: '[US] '
-labels: 'story'
+title: '[Story] '
 assignees: ''
 ---
 
