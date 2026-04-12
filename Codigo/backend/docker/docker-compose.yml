@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: duzepesqueiro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: duzepesqueiro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d duzepesqueiro"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - duzepesqueiro-network
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: duzepesqueiro-api
+    restart: unless-stopped
+    ports:
+      - "8080:3000"
+
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      RUN_PRISMA_SEED: "true"
+
+    env_file:
+      - ../.env.qa
+
+    volumes:
+      - ../src:/app/src
+      - ../prisma:/app/prisma
+      - ../uploads:/app/uploads
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      duzepesqueiro-network:
+        aliases:
+          - api
+          - duzepesqueiro-api
+
+volumes:
+  postgres_data:
+
+networks:
+  duzepesqueiro-network:
+    driver: bridge

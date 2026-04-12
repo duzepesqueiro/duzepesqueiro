@@ -1,0 +1,13 @@
+export enum ProductCategory {
+  FISHING_EQUIPMENT = 'FISHING_EQUIPMENT',
+  FOOD = 'FOOD',
+  RENTAL_EQUIPMENT = 'RENTAL_EQUIPMENT',
+  EVENT_ITEM = 'EVENT_ITEM',
+  HOSTING_ITEM = 'HOSTING_ITEM',
+  DRINK = 'DRINK',
+  ACCESSORY = 'ACCESSORY',
+  CLEANING_MATERIAL = 'CLEANING_MATERIAL',
+  OTHER = 'OTHER',
+}
+
+export type ProductCategoryValue = `${ProductCategory}`;

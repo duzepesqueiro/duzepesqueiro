@@ -1,0 +1,1 @@
+# Inicializar projeto frontend React com Vite

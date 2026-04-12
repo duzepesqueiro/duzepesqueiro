@@ -1,0 +1,11 @@
+.DS_Store
+node_modules
+./node_modules
+.env
+./.env
+.idea
+/build
+.vscode/
+.idea/
+vite.config.*s.*
+./%USERPROFILE%/

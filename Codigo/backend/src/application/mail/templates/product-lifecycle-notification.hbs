@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{actionLabel}} de Produto</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <div style="max-width: 640px; margin: 0 auto; padding: 20px;">
+    <h1 style="color: #2c5530;">{{actionLabel}} de Produto</h1>
+    <p>Olá {{adminName}},</p>
+    <p>Uma ação de estoque foi registrada no sistema.</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tbody>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Ação</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{actionLabel}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Produto</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{productName}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>SKU</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{sku}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Status</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{productStatus}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Categoria</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{category}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Quantidade em estoque</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{stockQuantity}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Preço de custo</strong></td><td style="padding: 8px; border: 1px solid #eee;">R$ {{costPrice}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Preço de venda</strong></td><td style="padding: 8px; border: 1px solid #eee;">R$ {{salePrice}}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Usuário responsável</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{actorName}} ({{actorEmail}})</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Data/Hora</strong></td><td style="padding: 8px; border: 1px solid #eee;">{{occurredAt}}</td></tr>
+      </tbody>
+    </table>
+
+    <p>Este é um envio automático para auditoria administrativa do módulo de estoque.</p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="font-size: 12px; color: #999;">© {{year}} DuZePesqueiro. Todos os direitos reservados.</p>
+  </div>
+</body>
+</html>

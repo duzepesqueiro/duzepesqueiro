@@ -1,0 +1,9 @@
+export enum KpiType {
+  TOTAL_STOCK_VALUE = 'TOTAL_STOCK_VALUE',
+  STOCK_TURNOVER = 'STOCK_TURNOVER',
+  STOCKOUT_FREQUENCY = 'STOCKOUT_FREQUENCY',
+  LOW_STOCK = 'LOW_STOCK',
+  AGED_STOCK = 'AGED_STOCK',
+}
+
+export type KpiTypeValue = `${KpiType}`;

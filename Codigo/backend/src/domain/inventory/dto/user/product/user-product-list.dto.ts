@@ -1,0 +1,60 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
+import { PaginationDto } from '../../../../../shared/dto';
+import { ProductCategory, ProductStatus, UnitMeasure } from '../../../enums';
+
+export class UserProductListFilterDto extends PaginationDto {
+  @ApiPropertyOptional({ description: 'Busca por nome ou SKU' })
+  @IsOptional()
+  @IsString({ message: 'O campo de busca deve ser um texto.' })
+  search?: string;
+}
+
+export class UserProductListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  sku: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiPropertyOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  image?: string;
+
+  @ApiProperty({ enum: ProductStatus })
+  status: ProductStatus;
+
+  @ApiProperty({ enum: ProductCategory })
+  category: ProductCategory;
+
+  @ApiProperty({ enum: UnitMeasure })
+  unitMeasure: UnitMeasure;
+
+  @ApiProperty()
+  salePrice: number;
+
+  @ApiProperty()
+  stockQuantity: number;
+}
+
+export class UserProductListResponseDto {
+  @ApiProperty({ type: [UserProductListItemDto] })
+  items: UserProductListItemDto[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  itemsPerPage: number;
+
+  @ApiProperty()
+  totalPages: number;
+}

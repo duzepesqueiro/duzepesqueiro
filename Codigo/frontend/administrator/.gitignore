@@ -1,0 +1,11 @@
+.DS_Store
+node_modules
+./node_modules
+.idea
+/build
+.vscode/
+.idea/
+vite.config.*s.*
+./.env
+././.env
+/*.msj

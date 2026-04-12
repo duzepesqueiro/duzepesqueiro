@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": [
+    "user/src/**/*",
+    "administrator/src/**/*",
+    "auth/**/*",
+    "routes/**/*",
+    "declarations.d.ts"
+  ]
+}

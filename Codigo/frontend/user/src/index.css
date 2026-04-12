@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fishing Park Design System - Nature inspired colors and gradients */
+
+@layer base {
+  :root {
+    --navbar: 203 96% 27%;
+    /* #024873 */
+    --navbar-foreground: 0 0% 100%;
+    /* texto branco */
+    /* Base */
+    --background: 0 0% 100%;
+    /* Branco puro */
+    --foreground: 210 20% 15%;
+    /* Azul petróleo escuro neutro */
+
+    /* Cards */
+    --card: 210 8% 96%;
+    /* #F3F5F6 – neutro frio e suave */
+    --card-foreground: 210 25% 15%;
+    /* texto azul-petróleo escuro */
+
+    /* Popovers */
+    --popover: 210 25% 98%;
+    --popover-foreground: 210 25% 15%;
+
+    /* Azul oceano — cor principal */
+    --primary: 202 96% 23%;
+    /* #024873 */
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 198 80% 32%;
+    /* #046C9C */
+
+    /* Dourado solar — secundário */
+    --secondary: 44 87% 63%;
+    /* #F2C14E */
+    --secondary-foreground: 210 20% 15%;
+
+    /* Verde natural — acento */
+    --accent: 150 30% 45%;
+    /* #4C8C6D */
+    --accent-foreground: 0 0% 98%;
+
+    /* Cores neutras */
+    --muted: 210 20% 95%;
+    /* #F5F7F9 */
+    --muted-foreground: 210 15% 40%;
+
+    /* Alerta / destrutivo */
+    --destructive: 5 70% 55%;
+    /* #E85A4F */
+    --destructive-foreground: 0 0% 98%;
+
+    /* Bordas e inputs */
+    --border: 210 15% 85%;
+    --input: 210 15% 85%;
+    --ring: 202 96% 23%;
+
+    /* Raio e sombras */
+    --radius: 0.75rem;
+    --shadow-nature: 0 4px 20px -6px hsl(202 80% 25% / 0.25);
+    --shadow-glow: 0 0 25px hsl(44 87% 63% / 0.3);
+
+    /* Gradientes */
+    --gradient-nature: linear-gradient(135deg, hsl(202 96% 23%), hsl(198 80% 32%));
+    --gradient-sunset: linear-gradient(135deg, hsl(44 87% 63%), hsl(202 96% 23%));
+    --gradient-water: linear-gradient(180deg, hsl(198 80% 32%), hsl(150 30% 45%));
+
+    /* Sidebar (caso use) */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 210 20% 15%;
+    --sidebar-primary: 202 96% 23%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 44 87% 63%;
+    --sidebar-accent-foreground: 210 20% 15%;
+    --sidebar-border: 210 15% 85%;
+    --sidebar-ring: 202 96% 23%;
+  }
+
+
+
+
+  .dark {
+
+    --navbar: 210 45% 10%;
+    /* azul-marinho escuro (#0B1C26) */
+    --navbar-foreground: 195 20% 90%;
+    /* texto quase branco */
+    /* Fundo geral — azul-marinho suave, não preto */
+    --background: 210 45% 10%;
+    /* #0B1C26 */
+    --foreground: 195 20% 90%;
+    /* texto claro, azulado */
+
+    /* Cards */
+    --card: 210 30% 14%;
+    /* azul marinho profundo */
+    --card-foreground: 195 15% 92%;
+
+    /* Popovers */
+    --popover: 210 40% 14%;
+    --popover-foreground: 195 20% 90%;
+
+    /* Azul-diamante luminoso */
+    --primary: 197 70% 55%;
+    /* #3DB2D1 */
+    --primary-foreground: 210 40% 10%;
+    /* contraste sobre azul claro */
+    --primary-glow: 197 80% 65%;
+    /* #58C4DD */
+
+    /* Dourado solar elegante */
+    --secondary: 44 90% 60%;
+    /* #F2C14E */
+    --secondary-foreground: 210 20% 10%;
+
+    /* Verde musgo azulado */
+    --accent: 155 30% 45%;
+    /* #4C8C6D */
+    --accent-foreground: 0 0% 98%;
+
+    /* Tons neutros */
+    --muted: 210 25% 18%;
+    --muted-foreground: 195 10% 65%;
+
+    /* Gradientes */
+    --nature-primary: 197 70% 55%;
+    --nature-secondary: 155 30% 45%;
+    --nature-accent: 44 90% 60%;
+
+    /* Erros e alertas */
+    --destructive: 5 70% 55%;
+    /* #E85A4F */
+    --destructive-foreground: 0 0% 98%;
+
+    /* Bordas e inputs */
+    --border: 210 20% 22%;
+    --input: 210 20% 22%;
+    --ring: 197 70% 55%;
+
+    /* Sidebar */
+    --sidebar-background: 210 45% 10%;
+    /* mesmo fundo base */
+    --sidebar-foreground: 195 20% 90%;
+    --sidebar-primary: 197 70% 55%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 44 90% 60%;
+    --sidebar-accent-foreground: 210 25% 15%;
+    --sidebar-border: 210 20% 22%;
+    --sidebar-ring: 197 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+
+  /* Hero button variant */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border-0 shadow-lg transform hover:scale-105 transition-all duration-300 rounded-lg font-semibold;
+    box-shadow: var(--shadow-nature);
+  }
+
+  .btn-hero:hover {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Nature card styling */
+  .nature-card {
+    @apply bg-card/90 backdrop-blur-sm border border-border/50 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300;
+  }
+
+  .nature-card:hover {
+    box-shadow: var(--shadow-nature);
+  }
+
+  /* Gradient backgrounds */
+  .bg-nature-gradient {
+    background: var(--gradient-nature);
+  }
+
+  .bg-sunset-gradient {
+    background: var(--gradient-sunset);
+  }
+
+  .bg-water-gradient {
+    background: var(--gradient-water);
+  }
+}

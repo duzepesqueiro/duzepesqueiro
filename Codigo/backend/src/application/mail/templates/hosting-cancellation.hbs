@@ -1,0 +1,7 @@
+<h2>Cancelamento de reserva</h2>
+<p>Olá, {{customerName}}.</p>
+<p>Sua reserva <strong>{{codigoReserva}}</strong> foi cancelada.</p>
+{{#if motivo}}<p>Motivo: {{motivo}}</p>{{/if}}
+{{#if regraPolitica}}<p>Política aplicada: {{regraPolitica}}</p>{{/if}}
+{{#if valorMulta}}<p>Multa: <strong>R$ {{valorMulta}}</strong></p>{{/if}}
+{{#if valorReembolso}}<p>Valor de reembolso: <strong>R$ {{valorReembolso}}</strong></p>{{/if}}
