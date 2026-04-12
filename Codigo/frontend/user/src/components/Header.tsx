@@ -128,7 +128,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     const path = location.pathname || "";
     if (path === "/" || path === "") return "home";
     if (path.startsWith("/events")) return "events";
-    if (path.startsWith("/store")) return "rental"; // por padrão tab rental; FishingGear pode sobrescrever via prop
+    if (path.startsWith("/store")) return "rental"; 
     return "home";
   })();
 
@@ -152,8 +152,6 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     try {
       const { data } = await api.get("/eventos/filtrar", { params: { title: q } });
       const arr = Array.isArray(data) ? data : [];
-      // Reaproveita a mesma requisição do carrossel: /eventos/filtrar
-      // Mapeia estritamente os campos do EventoDTO (id, title, image)
       return arr.slice(0, 8).map((e: any) => ({
         id: Number(e.id),
         name: String(e.title ?? "Evento"),
@@ -332,6 +330,12 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
             className="font-medium hover:text-[#F2C14E] transition-colors duration-200"
           >
             Loja
+          </RouterLink>
+          <RouterLink
+            to="/hospedagem"
+            className="font-medium hover:text-[#F2C14E] transition-colors duration-200"
+          >
+            Hospedagem
           </RouterLink>
           <RouterLink
             to="/about"
@@ -528,6 +532,14 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
               >
                 <Package className="h-5 w-5" />
                 Loja
+              </RouterLink>
+              <RouterLink
+                to="/hospedagem"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
+              >
+                <MapPin className="h-5 w-5" />
+                Hospedagem
               </RouterLink>
               <RouterLink
                 to="/about"

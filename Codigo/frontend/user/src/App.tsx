@@ -10,6 +10,7 @@ import Events from "./pages/Events";
 import ChangePassword from "./pages/ChangePassword";
 import FishingGear from "./pages/FishingGear";
 import About from "./pages/About";
+import Hosting from "./pages/Hosting";
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -40,7 +41,7 @@ const App = () => {
               <Route path="/store" element={<FishingGear />} />
               <Route path="/about" element={<About />} />
               <Route path="/account/change-password" element={<ChangePassword />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/hospedagem/*" element={<Hosting />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
