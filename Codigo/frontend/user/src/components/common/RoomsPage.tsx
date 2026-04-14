@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Filter } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/common/layout/Header';
 import RoomCard from '@/components/common/booking/RoomCard';
 import { useBooking } from '@/contexts/BookingContext';
@@ -81,12 +82,44 @@ const rooms: Room[] = [
 ];
 
 const RoomsPage = () => {
-  const { booking } = useBooking();
+  const { booking, setBooking } = useBooking();
+  const [searchParams] = useSearchParams();
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
   const [petsOnly, setPetsOnly] = useState(booking.pets);
   const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    // Lê parâmetros vindos da tela inicial para garantir continuidade do fluxo.
+    const guestsParam = Number(searchParams.get('guests') || booking.guests || 0);
+    const petsParam = searchParams.get('pets');
+    const checkInParam = searchParams.get('checkIn');
+    const checkOutParam = searchParams.get('checkOut');
+
+    if (!Number.isNaN(guestsParam) && guestsParam > 0) {
+      setCapacityFilter(guestsParam);
+      setBooking((prev) => ({ ...prev, guests: guestsParam }));
+    }
+
+    if (petsParam === '1' || petsParam === 'true') {
+      setPetsOnly(true);
+      setBooking((prev) => ({ ...prev, pets: true }));
+    }
+
+    if (checkInParam) {
+      const d = new Date(checkInParam);
+      if (!Number.isNaN(d.getTime())) {
+        setBooking((prev) => ({ ...prev, checkIn: d }));
+      }
+    }
+    if (checkOutParam) {
+      const d = new Date(checkOutParam);
+      if (!Number.isNaN(d.getTime())) {
+        setBooking((prev) => ({ ...prev, checkOut: d }));
+      }
+    }
+  }, [booking.guests, searchParams, setBooking]);
 
   const filteredRooms = useMemo(() => {
     return rooms.filter(room => {
