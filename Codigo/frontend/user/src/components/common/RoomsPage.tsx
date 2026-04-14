@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Filter } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/common/layout/Header';
 import RoomCard from '@/components/common/booking/RoomCard';
 import { useBooking } from '@/contexts/BookingContext';
@@ -9,17 +10,35 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Room } from '@/types/booking';
+import { api } from '@/lib/api';
+import logoImg from '@/assets/logo.jpg';
 import roomStandard from '@/assets/room-standard.jpg';
 import roomDeluxe from '@/assets/room-deluxe.jpg';
 import roomSuite from '@/assets/room-suite.jpg';
 import roomCabin from '@/assets/room-cabin.jpg';
 
-const rooms: Room[] = [
+type ApiChalet = {
+  id: string;
+  name: string;
+  description?: string;
+  unitType?: string;
+  maxGuests?: number;
+  basePrice?: number;
+  amenities?: string[];
+  images?: { imageUrl: string }[] | string[];
+  petFriendly?: boolean;
+  status?: string;
+  isActive?: boolean;
+  unavailableDates?: string[];
+};
+
+const fallbackRooms: Room[] = [
   {
     id: 'room-standard-1',
-    name: 'Quarto Standard',
+    name: 'Quarto Conforto',
     type: 'standard',
-    description: 'Conforto essencial para casais e pequenas famílias com ambiente acolhedor.',
+    description:
+      'Aconchegante e funcional, perfeito para uma estadia tranquila. Decoração em tons neutros com toques de madeira.',
     capacity: 2,
     pricePerNight: 280,
     amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart', 'Frigobar'],
@@ -33,15 +52,16 @@ const rooms: Room[] = [
   },
   {
     id: 'room-deluxe-1',
-    name: 'Quarto Deluxe',
+    name: 'Quarto Jardim',
     type: 'deluxe',
-    description: 'Mais espaço e comodidade para estadias com conforto superior.',
+    description:
+      'Varanda privativa com vista para o jardim tropical. Ideal para casais em busca de espaço extra e luz natural.',
     capacity: 3,
-    pricePerNight: 390,
+    pricePerNight: 420,
     amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart 65"', 'Frigobar'],
     petFriendly: true,
     images: [roomDeluxe],
-    beds: '1 cama queen + 1 cama solteiro',
+    beds: '1 cama queen + 1 cama de solteiro',
     bathroom: 'Banheiro privativo com ducha',
     extras: ['Café da manhã', 'Amenities premium'],
     rules: ['Check-in a partir das 14h', 'Silêncio após 22h'],
@@ -51,7 +71,7 @@ const rooms: Room[] = [
     id: 'room-suite-1',
     name: 'Suíte Master',
     type: 'suite',
-    description: 'Experiência premium com ambiente amplo e vista privilegiada.',
+    description: 'Experiência premium com ambiente amplo, living integrado e vista privilegiada.',
     capacity: 4,
     pricePerNight: 560,
     amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart 65"', 'Frigobar'],
@@ -81,7 +101,34 @@ const rooms: Room[] = [
   },
 ];
 
+const mapApiChaletToRoom = (item: ApiChalet): Room => ({
+  id: item.id,
+  name: item.name,
+  type: (item.unitType as Room['type']) || 'standard',
+  description: item.description || 'Acomodações preparadas para sua estadia.',
+  capacity: item.maxGuests || 2,
+  pricePerNight: item.basePrice ?? 0,
+  amenities: item.amenities && item.amenities.length ? item.amenities : ['Wi-Fi', 'Ar condicionado'],
+  petFriendly: Boolean(item.petFriendly),
+  images:
+    Array.isArray(item.images) && item.images.length
+      ? item.images.map((img) => (typeof img === 'string' ? img : img.imageUrl))
+      : [roomStandard],
+  beds: '1 cama queen',
+  bathroom: 'Banheiro privativo',
+  extras: [],
+  rules: [],
+  unavailableDates: item.unavailableDates || [],
+});
+
+const isUnavailable = (room: Room, status?: string, isActive?: boolean) => {
+  if (isActive === false) return true;
+  if (status && status !== 'ACTIVE' && status !== 'AVAILABLE') return true;
+  return false;
+};
+
 const RoomsPage = () => {
+  const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const [searchParams] = useSearchParams();
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
@@ -90,8 +137,8 @@ const RoomsPage = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Preenche filtros com o que veio da home
   useEffect(() => {
-    // Lê parâmetros vindos da tela inicial para garantir continuidade do fluxo.
     const guestsParam = Number(searchParams.get('guests') || booking.guests || 0);
     const petsParam = searchParams.get('pets');
     const checkInParam = searchParams.get('checkIn');
@@ -109,50 +156,97 @@ const RoomsPage = () => {
 
     if (checkInParam) {
       const d = new Date(checkInParam);
-      if (!Number.isNaN(d.getTime())) {
-        setBooking((prev) => ({ ...prev, checkIn: d }));
-      }
+      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkIn: d }));
     }
     if (checkOutParam) {
       const d = new Date(checkOutParam);
-      if (!Number.isNaN(d.getTime())) {
-        setBooking((prev) => ({ ...prev, checkOut: d }));
-      }
+      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkOut: d }));
     }
   }, [booking.guests, searchParams, setBooking]);
 
+  const { data: serverRooms, isLoading } = useQuery(
+    ['rooms', typeFilter, capacityFilter, booking.checkIn, booking.checkOut, petsOnly],
+    async () => {
+      const params: Record<string, string | number | boolean | undefined> = {
+        checkin: booking.checkIn ? booking.checkIn.toISOString() : undefined,
+        checkout: booking.checkOut ? booking.checkOut.toISOString() : undefined,
+        capacidadeAdultos: capacityFilter || booking.guests || undefined,
+        tipo: typeFilter !== 'all' ? typeFilter : undefined,
+      };
+      const { data } = await api.get('/api/chales', { params });
+      if (!Array.isArray(data)) return [];
+      return data as ApiChalet[];
+    },
+    { staleTime: 1000 * 60 * 3, keepPreviousData: true }
+  );
+
+  const roomList: { room: Room; status?: string; isActive?: boolean }[] =
+    (serverRooms && serverRooms.length
+      ? serverRooms.map((c) => ({ room: mapApiChaletToRoom(c), status: c.status, isActive: c.isActive }))
+      : fallbackRooms.map((r) => ({ room: r, status: 'ACTIVE', isActive: true })));
+
   const filteredRooms = useMemo(() => {
-    return rooms.filter(room => {
-      if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
-      if (petsOnly && !room.petFriendly) return false;
-      if (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1]) return false;
-      if (typeFilter !== 'all' && room.type !== typeFilter) return false;
-      if (booking.guests > room.capacity) return false;
-      return true;
-    });
-  }, [capacityFilter, petsOnly, priceRange, typeFilter, booking.guests]);
+    return roomList
+      .filter(({ room, status, isActive }) => {
+        if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
+        if (petsOnly && !room.petFriendly) return false;
+        if (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1]) return false;
+        if (typeFilter !== 'all' && room.type !== typeFilter) return false;
+        if (booking.guests > room.capacity) return false;
+        if (isUnavailable(room, status, isActive)) return false;
+        return true;
+      })
+      .map(({ room, status, isActive }) => ({
+        room,
+        unavailable: isUnavailable(room, status, isActive),
+      }));
+  }, [roomList, capacityFilter, petsOnly, priceRange, typeFilter, booking.guests]);
+
+  const summaryChips = [
+    booking.checkIn && booking.checkOut
+      ? `Período: ${booking.checkIn.toLocaleDateString()} - ${booking.checkOut.toLocaleDateString()}`
+      : null,
+    booking.guests ? `${booking.guests} hóspede(s)` : null,
+    petsOnly || booking.pets ? 'Somente pet friendly' : null,
+  ].filter(Boolean);
+
+  const handleSelectRoom = (room: Room) => {
+    setBooking((prev) => ({ ...prev, roomId: room.id }));
+    const params = new URLSearchParams();
+    if (booking.checkIn) params.set('checkIn', booking.checkIn.toISOString());
+    if (booking.checkOut) params.set('checkOut', booking.checkOut.toISOString());
+    params.set('price', String(room.pricePerNight));
+    navigate(`/hospedagem/rooms/${room.id}?${params.toString()}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <div className="fixed top-4 left-4 z-50 bg-white/80 backdrop-blur-md shadow-lg rounded-xl px-3 py-2">
+        <img src={logoImg} alt="Du Zé Pesqueiro" className="h-10 w-auto" />
+      </div>
 
       <main className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-1">
               Nossos Quartos
             </h1>
-            <p className="text-muted-foreground">
-              {booking.guests > 1 ? `Para ${booking.guests} hóspedes` : 'Encontre o quarto perfeito'}
-              {booking.pets ? ' · Com pets' : ''}
-            </p>
+            <p className="text-muted-foreground">Encontre o quarto perfeito para sua estadia em Du Zé.</p>
+            {summaryChips.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {summaryChips.map((chip) => (
+                  <span
+                    key={chip}
+                    className="px-3 py-1 text-xs rounded-full bg-muted text-foreground border border-border/70"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            )}
           </motion.div>
 
-          {/* Filters toggle mobile */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="md:hidden flex items-center gap-2 mb-4 text-sm font-medium text-foreground bg-muted px-4 py-2 rounded-lg"
@@ -161,13 +255,15 @@ const RoomsPage = () => {
           </button>
 
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Filters */}
             <motion.aside
               initial={false}
               animate={{ height: showFilters ? 'auto' : 0, opacity: showFilters ? 1 : 0 }}
-              className={`md:!h-auto md:!opacity-100 overflow-hidden md:overflow-visible w-full md:w-64 flex-shrink-0`}
+              className="md:!h-auto md:!opacity-100 overflow-hidden md:overflow-visible w-full md:w-72 flex-shrink-0"
             >
-              <div className="bg-card rounded-xl p-5 space-y-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+              <div
+                className="bg-card rounded-2xl p-6 space-y-6"
+                style={{ boxShadow: '0 18px 42px -18px rgba(0,0,0,0.18)' }}
+              >
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
                     Tipo
@@ -190,7 +286,7 @@ const RoomsPage = () => {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
                     Capacidade mínima
                   </label>
-                  <Select value={String(capacityFilter)} onValueChange={v => setCapacityFilter(Number(v))}>
+                  <Select value={String(capacityFilter)} onValueChange={(v) => setCapacityFilter(Number(v))}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -208,14 +304,7 @@ const RoomsPage = () => {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
                     Faixa de preço: R${priceRange[0]} - R${priceRange[1]}
                   </label>
-                  <Slider
-                    value={priceRange}
-                    onValueChange={setPriceRange}
-                    min={0}
-                    max={1000}
-                    step={50}
-                    className="mt-2"
-                  />
+                  <Slider value={priceRange} onValueChange={setPriceRange} min={0} max={1000} step={20} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -227,16 +316,17 @@ const RoomsPage = () => {
               </div>
             </motion.aside>
 
-            {/* Room grid */}
             <div className="flex-1">
-              {filteredRooms.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-16 text-muted-foreground">Carregando quartos...</div>
+              ) : filteredRooms.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
                   <p className="text-lg">Nenhum quarto encontrado com os filtros selecionados.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {filteredRooms.map((room, i) => (
-                    <RoomCard key={room.id} room={room} index={i} />
+                  {filteredRooms.map(({ room, unavailable }, i) => (
+                    <RoomCard key={room.id} room={room} index={i} unavailable={unavailable} onSelect={handleSelectRoom} />
                   ))}
                 </div>
               )}
