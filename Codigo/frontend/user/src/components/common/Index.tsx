@@ -12,7 +12,7 @@ const Index = () => {
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <img
           src={heroImg}
-          alt="Villa Serena"
+          alt="DuZé Pesqueiro"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div
@@ -35,7 +35,7 @@ const Index = () => {
             transition={{ delay: 0.15, duration: 0.8 }}
             className="text-lg md:text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto"
           >
-            Descubra o refúgio perfeito na Villa Serena. Quartos exclusivos, natureza exuberante e experiências inesquecíveis.
+            Descubra o refúgio perfeito no DuZé Pesqueiro. Quartos exclusivos, natureza exuberante e experiências inesquecíveis.
           </motion.p>
 
           <SearchBox />
@@ -51,7 +51,7 @@ const Index = () => {
             viewport={{ once: true }}
             className="font-display text-3xl md:text-4xl font-bold text-center text-foreground mb-12"
           >
-            Por que escolher a Villa Serena?
+            Por que escolher o DuZé Pesqueiro?
           </motion.h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -78,7 +78,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          © 2026 Villa Serena. Todos os direitos reservados.
+          © 2026 DuZé Pesqueiro. Todos os direitos reservados.
         </div>
       </footer>
     </div>
