@@ -1,0 +1,40 @@
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(4, 12, 25, 0.72) 0%, rgba(4, 12, 25, 0.45) 48%, rgba(4, 12, 25, 0.18) 100%);
+}
+
+.searchCard {
+  background: linear-gradient(135deg, rgba(7, 17, 29, 0.88) 0%, rgba(11, 30, 49, 0.84) 62%, rgba(16, 48, 77, 0.76) 100%);
+  box-shadow: 0 28px 70px -18px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.scrollHint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #f8f9fc;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.logoWrap {
+  padding: 10px 12px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.logo {
+  height: 52px;
+  width: auto;
+  display: block;
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
@@ -22,11 +22,8 @@ const emptyGuest: Guest = {
 
 const BookingPage = () => {
   const navigate = useNavigate();
-  const { booking, setBooking, payment, setPayment, addReservation } = useBooking();
+  const { booking, setBooking, addReservation } = useBooking();
   const [step, setStep] = useState(0);
-  const [paymentStep, setPaymentStep] = useState(false);
-  const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' });
-  const [pixSelected, setPixSelected] = useState(false);
 
   const room = rooms.find(r => r.id === booking.roomId);
   const nights = booking.checkIn && booking.checkOut ? differenceInDays(booking.checkOut, booking.checkIn) : 1;
@@ -44,76 +41,21 @@ const BookingPage = () => {
 
   const next = () => {
     if (step < 3) setStep(step + 1);
-    else setPaymentStep(true);
-  };
-  const back = () => {
-    if (paymentStep) setPaymentStep(false);
-    else if (step > 0) setStep(step - 1);
-  };
-
-  const addGuest = () => {
-    setBooking(prev => ({
-      ...prev,
-      guestDetails: [...prev.guestDetails, { ...emptyGuest }],
-    }));
-  };
-
-  const updateGuest = (index: number, field: string, value: string | number) => {
-    setBooking(prev => {
-      const g = [...prev.guestDetails];
-      if (field.startsWith('address.')) {
-        const addrField = field.split('.')[1];
-        g[index] = { ...g[index], address: { ...g[index].address, [addrField]: value } };
-      } else {
-        g[index] = { ...g[index], [field]: value };
-      }
-      return { ...prev, guestDetails: g };
-    });
-  };
-
-  const copyAddress = (index: number) => {
-    if (booking.guestDetails.length > 0) {
-      setBooking(prev => {
-        const g = [...prev.guestDetails];
-        g[index] = { ...g[index], address: { ...g[0].address } };
-        return { ...prev, guestDetails: g };
-      });
-    }
-  };
-
-  const formatCpf = (v: string) => {
-    const n = v.replace(/\D/g, '').slice(0, 11);
-    return n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  };
-
-  const formatPhone = (v: string) => {
-    const n = v.replace(/\D/g, '').slice(0, 11);
-    if (n.length <= 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-    return n.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  };
-
-  const formatCardNumber = (v: string) => {
-    return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})/g, '$1 ').trim();
-  };
-
-  const formatExpiry = (v: string) => {
-    return v.replace(/\D/g, '').slice(0, 4).replace(/(\d{2})(\d{1,2})/, '$1/$2');
-  };
-
-  const handlePayment = () => {
-    setPayment({ method: pixSelected ? 'pix' : 'card', status: 'processing' });
-    setTimeout(() => {
-      setPayment(prev => ({ ...prev, status: 'success' }));
+    else {
       addReservation({
         id: `RES-${Date.now().toString(36).toUpperCase()}`,
         bookingData: booking,
-        paymentData: { method: pixSelected ? 'pix' : 'card', status: 'success' },
-        status: pixSelected ? 'pending' : 'confirmed',
+        paymentData: { method: 'card', status: 'success' },
+        status: 'confirmed',
         createdAt: new Date(),
         totalPrice,
       });
       navigate('/hospedagem/confirmation');
-    }, 2500);
+    }
+  };
+
+  const back = () => {
+    if (step > 0) setStep(step - 1);
   };
 
   // Initialize guest details if empty
@@ -157,7 +99,6 @@ const BookingPage = () => {
             ))}
           </div>
 
-          {!paymentStep ? (
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
@@ -394,118 +335,11 @@ const BookingPage = () => {
                     onClick={next}
                     className="btn-gold flex items-center gap-1 text-sm"
                   >
-                    {step === 3 ? 'Ir para pagamento' : 'Próximo'} <ChevronRight className="h-4 w-4" />
+                    {step === 3 ? 'Realizar reserva' : 'Próximo'} <ChevronRight className="h-4 w-4" />
                   </motion.button>
                 </div>
               </motion.div>
             </AnimatePresence>
-          ) : (
-            /* Payment Step */
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-card rounded-2xl p-6 md:p-8"
-              style={{ boxShadow: 'var(--shadow-elevated)' }}
-            >
-              <h2 className="font-display text-2xl font-bold text-foreground mb-6">Pagamento</h2>
-
-              {payment.status === 'processing' ? (
-                <div className="text-center py-16">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-foreground font-medium">Processando pagamento...</p>
-                  <p className="text-muted-foreground text-sm">Não feche esta página</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Method selection */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPixSelected(false)}
-                      className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                        !pixSelected ? 'border-primary bg-primary/5 text-foreground' : 'border-border text-muted-foreground'
-                      }`}
-                    >
-                      💳 Cartão
-                    </button>
-                    <button
-                      onClick={() => setPixSelected(true)}
-                      className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                        pixSelected ? 'border-primary bg-primary/5 text-foreground' : 'border-border text-muted-foreground'
-                      }`}
-                    >
-                      📱 PIX
-                    </button>
-                  </div>
-
-                  {!pixSelected ? (
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-muted-foreground">Número do cartão</Label>
-                        <Input
-                          value={cardData.number}
-                          onChange={e => setCardData(prev => ({ ...prev, number: formatCardNumber(e.target.value) }))}
-                          placeholder="0000 0000 0000 0000"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Nome no cartão</Label>
-                        <Input
-                          value={cardData.name}
-                          onChange={e => setCardData(prev => ({ ...prev, name: e.target.value }))}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-muted-foreground">Validade</Label>
-                          <Input
-                            value={cardData.expiry}
-                            onChange={e => setCardData(prev => ({ ...prev, expiry: formatExpiry(e.target.value) }))}
-                            placeholder="MM/AA"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-muted-foreground">CVV</Label>
-                          <Input
-                            value={cardData.cvv}
-                            onChange={e => setCardData(prev => ({ ...prev, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                            placeholder="000"
-                            type="password"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-48 h-48 bg-muted rounded-xl mx-auto mb-4 flex items-center justify-center">
-                        <span className="text-6xl">📱</span>
-                      </div>
-                      <p className="text-foreground font-medium mb-2">QR Code PIX</p>
-                      <div className="bg-muted rounded-lg p-3 mx-auto max-w-sm">
-                        <code className="text-xs text-muted-foreground break-all">
-                          00020126360014br.gov.bcb.pix0114+5511999999999520400005303986
-                        </code>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-3">⏱ Expira em 30 minutos</p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between pt-6 border-t border-border">
-                    <button onClick={back} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      <ChevronLeft className="h-4 w-4" /> Voltar
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handlePayment}
-                      className="btn-gold flex items-center gap-2 text-sm"
-                    >
-                      Confirmar pagamento — R$ {totalPrice}
-                    </motion.button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
         </div>
       </main>
     </div>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, PawPrint, Check, ChevronLeft, Flame } from 'lucide-react';
@@ -13,7 +14,25 @@ const RoomDetailPage = () => {
   const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const room = rooms.find(r => r.id === id);
+  const carouselSlides: Array<string | null> = room?.images.length
+    ? [
+        ...room.images,
+        ...Array.from({ length: Math.max(0, 3 - room.images.length) }, () => null),
+      ]
+    : [null, null, null];
+  const [activeSlide, setActiveSlide] = useState(0);
 
+  useEffect(() => {
+    setActiveSlide(0);
+  }, [room?.id]);
+
+  useEffect(() => {
+    if (!room || carouselSlides.length <= 1) return;
+    const interval = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % carouselSlides.length);
+    }, 3500);
+    return () => window.clearInterval(interval);
+  }, [room, carouselSlides.length]);
   if (!room) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -51,13 +70,54 @@ const RoomDetailPage = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl overflow-hidden mb-8"
+                className="rounded-2xl overflow-hidden mb-8 bg-muted"
               >
-                <img
-                  src={room.images[0]}
-                  alt={room.name}
-                  className="w-full aspect-[16/9] object-cover"
-                />
+                <div className="relative aspect-[16/9] overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {carouselSlides[activeSlide] ? (
+                      <motion.img
+                        key={carouselSlides[activeSlide] ?? activeSlide}
+                        initial={{ opacity: 0, scale: 1.03 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.45 }}
+                        src={carouselSlides[activeSlide] ?? ""}
+                        alt={`${room.name} - imagem ${activeSlide + 1}`}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    ) : (
+                      <motion.div
+                        key={`blank-${activeSlide}`}
+                        initial={{ opacity: 0, scale: 1.01 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.45 }}
+                        className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted via-background to-muted/60"
+                      >
+                        <div className="text-center space-y-3">
+                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground">
+                            <span className="text-2xl">+</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Espaco reservado para imagem</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/25 px-3 py-2 backdrop-blur-sm">
+                    {carouselSlides.map((_, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setActiveSlide(index)}
+                        className={`h-2.5 w-2.5 rounded-full transition-all ${
+                          index === activeSlide ? 'bg-white scale-110' : 'bg-white/50'
+                        }`}
+                        aria-label={`Ver imagem ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
               </motion.div>
 
               <motion.div

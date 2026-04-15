@@ -3,22 +3,31 @@ import { Users, PawPrint, Wifi, Snowflake, Tv, Coffee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Room } from '@/types/booking';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const amenityIcons: Record<string, React.ReactNode> = {
   'Wi-Fi': <Wifi className="h-3.5 w-3.5" />,
   'Ar condicionado': <Snowflake className="h-3.5 w-3.5" />,
   'TV Smart': <Tv className="h-3.5 w-3.5" />,
   'TV Smart 65"': <Tv className="h-3.5 w-3.5" />,
-  'Frigobar': <Coffee className="h-3.5 w-3.5" />,
+  Frigobar: <Coffee className="h-3.5 w-3.5" />,
 };
 
 interface RoomCardProps {
   room: Room;
   index: number;
+  unavailable?: boolean;
+  onSelect?: (room: Room) => void;
 }
 
-const RoomCard = ({ room, index }: RoomCardProps) => {
+const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps) => {
   const navigate = useNavigate();
+
+  const handleSelect = () => {
+    if (unavailable) return;
+    onSelect?.(room);
+    navigate(`/hospedagem/rooms/${room.id}`);
+  };
 
   return (
     <motion.div
@@ -26,8 +35,8 @@ const RoomCard = ({ room, index }: RoomCardProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.5 }}
       whileHover={{ y: -4 }}
-      className="card-room cursor-pointer group"
-      onClick={() => navigate(`/hospedagem/rooms/${room.id}`)}
+      className={cn('card-room group', unavailable ? 'opacity-60 pointer-events-none' : 'cursor-pointer')}
+      onClick={handleSelect}
     >
       <div className="relative overflow-hidden aspect-[4/3]">
         <img
@@ -55,8 +64,11 @@ const RoomCard = ({ room, index }: RoomCardProps) => {
         <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{room.description}</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {room.amenities.slice(0, 4).map(a => (
-            <span key={a} className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
+          {room.amenities.slice(0, 4).map((a) => (
+            <span
+              key={a}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md"
+            >
               {amenityIcons[a] || null} {a}
             </span>
           ))}
@@ -64,12 +76,12 @@ const RoomCard = ({ room, index }: RoomCardProps) => {
 
         <div className="flex items-end justify-between pt-3 border-t border-border">
           <div>
-            <span className="text-2xl font-bold text-foreground">
-              R$ {room.pricePerNight}
-            </span>
+            <span className="text-2xl font-bold text-foreground">R$ {room.pricePerNight}</span>
             <span className="text-sm text-muted-foreground"> /noite</span>
           </div>
-          <button className="btn-gold text-sm px-4 py-2">Selecionar</button>
+          <button className="btn-gold text-sm px-4 py-2" disabled={unavailable}>
+            {unavailable ? 'Indisponível' : 'Selecionar'}
+          </button>
         </div>
       </div>
     </motion.div>

@@ -50,7 +50,7 @@ const ConfirmationPage = () => {
             <p className="text-muted-foreground mb-8">
               {latest.status === 'confirmed'
                 ? 'Sua reserva foi confirmada com sucesso.'
-                : 'Aguardando confirmação do pagamento PIX.'}
+                : 'Sua reserva foi registrada e está aguardando finalização.'}
             </p>
 
             <div className="bg-card rounded-2xl p-6 text-left space-y-4" style={{ boxShadow: 'var(--shadow-elevated)' }}>
@@ -65,10 +65,6 @@ const ConfirmationPage = () => {
                 <span className={`text-sm font-semibold ${latest.status === 'confirmed' ? 'text-primary' : 'text-accent'}`}>
                   {latest.status === 'confirmed' ? '✅ Confirmada' : '⏳ Pendente'}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Pagamento</span>
-                <span className="text-sm text-foreground capitalize">{latest.paymentData.method}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total</span>
