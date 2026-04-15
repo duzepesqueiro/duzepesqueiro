@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarIcon, Users, PawPrint, Search } from 'lucide-react';
-import { format, startOfDay } from 'date-fns';
+import { differenceInCalendarDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useBooking } from '@/contexts/BookingContext';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const SearchBox = ({
 }: SearchBoxProps) => {
   const { booking, setBooking } = useBooking();
   const navigate = useNavigate();
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     booking.checkIn && booking.checkOut
       ? { from: booking.checkIn, to: booking.checkOut }
@@ -60,16 +61,48 @@ const SearchBox = ({
     );
   };
 
-  const handleSearch = () => {
+  const validateSearch = () => {
     if (!dateRange?.from || !dateRange?.to) {
+      return 'Selecione check-in e check-out para continuar.';
+    }
+
+    const from = startOfDay(dateRange.from);
+    const to = startOfDay(dateRange.to);
+    const today = startOfDay(new Date());
+
+    if (from < today) {
+      return 'Check-in nao pode ser em data passada.';
+    }
+
+    if (differenceInCalendarDays(to, from) <= 0) {
+      return 'Check-out precisa ser depois do check-in.';
+    }
+
+    const overlapsBlocked = normalizedBlocks.some(
+      (block) => from <= block.end && to >= block.start
+    );
+
+    if (overlapsBlocked) {
+      return 'O periodo selecionado inclui datas indisponiveis.';
+    }
+
+    return null;
+  };
+
+  const handleSearch = () => {
+    const error = validateSearch();
+
+    if (error) {
+      setSearchError(error);
       toast({
-        title: 'Selecione as datas',
-        description:
-          'O campo de check-in/check-out é obrigatório para buscar disponibilidade.',
+        title: 'Nao foi possivel continuar',
+        description: error,
         variant: 'destructive',
       });
       return;
     }
+
+    setSearchError(null);
 
     // Garante que o contexto esteja sincronizado com o que vai para a listagem.
     setBooking((prev) => ({
@@ -123,11 +156,13 @@ const SearchBox = ({
                 {dateRange?.from ? (
                   dateRange.to ? (
                     <span className="text-sm text-white">
-                      {format(dateRange.from, 'dd/MM', { locale: ptBR })} —{' '}
+                      {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {' '}
                       {format(dateRange.to, 'dd/MM', { locale: ptBR })}
                     </span>
                   ) : (
-                    <span className="text-sm text-white">{format(dateRange.from, 'dd MMM', { locale: ptBR })}</span>
+                    <span className="text-sm text-white">
+                      {format(dateRange.from, 'dd MMM', { locale: ptBR })}
+                    </span>
                   )
                 ) : (
                   <span className="text-sm text-white/70">Selecione as datas</span>
@@ -138,7 +173,10 @@ const SearchBox = ({
               <Calendar
                 mode="range"
                 selected={dateRange}
-                onSelect={setDateRange}
+                onSelect={(value) => {
+                  setDateRange(value);
+                  if (searchError) setSearchError(null);
+                }}
                 numberOfMonths={2}
                 disabled={(date) =>
                   date < startOfDay(new Date()) || isDateBlocked(date)
@@ -152,7 +190,7 @@ const SearchBox = ({
         {/* Guests */}
         <div>
           <label className="text-xs font-semibold text-white/90 uppercase tracking-wider mb-2 block">
-            Hóspedes
+            Hospedes
           </label>
           <div className="flex items-center h-12 border border-white/20 rounded-lg px-3">
             <Users className="h-4 w-4 text-white/80 mr-2" />
@@ -160,7 +198,7 @@ const SearchBox = ({
               onClick={decrementGuests}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white font-bold text-lg hover:bg-white/20 hover:text-white transition-colors"
             >
-              –
+              -
             </button>
             <span className="mx-3 font-semibold text-white min-w-[20px] text-center">
               {booking.guests}
@@ -177,7 +215,7 @@ const SearchBox = ({
         {/* Pets */}
         <div>
           <label className="text-xs font-semibold text-white/90 uppercase tracking-wider mb-2 block">
-            Levará animais?
+            Levara animais?
           </label>
           <div className="flex items-center h-12 border border-white/20 rounded-lg px-3 gap-3">
             <PawPrint className="h-4 w-4 text-white/80" />
@@ -188,7 +226,7 @@ const SearchBox = ({
               }
             />
             <span className="text-sm text-white">
-              {booking.pets ? 'Sim' : 'Não'}
+              {booking.pets ? 'Sim' : 'Nao'}
             </span>
           </div>
         </div>
@@ -197,15 +235,19 @@ const SearchBox = ({
         <div>
           <button
             onClick={handleSearch}
-            disabled={!dateRange?.from || !dateRange?.to || isLoadingBlocked}
+            disabled={isLoadingBlocked}
             className="btn-gold w-full h-12 flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Search className="h-4 w-4" />
             {isLoadingBlocked ? 'Validando datas...' : 'Ver disponibilidade'}
           </button>
-          <p className="mt-2 text-xs text-white/70">
-            Datas passadas e períodos bloqueados pelo servidor ficam indisponíveis.
-          </p>
+          {searchError ? (
+            <p className="mt-2 text-xs text-red-200">{searchError}</p>
+          ) : (
+            <p className="mt-2 text-xs text-white/70">
+              Datas passadas e periodos bloqueados pelo servidor ficam indisponiveis.
+            </p>
+          )}
         </div>
       </div>
     </motion.div>
