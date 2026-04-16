@@ -90,7 +90,7 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
               {bookingData.guestDetails.map((g, i) => (
                 <div key={i} className="bg-muted rounded-lg p-3">
                   <p className="text-sm font-medium text-foreground">{g.name || `Hóspede ${i + 1}`} — {g.age} anos</p>
-                  {g.document && <p className="text-xs text-muted-foreground">Doc: {g.document}</p>}
+                  <p className="text-xs text-muted-foreground">CPF: {g.document}</p>
                   <p className="text-xs text-muted-foreground">
                     {g.address.street}, {g.address.number} — {g.address.city}/{g.address.state} · CEP {g.address.zip}
                   </p>

@@ -11,7 +11,6 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Room } from '@/types/booking';
 import { api } from '@/lib/api';
-import logoImg from '@/assets/logo.jpg';
 import roomStandard from '@/assets/room-standard.jpg';
 import roomDeluxe from '@/assets/room-deluxe.jpg';
 import roomSuite from '@/assets/room-suite.jpg';
@@ -131,6 +130,7 @@ const RoomsPage = () => {
   const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const [searchParams] = useSearchParams();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
   const [petsOnly, setPetsOnly] = useState(booking.pets);
   const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
@@ -139,13 +139,17 @@ const RoomsPage = () => {
 
   // Preenche filtros com o que veio da home
   useEffect(() => {
-    const guestsParam = Number(searchParams.get('guests') || booking.guests || 0);
+    const guestsParamRaw = searchParams.get('guests');
+    const guestsParam = guestsParamRaw ? Number(guestsParamRaw) : NaN;
     const petsParam = searchParams.get('pets');
     const checkInParam = searchParams.get('checkIn');
     const checkOutParam = searchParams.get('checkOut');
 
-    if (!Number.isNaN(guestsParam) && guestsParam > 0) {
+    if (!Number.isNaN(guestsParam) && guestsParam > 1) {
       setCapacityFilter(guestsParam);
+    }
+
+    if (!Number.isNaN(guestsParam) && guestsParam > 0) {
       setBooking((prev) => ({ ...prev, guests: guestsParam }));
     }
 
@@ -177,7 +181,7 @@ const RoomsPage = () => {
       const params: Record<string, string | number | boolean | undefined> = {
         checkin: booking.checkIn ? booking.checkIn.toISOString() : undefined,
         checkout: booking.checkOut ? booking.checkOut.toISOString() : undefined,
-        capacidadeAdultos: capacityFilter || booking.guests || undefined,
+        capacidadeAdultos: capacityFilter > 0 ? capacityFilter : undefined,
         tipo: typeFilter !== 'all' ? typeFilter : undefined,
       };
       const { data } = await api.get('/api/chales', { params });
@@ -213,7 +217,7 @@ const RoomsPage = () => {
     booking.checkIn && booking.checkOut
       ? `Período: ${booking.checkIn.toLocaleDateString()} - ${booking.checkOut.toLocaleDateString()}`
       : null,
-    booking.guests ? `${booking.guests} hóspede(s)` : null,
+    searchParams.has('guests') || booking.guests > 1 ? `${booking.guests} hóspede(s)` : null,
     petsOnly || booking.pets ? 'Somente pet friendly' : null,
   ].filter((chip): chip is string => Boolean(chip));
 
@@ -223,17 +227,15 @@ const RoomsPage = () => {
     if (booking.checkIn) params.set('checkIn', booking.checkIn.toISOString());
     if (booking.checkOut) params.set('checkOut', booking.checkOut.toISOString());
     params.set('price', String(room.pricePerNight));
-    navigate(`/hospedagem/rooms/${room.id}?${params.toString()}`);
+    navigate(`/hospedagem/rooms/${room.id}?${params.toString()}`, { state: { room } });
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="fixed top-4 left-4 z-50 bg-white/80 backdrop-blur-md shadow-lg rounded-xl px-3 py-2">
-        <img src={logoImg} alt="Du Zé Pesqueiro" className="h-10 w-auto" />
-      </div>
+    <div className="relative min-h-screen bg-background">
+      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="pt-24 pb-16 px-4">
+      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
             <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-1">
@@ -298,7 +300,7 @@ const RoomsPage = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Qualquer</SelectItem>
+                      <SelectItem value="0">Todos</SelectItem>
                       <SelectItem value="2">2+ pessoas</SelectItem>
                       <SelectItem value="3">3+ pessoas</SelectItem>
                       <SelectItem value="4">4+ pessoas</SelectItem>
@@ -339,6 +341,7 @@ const RoomsPage = () => {
               )}
             </div>
           </div>
+        </div>
         </div>
       </main>
     </div>

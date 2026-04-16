@@ -133,14 +133,14 @@ const SearchBox = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.6 }}
       className={cn(
-        'glass rounded-2xl p-6 md:p-8 w-full max-w-4xl mx-auto shadow-xl',
+        'glass rounded-3xl p-6 md:p-8 w-full max-w-5xl mx-auto shadow-xl backdrop-blur-xl',
         className
       )}
     >
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 items-end">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         {/* Date Range */}
-        <div className="md:col-span-1">
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider mb-2 block">
+        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
+          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
             Check-in / Check-out
           </label>
           <Popover>
@@ -148,7 +148,7 @@ const SearchBox = ({
               <Button
                 variant="outline"
                 className={cn(
-                  'w-full justify-start text-left font-normal h-12 text-white border-white/20 bg-white/10 hover:bg-white/15 hover:text-white',
+                  'w-full justify-center text-center font-normal h-12 text-white border-white/20 bg-white/10 hover:bg-white/15 hover:text-white',
                   !dateRange?.from && 'text-white/70'
                 )}
               >
@@ -188,19 +188,19 @@ const SearchBox = ({
         </div>
 
         {/* Guests */}
-        <div>
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider mb-2 block">
+        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
+          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
             Hospedes
           </label>
-          <div className="flex items-center h-12 border border-white/20 rounded-lg px-3">
-            <Users className="h-4 w-4 text-white/80 mr-2" />
+          <div className="flex items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3">
+            <Users className="h-4 w-4 text-white/80" />
             <button
               onClick={decrementGuests}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white font-bold text-lg hover:bg-white/20 hover:text-white transition-colors"
             >
               -
             </button>
-            <span className="mx-3 font-semibold text-white min-w-[20px] text-center">
+            <span className="min-w-[20px] text-center font-semibold text-white">
               {booking.guests}
             </span>
             <button
@@ -213,11 +213,11 @@ const SearchBox = ({
         </div>
 
         {/* Pets */}
-        <div>
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider mb-2 block">
+        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
+          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
             Levara animais?
           </label>
-          <div className="flex items-center h-12 border border-white/20 rounded-lg px-3 gap-3">
+          <div className="flex items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3">
             <PawPrint className="h-4 w-4 text-white/80" />
             <Switch
               checked={booking.pets}
@@ -232,21 +232,17 @@ const SearchBox = ({
         </div>
 
         {/* CTA */}
-        <div>
+        <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
           <button
             onClick={handleSearch}
             disabled={isLoadingBlocked}
-            className="btn-gold w-full h-12 flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            className="btn-gold w-full max-w-xs h-12 flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Search className="h-4 w-4" />
             {isLoadingBlocked ? 'Validando datas...' : 'Ver disponibilidade'}
           </button>
-          {searchError ? (
+          {searchError && (
             <p className="mt-2 text-xs text-red-200">{searchError}</p>
-          ) : (
-            <p className="mt-2 text-xs text-white/70">
-              Datas passadas e periodos bloqueados pelo servidor ficam indisponiveis.
-            </p>
           )}
         </div>
       </div>

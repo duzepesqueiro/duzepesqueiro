@@ -1,8 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { differenceInDays, format, startOfDay } from 'date-fns';
+import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
 import { rooms } from '@/data/rooms';
@@ -11,12 +11,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import type { Guest } from '@/types/booking';
+import type { BookingData, Guest, Room } from '@/types/booking';
 
 const steps = ['Reserva', 'Hospedes', 'Responsavel', 'Revisao'];
 
 type BookingErrors = Record<string, string>;
+
+type BookingLocationState = {
+  room?: Room;
+  booking?: Pick<BookingData, 'checkIn' | 'checkOut' | 'guests' | 'pets'>;
+};
 
 const createEmptyGuest = (): Guest => ({
   name: '',
@@ -27,6 +34,42 @@ const createEmptyGuest = (): Guest => ({
 
 const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 
+const FULL_NAME_REGEX = /^[A-Za-zÀ-ÿ]+(?:[ '\-][A-Za-zÀ-ÿ]+)+$/;
+const STREET_REGEX = /^[A-Za-zÀ-ÿ0-9]+(?:[ '\-][A-Za-zÀ-ÿ0-9]+)+$/;
+const CPF_REGEX = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+const PHONE_REGEX = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+const CEP_REGEX = /^\d{5}-\d{3}$/;
+
+const BRAZIL_STATES = [
+  { value: 'AC', label: 'Acre' },
+  { value: 'AL', label: 'Alagoas' },
+  { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' },
+  { value: 'BA', label: 'Bahia' },
+  { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
+  { value: 'MT', label: 'Mato Grosso' },
+  { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
+  { value: 'PE', label: 'Pernambuco' },
+  { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' },
+  { value: 'RN', label: 'Rio Grande do Norte' },
+  { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' },
+  { value: 'RR', label: 'Roraima' },
+  { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' },
+  { value: 'SE', label: 'Sergipe' },
+  { value: 'TO', label: 'Tocantins' },
+] as const;
+
 const formatPhone = (value: string) => {
   const digits = normalizeDigits(value).slice(0, 11);
   if (!digits) return '';
@@ -36,6 +79,13 @@ const formatPhone = (value: string) => {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+const formatCep = (value: string) => {
+  const digits = normalizeDigits(value).slice(0, 8);
+  if (!digits) return '';
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 };
 
 const formatCpf = (value: string) => {
@@ -50,18 +100,41 @@ const formatCpf = (value: string) => {
 };
 
 const isEmailValid = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isFullNameValid = (value: string) => FULL_NAME_REGEX.test(value.trim());
+const isStreetValid = (value: string) => STREET_REGEX.test(value.trim());
+const isCpfValid = (value: string) => CPF_REGEX.test(value.trim());
+const isPhoneValid = (value: string) => PHONE_REGEX.test(value.trim());
+const isCepValid = (value: string) => CEP_REGEX.test(value.trim());
 
 const BookingPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { booking, setBooking, addReservation } = useBooking();
   const [step, setStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<BookingErrors>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const room = rooms.find((r) => r.id === booking.roomId);
+  const locationState = location.state as BookingLocationState | null | undefined;
+  const locationRoom = locationState?.room;
+  const bookingSeed = locationState?.booking;
+  const room = locationRoom ?? rooms.find((r) => r.id === booking.roomId);
   const nights = booking.checkIn && booking.checkOut
     ? Math.max(differenceInDays(booking.checkOut, booking.checkIn), 1)
     : 1;
   const totalPrice = room ? room.pricePerNight * nights : 0;
+
+  useEffect(() => {
+    if (!room) return;
+
+    setBooking((prev) => ({
+      ...prev,
+      roomId: room.id,
+      checkIn: bookingSeed?.checkIn ?? prev.checkIn,
+      checkOut: bookingSeed?.checkOut ?? prev.checkOut,
+      guests: bookingSeed?.guests ?? prev.guests,
+      pets: bookingSeed?.pets ?? prev.pets,
+    }));
+  }, [bookingSeed, room, setBooking]);
 
   useEffect(() => {
     if (step === 1 && booking.guestDetails.length === 0) {
@@ -74,15 +147,19 @@ const BookingPage = () => {
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-background pt-24 text-center">
-        <Header />
-        <p className="text-muted-foreground mt-16">Selecione um quarto primeiro.</p>
-        <button
-          onClick={() => navigate('/hospedagem/rooms')}
-          className="btn-gold mt-4 inline-block"
-        >
-          Ver quartos
-        </button>
+      <div className="relative min-h-screen bg-background">
+        <Header open={sidebarOpen} setOpen={setSidebarOpen} />
+        <div className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="pt-24 pb-16 px-4 text-center">
+            <p className="text-muted-foreground mt-16">Selecione um quarto primeiro.</p>
+            <button
+              onClick={() => navigate('/hospedagem/rooms')}
+              className="btn-gold mt-4 inline-block"
+            >
+              Ver quartos
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -162,6 +239,7 @@ const BookingPage = () => {
 
   const validateStep = (targetStep: number): BookingErrors => {
     const errors: BookingErrors = {};
+    const today = startOfDay(new Date());
 
     if (targetStep === 0) {
       if (!booking.checkIn) {
@@ -172,12 +250,18 @@ const BookingPage = () => {
         errors.checkOut = 'Selecione a data de check-out.';
       }
 
-      if (booking.checkIn && startOfDay(booking.checkIn) < startOfDay(new Date())) {
+      if (booking.checkIn && startOfDay(booking.checkIn) < today) {
         errors.checkIn = 'Check-in nao pode ser em data passada.';
       }
 
-      if (booking.checkIn && booking.checkOut && booking.checkOut <= booking.checkIn) {
-        errors.checkOut = 'Check-out precisa ser depois do check-in.';
+      if (booking.checkIn && booking.checkOut) {
+        const stayDays = differenceInDays(startOfDay(booking.checkOut), startOfDay(booking.checkIn));
+
+        if (stayDays <= 0) {
+          errors.checkOut = 'Check-out precisa ser depois do check-in.';
+        } else if (stayDays > 15) {
+          errors.checkOut = 'A hospedagem pode ter no máximo 15 dias.';
+        }
       }
 
       if (!Number.isInteger(booking.guests) || booking.guests < 1) {
@@ -201,12 +285,18 @@ const BookingPage = () => {
       booking.guestDetails.forEach((guest, index) => {
         if (!guest.name.trim()) {
           errors[`${index}-name`] = 'Nome obrigatorio.';
+        } else if (!isFullNameValid(guest.name)) {
+          errors[`${index}-name`] = 'Informe nome e sobrenome.';
         }
         if (!guest.age || guest.age <= 0) {
           errors[`${index}-age`] = 'Idade invalida.';
+        } else if (index === 0 && guest.age < 18) {
+          errors[`${index}-age`] = 'O hospede principal precisa ter pelo menos 18 anos.';
         }
         if (!guest.address.street.trim()) {
           errors[`${index}-address.street`] = 'Rua obrigatoria.';
+        } else if (!isStreetValid(guest.address.street)) {
+          errors[`${index}-address.street`] = 'Informe rua e complemento com pelo menos duas palavras.';
         }
         if (!guest.address.number.trim()) {
           errors[`${index}-address.number`] = 'Numero obrigatorio.';
@@ -216,9 +306,18 @@ const BookingPage = () => {
         }
         if (!guest.address.state.trim()) {
           errors[`${index}-address.state`] = 'Estado obrigatorio.';
+        } else if (!BRAZIL_STATES.some((state) => state.value === guest.address.state)) {
+          errors[`${index}-address.state`] = 'Selecione um estado valido.';
         }
         if (!guest.address.zip.trim()) {
           errors[`${index}-address.zip`] = 'CEP obrigatorio.';
+        } else if (!isCepValid(guest.address.zip)) {
+          errors[`${index}-address.zip`] = 'CEP invalido. Use 00000-000.';
+        }
+        if (!guest.document.trim()) {
+          errors[`${index}-document`] = 'CPF obrigatorio.';
+        } else if (!isCpfValid(guest.document)) {
+          errors[`${index}-document`] = 'CPF invalido.';
         }
       });
     }
@@ -226,19 +325,19 @@ const BookingPage = () => {
     if (targetStep === 2) {
       if (!booking.responsible.name.trim()) {
         errors['responsible-name'] = 'Nome obrigatorio.';
+      } else if (!isFullNameValid(booking.responsible.name)) {
+        errors['responsible-name'] = 'Informe nome e sobrenome.';
       }
 
       if (!isEmailValid(booking.responsible.email)) {
         errors['responsible-email'] = 'Email invalido.';
       }
 
-      const phoneDigits = normalizeDigits(booking.responsible.phone);
-      if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      if (!isPhoneValid(booking.responsible.phone)) {
         errors['responsible-phone'] = 'Telefone invalido.';
       }
 
-      const cpfDigits = normalizeDigits(booking.responsible.cpf);
-      if (cpfDigits.length !== 11) {
+      if (!isCpfValid(booking.responsible.cpf)) {
         errors['responsible-cpf'] = 'CPF completo obrigatorio.';
       }
     }
@@ -304,8 +403,18 @@ const BookingPage = () => {
     if (step > 0) {
       setFieldErrors({});
       setStep((prev) => prev - 1);
+      return;
     }
+
+    navigate(`/hospedagem/rooms/${room.id}`, { state: { room } });
   };
+
+  const todayValue = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const checkInDate = booking.checkIn ? startOfDay(booking.checkIn) : null;
+  const checkOutMinValue = checkInDate ? format(addDays(checkInDate, 1), 'yyyy-MM-dd') : todayValue;
+  const checkOutMaxValue = checkInDate
+    ? format(addDays(checkInDate, 15), 'yyyy-MM-dd')
+    : format(addDays(startOfDay(new Date()), 15), 'yyyy-MM-dd');
 
   const slideVariants = {
     enter: { opacity: 0, x: 40 },
@@ -323,10 +432,11 @@ const BookingPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="relative min-h-screen bg-background">
+      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="pt-24 pb-16 px-4">
+      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-3xl">
           {/* Stepper */}
           <div className="flex items-center justify-center mb-10 gap-2">
@@ -355,6 +465,40 @@ const BookingPage = () => {
             ))}
           </div>
 
+          <div className="mb-8 rounded-2xl border border-border/70 bg-card p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">{room.name}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{room.description}</p>
+              </div>
+
+              <div className="rounded-xl bg-muted px-4 py-3 md:text-right">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumo</p>
+                <p className="text-sm text-foreground mt-1">
+                  {booking.checkIn ? format(booking.checkIn, 'dd MMM yyyy', { locale: ptBR }) : 'Check-in não definido'}
+                </p>
+                <p className="text-sm text-foreground">
+                  {booking.checkOut ? format(booking.checkOut, 'dd MMM yyyy', { locale: ptBR }) : 'Check-out não definido'}
+                </p>
+                <p className="text-sm text-foreground">{booking.guests} hóspede(s)</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Restrições</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {room.rules.map((rule) => (
+                  <Badge key={rule} variant="secondary">
+                    {rule}
+                  </Badge>
+                ))}
+                <Badge variant="secondary">Check-in a partir de hoje</Badge>
+                <Badge variant="secondary">Estadia máxima de 15 dias</Badge>
+                {booking.pets ? <Badge className="bg-primary text-primary-foreground">Com pet</Badge> : null}
+              </div>
+            </div>
+          </div>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -378,6 +522,7 @@ const BookingPage = () => {
                       <Input
                         type="date"
                         value={booking.checkIn ? format(booking.checkIn, 'yyyy-MM-dd') : ''}
+                        min={todayValue}
                         onChange={(e) =>
                           setBooking((prev) => ({
                             ...prev,
@@ -393,6 +538,8 @@ const BookingPage = () => {
                       <Input
                         type="date"
                         value={booking.checkOut ? format(booking.checkOut, 'yyyy-MM-dd') : ''}
+                        min={checkOutMinValue}
+                        max={checkOutMaxValue}
                         onChange={(e) =>
                           setBooking((prev) => ({
                             ...prev,
@@ -404,6 +551,9 @@ const BookingPage = () => {
                       {fieldError('checkOut')}
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Check-in não pode ser antes de hoje e a estadia tem limite de 15 dias.
+                  </p>
                   <div>
                     <Label className="text-muted-foreground">Numero de hospedes</Label>
                     <Input
@@ -475,6 +625,7 @@ const BookingPage = () => {
                             value={guest.name}
                             onChange={(e) => updateGuest(i, 'name', e.target.value)}
                             className={fieldClass(`${i}-name`)}
+                            placeholder="Nome e sobrenome"
                           />
                           {fieldError(`${i}-name`)}
                         </div>
@@ -490,11 +641,15 @@ const BookingPage = () => {
                           {fieldError(`${i}-age`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">Documento (opcional)</Label>
+                          <Label className="text-muted-foreground">CPF</Label>
                           <Input
                             value={guest.document || ''}
-                            onChange={(e) => updateGuest(i, 'document', e.target.value)}
+                            onChange={(e) => updateGuest(i, 'document', formatCpf(e.target.value))}
+                            className={fieldClass(`${i}-document`)}
+                            placeholder="000.000.000-00"
+                            inputMode="numeric"
                           />
+                          {fieldError(`${i}-document`)}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -504,6 +659,7 @@ const BookingPage = () => {
                             value={guest.address.street}
                             onChange={(e) => updateGuest(i, 'address.street', e.target.value)}
                             className={fieldClass(`${i}-address.street`)}
+                            placeholder="Rua e complemento"
                           />
                           {fieldError(`${i}-address.street`)}
                         </div>
@@ -527,11 +683,18 @@ const BookingPage = () => {
                         </div>
                         <div>
                           <Label className="text-muted-foreground">Estado</Label>
-                          <Input
-                            value={guest.address.state}
-                            onChange={(e) => updateGuest(i, 'address.state', e.target.value)}
-                            className={fieldClass(`${i}-address.state`)}
-                          />
+                          <Select value={guest.address.state} onValueChange={(value) => updateGuest(i, 'address.state', value)}>
+                            <SelectTrigger className={fieldClass(`${i}-address.state`)}>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BRAZIL_STATES.map((state) => (
+                                <SelectItem key={state.value} value={state.value}>
+                                  {state.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           {fieldError(`${i}-address.state`)}
                         </div>
                         <div>
@@ -539,14 +702,11 @@ const BookingPage = () => {
                           <Input
                             value={guest.address.zip}
                             onChange={(e) =>
-                              updateGuest(
-                                i,
-                                'address.zip',
-                                e.target.value.replace(/\D/g, '').slice(0, 8)
-                              )
+                              updateGuest(i, 'address.zip', formatCep(e.target.value))
                             }
                             className={fieldClass(`${i}-address.zip`)}
-                            placeholder="00000000"
+                            placeholder="00000-000"
+                            inputMode="numeric"
                           />
                           {fieldError(`${i}-address.zip`)}
                         </div>
@@ -580,6 +740,7 @@ const BookingPage = () => {
                           }))
                         }
                         className={fieldClass('responsible-name')}
+                        placeholder="Nome e sobrenome"
                       />
                       {fieldError('responsible-name')}
                     </div>
@@ -613,6 +774,7 @@ const BookingPage = () => {
                         }
                         placeholder="(00) 00000-0000"
                         className={fieldClass('responsible-phone')}
+                        inputMode="numeric"
                       />
                       {fieldError('responsible-phone')}
                     </div>
@@ -631,6 +793,7 @@ const BookingPage = () => {
                         }
                         placeholder="000.000.000-00"
                         className={fieldClass('responsible-cpf')}
+                        inputMode="numeric"
                       />
                       {fieldError('responsible-cpf')}
                     </div>
@@ -674,9 +837,12 @@ const BookingPage = () => {
                         Hospedes ({booking.guestDetails.length})
                       </h3>
                       {booking.guestDetails.map((g, i) => (
-                        <p key={i} className="text-foreground text-sm">
-                          {g.name || `Hospede ${i + 1}`} - {g.age} anos
-                        </p>
+                        <div key={i} className="text-foreground text-sm mb-2 last:mb-0">
+                          <p className="font-medium">{g.name || `Hospede ${i + 1}`}</p>
+                          <p className="text-muted-foreground">
+                            {g.age} anos · CPF: {g.document} · {g.address.city || 'cidade não informada'} / {g.address.state || '--'}
+                          </p>
+                        </div>
                       ))}
                       {booking.pets && <p className="text-sm text-accent font-medium mt-1">Com pet</p>}
                     </div>
@@ -688,6 +854,9 @@ const BookingPage = () => {
                       <p className="text-foreground text-sm">{booking.responsible.name}</p>
                       <p className="text-muted-foreground text-sm">
                         {booking.responsible.email} - {booking.responsible.phone}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        CPF: {booking.responsible.cpf || 'não informado'}
                       </p>
                     </div>
 
@@ -707,9 +876,9 @@ const BookingPage = () => {
               {/* Navigation */}
               <div className="flex justify-between mt-8 pt-6 border-t border-border">
                 <button
+                  type="button"
                   onClick={back}
-                  disabled={step === 0}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" /> Voltar
                 </button>
@@ -724,6 +893,7 @@ const BookingPage = () => {
               </div>
             </motion.div>
           </AnimatePresence>
+        </div>
         </div>
       </main>
     </div>

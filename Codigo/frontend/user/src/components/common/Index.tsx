@@ -1,7 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ShieldCheck, Trees, Building2, Sparkles } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Mail,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles,
+  Trees,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import SearchBox from '@/components/common/booking/SearchBox';
 import Sidebar from '@/components/common/layout/Header';
@@ -71,12 +82,21 @@ const Index = () => {
     []
   );
 
+  const scrollToHighlights = () => {
+    document.getElementById('destaques')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className={styles.pageBackdrop} aria-hidden="true" />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       {/* Main content with margin to accommodate sidebar */}
-      <main className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <section className="relative h-[90vh] min-h-[620px] flex items-center justify-center overflow-hidden">
           <img
             src={heroImg}
@@ -126,14 +146,24 @@ const Index = () => {
             </div>
 
             <div className={styles.scrollHint}>
-              <ChevronDown className="h-5 w-5 animate-bounce" />
-              Role para conhecer mais
+              <button
+                type="button"
+                onClick={scrollToHighlights}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/95 shadow-lg backdrop-blur-md transition hover:bg-white/15 hover:text-white"
+              >
+                <ChevronDown className="h-5 w-5 animate-bounce" />
+                Role para ver mais
+              </button>
             </div>
           </div>
         </section>
 
-        <section id="destaques" className="py-20 px-4">
-          <div className="container mx-auto max-w-5xl space-y-12">
+        <section id="destaques" className="relative overflow-hidden py-20 px-4">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(242,193,78,0.08),transparent_28%),linear-gradient(180deg,#f8f4ed_0%,#f2ebdf_100%)]"
+            aria-hidden="true"
+          />
+          <div className="relative container mx-auto max-w-5xl space-y-12">
             <motion.h2
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -165,8 +195,12 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="py-16 px-4 bg-card/60 backdrop-blur-sm">
-          <div className="container mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-8">
+        <section className="relative overflow-hidden py-16 px-4 bg-card/60 backdrop-blur-sm">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.46)_0%,rgba(246,239,228,0.9)_100%)]"
+            aria-hidden="true"
+          />
+          <div className="relative container mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
                 icon: <Trees className="h-5 w-5 text-primary" />,
@@ -202,8 +236,12 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="py-16 px-4">
-          <div className="container mx-auto max-w-5xl space-y-10">
+        <section className="relative overflow-hidden py-16 px-4">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(242,193,78,0.07),transparent_26%),linear-gradient(180deg,#f4efe5_0%,#fbf8f2_100%)]"
+            aria-hidden="true"
+          />
+          <div className="relative container mx-auto max-w-5xl space-y-10">
             <motion.h2
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -305,7 +343,7 @@ const Index = () => {
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap justify-center gap-3">
                     <Link to="/hospedagem/rooms" className="btn-gold">
                       Ver quartos
                     </Link>
@@ -353,9 +391,108 @@ const Index = () => {
           </div>
         </section>
 
-        <footer className="border-t border-border py-8 px-4">
-          <div className="container mx-auto text-center text-sm text-muted-foreground">
-            © 2026 Du Zé Pesqueiro. Todos os direitos reservados.
+        <footer className="relative overflow-hidden border-t border-white/10 px-4 py-16 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,193,78,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,#07111d_0%,#06101a_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.05)_0%,transparent_26%,transparent_74%,rgba(255,255,255,0.05)_100%)]" />
+          <div className="relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.15fr_0.7fr_0.8fr_0.95fr]">
+            <div className="space-y-4">
+              <Link to="/hospedagem" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-white">
+                Du Zé Pesqueiro
+              </Link>
+              <p className="max-w-md text-sm leading-relaxed text-white/75">
+                Hospedagem pensada para descanso, conforto e reservas simples. Escolha seu quarto, acompanhe sua estadia e fale com a equipe sempre que precisar.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
+                  Reserva online
+                </span>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
+                  Atendimento rápido
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+                Atalhos
+              </h3>
+              <ul className="space-y-3 text-sm">
+                {[
+                  { to: '/hospedagem', label: 'Início' },
+                  { to: '/hospedagem/rooms', label: 'Quartos' },
+                  { to: '/hospedagem/my-reservations', label: 'Minhas reservas' },
+                  { to: '/events', label: 'Eventos' },
+                  { to: '/store', label: 'Loja' },
+                ].map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      className="group inline-flex items-center gap-2 text-white/75 transition hover:text-white"
+                    >
+                      <ArrowUpRight className="h-4 w-4 text-white/35 transition group-hover:text-white/80" />
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+                Contato
+              </h3>
+              <div className="space-y-3 text-sm text-white/75">
+                <a
+                  href="mailto:contato@duzpesqueiro.com"
+                  className="flex items-center gap-3 transition hover:text-white"
+                >
+                  <Mail className="h-4 w-4 text-white/60" />
+                  contato@duzpesqueiro.com
+                </a>
+                <a
+                  href="https://wa.me/5511999999999"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 transition hover:text-white"
+                >
+                  <MessageCircle className="h-4 w-4 text-white/60" />
+                  WhatsApp +55 11 99999-9999
+                </a>
+                <p className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-white/60" />
+                  Atendimento todos os dias, das 8h às 18h
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.65)] backdrop-blur-md">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+                Próximo passo
+              </h3>
+              <p className="text-sm leading-relaxed text-white/75">
+                Veja os quartos disponíveis, escolha as datas e siga para a reserva sem perder o fluxo da hospedagem.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link to="/hospedagem/rooms" className="btn-gold">
+                  Ver quartos
+                </Link>
+                <button
+                  type="button"
+                  onClick={scrollToTop}
+                  className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/15"
+                >
+                  Voltar ao topo
+                  <ChevronUp className="ml-2 h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-12 flex max-w-6xl flex-col gap-4 border-t border-white/10 pt-6 text-sm text-white/65 md:flex-row md:items-center md:justify-between">
+            <p>© 2026 Du Zé Pesqueiro. Todos os direitos reservados.</p>
+            <p className="text-white/55">
+              Hospedagem online, reservas simples e atendimento direto com a equipe.
+            </p>
           </div>
         </footer>
       </main>

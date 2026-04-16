@@ -18,7 +18,7 @@ export interface Room {
 export interface Guest {
   name: string;
   age: number;
-  document?: string;
+  document: string;
   address: {
     street: string;
     number: string;
