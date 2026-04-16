@@ -37,8 +37,8 @@ const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 const FULL_NAME_REGEX = /^[A-Za-zÀ-ÿ]+(?:[ '\-][A-Za-zÀ-ÿ]+)+$/;
 const STREET_REGEX = /^[A-Za-zÀ-ÿ0-9]+(?:[ '\-][A-Za-zÀ-ÿ0-9]+)+$/;
 const CPF_REGEX = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
-const PHONE_REGEX = /^\(\d{2}\) \d{4,5}-\d{4}$/;
 const CEP_REGEX = /^\d{5}-\d{3}$/;
+const PLATE_REGEX = /^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z0-9]\d{2})$/;
 
 const BRAZIL_STATES = [
   { value: 'AC', label: 'Acre' },
@@ -70,17 +70,6 @@ const BRAZIL_STATES = [
   { value: 'TO', label: 'Tocantins' },
 ] as const;
 
-const formatPhone = (value: string) => {
-  const digits = normalizeDigits(value).slice(0, 11);
-  if (!digits) return '';
-  if (digits.length <= 2) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-};
-
 const formatCep = (value: string) => {
   const digits = normalizeDigits(value).slice(0, 8);
   if (!digits) return '';
@@ -99,12 +88,28 @@ const formatCpf = (value: string) => {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 };
 
-const isEmailValid = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const isFullNameValid = (value: string) => FULL_NAME_REGEX.test(value.trim());
 const isStreetValid = (value: string) => STREET_REGEX.test(value.trim());
 const isCpfValid = (value: string) => CPF_REGEX.test(value.trim());
-const isPhoneValid = (value: string) => PHONE_REGEX.test(value.trim());
 const isCepValid = (value: string) => CEP_REGEX.test(value.trim());
+const normalizePlate = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+const formatPlate = (value: string) => {
+  const normalized = normalizePlate(value);
+  if (normalized.length === 7 && /^[A-Z]{3}\d{4}$/.test(normalized)) {
+    return `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
+  }
+  return normalized;
+};
+const isPlateValid = (value: string) => PLATE_REGEX.test(normalizePlate(value));
+const isValidDateValue = (value: Date | null): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+const parseDateInput = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T12:00:00`);
+  return isValidDateValue(parsed) ? parsed : null;
+};
+const formatDateValue = (value: Date | null, pattern: string) =>
+  isValidDateValue(value) ? format(value, pattern, { locale: ptBR }) : '';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -118,10 +123,19 @@ const BookingPage = () => {
   const locationRoom = locationState?.room;
   const bookingSeed = locationState?.booking;
   const room = locationRoom ?? rooms.find((r) => r.id === booking.roomId);
-  const nights = booking.checkIn && booking.checkOut
-    ? Math.max(differenceInDays(booking.checkOut, booking.checkIn), 1)
+  const checkInDate = isValidDateValue(booking.checkIn) ? startOfDay(booking.checkIn) : null;
+  const checkOutDate = isValidDateValue(booking.checkOut) ? startOfDay(booking.checkOut) : null;
+  const nights = checkInDate && checkOutDate
+    ? Math.max(differenceInDays(checkOutDate, checkInDate), 1)
     : 1;
   const totalPrice = room ? room.pricePerNight * nights : 0;
+  const selectedResponsibleGuest =
+    booking.responsibleGuestIndex !== null
+      ? booking.guestDetails[booking.responsibleGuestIndex] ?? null
+      : null;
+  const selectedResponsibleAddress = selectedResponsibleGuest
+    ? `${selectedResponsibleGuest.address.street}, ${selectedResponsibleGuest.address.number} - ${selectedResponsibleGuest.address.city}/${selectedResponsibleGuest.address.state} · CEP ${selectedResponsibleGuest.address.zip}`
+    : '';
 
   useEffect(() => {
     if (!room) return;
@@ -144,6 +158,18 @@ const BookingPage = () => {
       }));
     }
   }, [booking.guestDetails.length, setBooking, step]);
+
+  useEffect(() => {
+    if (
+      booking.responsibleGuestIndex !== null &&
+      booking.responsibleGuestIndex >= booking.guestDetails.length
+    ) {
+      setBooking((prev) => ({
+        ...prev,
+        responsibleGuestIndex: null,
+      }));
+    }
+  }, [booking.guestDetails.length, booking.responsibleGuestIndex, setBooking]);
 
   if (!room) {
     return (
@@ -217,6 +243,22 @@ const BookingPage = () => {
     });
   };
 
+  const selectResponsibleGuest = (index: number) => {
+    setBooking((prev) => ({
+      ...prev,
+      responsibleGuestIndex: index,
+    }));
+    clearError('responsible-guest');
+  };
+
+  const updateVehiclePlate = (value: string) => {
+    setBooking((prev) => ({
+      ...prev,
+      vehiclePlate: formatPlate(value),
+    }));
+    clearError('vehiclePlate');
+  };
+
   const addGuest = () => {
     const maxGuests = Math.max(1, Math.min(room.capacity, booking.guests));
 
@@ -242,20 +284,24 @@ const BookingPage = () => {
     const today = startOfDay(new Date());
 
     if (targetStep === 0) {
-      if (!booking.checkIn) {
+      if (booking.checkIn && !isValidDateValue(booking.checkIn)) {
+        errors.checkIn = 'Selecione uma data valida.';
+      } else if (!booking.checkIn) {
         errors.checkIn = 'Selecione a data de check-in.';
       }
 
-      if (!booking.checkOut) {
+      if (booking.checkOut && !isValidDateValue(booking.checkOut)) {
+        errors.checkOut = 'Selecione uma data valida.';
+      } else if (!booking.checkOut) {
         errors.checkOut = 'Selecione a data de check-out.';
       }
 
-      if (booking.checkIn && startOfDay(booking.checkIn) < today) {
+      if (checkInDate && checkInDate < today) {
         errors.checkIn = 'Check-in nao pode ser em data passada.';
       }
 
-      if (booking.checkIn && booking.checkOut) {
-        const stayDays = differenceInDays(startOfDay(booking.checkOut), startOfDay(booking.checkIn));
+      if (checkInDate && checkOutDate) {
+        const stayDays = differenceInDays(checkOutDate, checkInDate);
 
         if (stayDays <= 0) {
           errors.checkOut = 'Check-out precisa ser depois do check-in.';
@@ -323,22 +369,16 @@ const BookingPage = () => {
     }
 
     if (targetStep === 2) {
-      if (!booking.responsible.name.trim()) {
-        errors['responsible-name'] = 'Nome obrigatorio.';
-      } else if (!isFullNameValid(booking.responsible.name)) {
-        errors['responsible-name'] = 'Informe nome e sobrenome.';
+      if (booking.responsibleGuestIndex === null) {
+        errors['responsible-guest'] = 'Selecione o hospede responsavel.';
+      } else if (!booking.guestDetails[booking.responsibleGuestIndex]) {
+        errors['responsible-guest'] = 'Selecione um hospede valido.';
       }
 
-      if (!isEmailValid(booking.responsible.email)) {
-        errors['responsible-email'] = 'Email invalido.';
-      }
-
-      if (!isPhoneValid(booking.responsible.phone)) {
-        errors['responsible-phone'] = 'Telefone invalido.';
-      }
-
-      if (!isCpfValid(booking.responsible.cpf)) {
-        errors['responsible-cpf'] = 'CPF completo obrigatorio.';
+      if (!booking.vehiclePlate.trim()) {
+        errors['vehiclePlate'] = 'Informe a placa do veiculo.';
+      } else if (!isPlateValid(booking.vehiclePlate)) {
+        errors['vehiclePlate'] = 'Placa invalida. Use ABC1234 ou ABC1D23.';
       }
     }
 
@@ -359,7 +399,7 @@ const BookingPage = () => {
     if (keys.some((key) => key === 'guest-count' || /^\d+-/.test(key))) {
       return 1;
     }
-    if (keys.some((key) => key.startsWith('responsible-'))) {
+    if (keys.some((key) => key.startsWith('responsible-') || key === 'vehiclePlate')) {
       return 2;
     }
     return 3;
@@ -410,7 +450,6 @@ const BookingPage = () => {
   };
 
   const todayValue = format(startOfDay(new Date()), 'yyyy-MM-dd');
-  const checkInDate = booking.checkIn ? startOfDay(booking.checkIn) : null;
   const checkOutMinValue = checkInDate ? format(addDays(checkInDate, 1), 'yyyy-MM-dd') : todayValue;
   const checkOutMaxValue = checkInDate
     ? format(addDays(checkInDate, 15), 'yyyy-MM-dd')
@@ -475,10 +514,10 @@ const BookingPage = () => {
               <div className="rounded-xl bg-muted px-4 py-3 md:text-right">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumo</p>
                 <p className="text-sm text-foreground mt-1">
-                  {booking.checkIn ? format(booking.checkIn, 'dd MMM yyyy', { locale: ptBR }) : 'Check-in não definido'}
+                  {formatDateValue(booking.checkIn, 'dd MMM yyyy') || 'Check-in não definido'}
                 </p>
                 <p className="text-sm text-foreground">
-                  {booking.checkOut ? format(booking.checkOut, 'dd MMM yyyy', { locale: ptBR }) : 'Check-out não definido'}
+                  {formatDateValue(booking.checkOut, 'dd MMM yyyy') || 'Check-out não definido'}
                 </p>
                 <p className="text-sm text-foreground">{booking.guests} hóspede(s)</p>
               </div>
@@ -521,12 +560,12 @@ const BookingPage = () => {
                       <Label className="text-muted-foreground">Check-in</Label>
                       <Input
                         type="date"
-                        value={booking.checkIn ? format(booking.checkIn, 'yyyy-MM-dd') : ''}
+                        value={formatDateValue(booking.checkIn, 'yyyy-MM-dd')}
                         min={todayValue}
                         onChange={(e) =>
                           setBooking((prev) => ({
                             ...prev,
-                            checkIn: e.target.value ? new Date(`${e.target.value}T12:00:00`) : null,
+                            checkIn: parseDateInput(e.target.value),
                           }))
                         }
                         className={fieldClass('checkIn')}
@@ -537,13 +576,13 @@ const BookingPage = () => {
                       <Label className="text-muted-foreground">Check-out</Label>
                       <Input
                         type="date"
-                        value={booking.checkOut ? format(booking.checkOut, 'yyyy-MM-dd') : ''}
+                        value={formatDateValue(booking.checkOut, 'yyyy-MM-dd')}
                         min={checkOutMinValue}
                         max={checkOutMaxValue}
                         onChange={(e) =>
                           setBooking((prev) => ({
                             ...prev,
-                            checkOut: e.target.value ? new Date(`${e.target.value}T12:00:00`) : null,
+                            checkOut: parseDateInput(e.target.value),
                           }))
                         }
                         className={fieldClass('checkOut')}
@@ -726,76 +765,104 @@ const BookingPage = () => {
               {step === 2 && (
                 <div className="space-y-6">
                   <h2 className="font-display text-2xl font-bold text-foreground">
-                    Responsavel pela Reserva
+                    Responsavel pela Reserva e veiculo
                   </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <Label className="text-muted-foreground">Selecione o hospede responsavel *</Label>
+                      <span className="text-xs text-muted-foreground">Clique em um card para carregar os dados</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {booking.guestDetails.map((guest, i) => {
+                        const isSelected = booking.responsibleGuestIndex === i;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => selectResponsibleGuest(i)}
+                            className={`rounded-xl border p-4 text-left transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'border-border bg-card hover:border-primary/50 hover:bg-muted/60'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground">
+                                  {guest.name || `Hospede ${i + 1}`}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {guest.age} anos · CPF {guest.document || '--'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {guest.address.city || 'cidade nao informada'} / {guest.address.state || '--'}
+                                </p>
+                              </div>
+                              {isSelected ? (
+                                <Badge className="shrink-0 bg-primary text-primary-foreground">Selecionado</Badge>
+                              ) : (
+                                <span className="text-xs font-medium text-muted-foreground shrink-0">Selecionar</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {fieldError('responsible-guest')}
+                  </div>
+
+                  <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <h3 className="font-semibold text-foreground">Dados carregados do hospede escolhido</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Essas informacoes sao puxadas automaticamente do hospede selecionado.
+                        </p>
+                      </div>
+                      {selectedResponsibleGuest && (
+                        <Badge variant="secondary">Carregado</Badge>
+                      )}
+                    </div>
+
+                    {selectedResponsibleGuest ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-muted p-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Nome</p>
+                          <p className="text-sm font-medium text-foreground break-words">{selectedResponsibleGuest.name}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted p-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">CPF</p>
+                          <p className="text-sm font-medium text-foreground break-words">{selectedResponsibleGuest.document}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted p-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Idade</p>
+                          <p className="text-sm font-medium text-foreground break-words">{selectedResponsibleGuest.age} anos</p>
+                        </div>
+                        <div className="rounded-xl bg-muted p-3 md:col-span-2">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Endereco</p>
+                          <p className="text-sm font-medium text-foreground break-words">{selectedResponsibleAddress}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Selecione um hospede acima para carregar nome, CPF, idade e endereco.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <Label className="text-muted-foreground">Nome completo</Label>
+                      <Label className="text-muted-foreground">Placa do veiculo *</Label>
                       <Input
-                        value={booking.responsible.name}
-                        onChange={(e) =>
-                          setBooking((prev) => ({
-                            ...prev,
-                            responsible: { ...prev.responsible, name: e.target.value },
-                          }))
-                        }
-                        className={fieldClass('responsible-name')}
-                        placeholder="Nome e sobrenome"
+                        value={booking.vehiclePlate}
+                        onChange={(e) => updateVehiclePlate(e.target.value)}
+                        className={fieldClass('vehiclePlate')}
+                        placeholder="ABC1234 ou ABC1D23"
+                        inputMode="text"
+                        autoCapitalize="characters"
+                        autoComplete="off"
                       />
-                      {fieldError('responsible-name')}
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Email</Label>
-                      <Input
-                        type="email"
-                        value={booking.responsible.email}
-                        onChange={(e) =>
-                          setBooking((prev) => ({
-                            ...prev,
-                            responsible: { ...prev.responsible, email: e.target.value },
-                          }))
-                        }
-                        className={fieldClass('responsible-email')}
-                      />
-                      {fieldError('responsible-email')}
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Telefone</Label>
-                      <Input
-                        value={booking.responsible.phone}
-                        onChange={(e) =>
-                          setBooking((prev) => ({
-                            ...prev,
-                            responsible: {
-                              ...prev.responsible,
-                              phone: formatPhone(e.target.value),
-                            },
-                          }))
-                        }
-                        placeholder="(00) 00000-0000"
-                        className={fieldClass('responsible-phone')}
-                        inputMode="numeric"
-                      />
-                      {fieldError('responsible-phone')}
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">CPF</Label>
-                      <Input
-                        value={booking.responsible.cpf}
-                        onChange={(e) =>
-                          setBooking((prev) => ({
-                            ...prev,
-                            responsible: {
-                              ...prev.responsible,
-                              cpf: formatCpf(e.target.value),
-                            },
-                          }))
-                        }
-                        placeholder="000.000.000-00"
-                        className={fieldClass('responsible-cpf')}
-                        inputMode="numeric"
-                      />
-                      {fieldError('responsible-cpf')}
+                      {fieldError('vehiclePlate')}
                     </div>
                   </div>
                 </div>
@@ -821,13 +888,9 @@ const BookingPage = () => {
                         Datas
                       </h3>
                       <p className="text-foreground">
-                        {booking.checkIn
-                          ? format(booking.checkIn, 'dd MMM yyyy', { locale: ptBR })
-                          : '-'}{' '}
+                        {formatDateValue(booking.checkIn, 'dd MMM yyyy') || '-'}{' '}
                         -{' '}
-                        {booking.checkOut
-                          ? format(booking.checkOut, 'dd MMM yyyy', { locale: ptBR })
-                          : '-'}
+                        {formatDateValue(booking.checkOut, 'dd MMM yyyy') || '-'}
                       </p>
                       <p className="text-sm text-muted-foreground">{Math.max(nights, 1)} noite(s)</p>
                     </div>
@@ -851,13 +914,24 @@ const BookingPage = () => {
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                         Responsavel
                       </h3>
-                      <p className="text-foreground text-sm">{booking.responsible.name}</p>
-                      <p className="text-muted-foreground text-sm">
-                        {booking.responsible.email} - {booking.responsible.phone}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        CPF: {booking.responsible.cpf || 'não informado'}
-                      </p>
+                      {selectedResponsibleGuest ? (
+                        <div className="space-y-1 text-sm">
+                          <p className="text-foreground font-medium">
+                            {selectedResponsibleGuest.name}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {selectedResponsibleGuest.age} anos · CPF: {selectedResponsibleGuest.document}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {selectedResponsibleAddress}
+                          </p>
+                          <p className="text-muted-foreground">
+                            Placa do veiculo: {booking.vehiclePlate || '--'}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Hospede responsavel nao selecionado.</p>
+                      )}
                     </div>
 
                     <div className="rounded-xl p-5" style={{ background: 'var(--gradient-gold)' }}>

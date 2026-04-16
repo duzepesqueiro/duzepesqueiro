@@ -29,6 +29,10 @@ interface ReservationDetailDialogProps {
 
 const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: ReservationDetailDialogProps) => {
   const { bookingData, paymentData, totalPrice, createdAt, status } = reservation;
+  const responsibleGuest =
+    bookingData.responsibleGuestIndex !== null
+      ? bookingData.guestDetails[bookingData.responsibleGuestIndex] ?? bookingData.guestDetails[0]
+      : bookingData.guestDetails[0];
   const nights = bookingData.checkIn && bookingData.checkOut
     ? Math.max(1, Math.round((new Date(bookingData.checkOut).getTime() - new Date(bookingData.checkIn).getTime()) / 86400000))
     : 1;
@@ -72,10 +76,10 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
               <User className="h-4 w-4" /> Responsável
             </h4>
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label="Nome" value={bookingData.responsible.name} />
-              <InfoCard label="Email" value={bookingData.responsible.email} />
-              <InfoCard label="Telefone" value={bookingData.responsible.phone} />
-              <InfoCard label="CPF" value={bookingData.responsible.cpf} />
+              <InfoCard label="Nome" value={responsibleGuest?.name || '—'} />
+              <InfoCard label="CPF" value={responsibleGuest?.document || '—'} />
+              <InfoCard label="Idade" value={responsibleGuest ? `${responsibleGuest.age} anos` : '—'} />
+              <InfoCard label="Placa do veículo" value={bookingData.vehiclePlate || '—'} />
             </div>
           </div>
 

@@ -35,12 +35,8 @@ export interface BookingData {
   guests: number;
   pets: boolean;
   guestDetails: Guest[];
-  responsible: {
-    name: string;
-    email: string;
-    phone: string;
-    cpf: string;
-  };
+  responsibleGuestIndex: number | null;
+  vehiclePlate: string;
   observations: string;
 }
 
