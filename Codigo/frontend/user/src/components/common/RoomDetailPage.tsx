@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, PawPrint, Check, ChevronLeft, Flame } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import Header from '@/components/common/layout/Header';
+import Sidebar from '@/components/common/layout/Header';
 import { rooms } from '@/data/rooms';
 import { useBooking } from '@/contexts/BookingContext';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +53,7 @@ const RoomDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Sidebar />
 
       <main className="pt-20 pb-16 px-4">
         <div className="container mx-auto max-w-6xl">

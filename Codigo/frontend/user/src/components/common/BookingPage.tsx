@@ -661,7 +661,7 @@ const BookingPage = () => {
                         {booking.checkIn
                           ? format(booking.checkIn, 'dd MMM yyyy', { locale: ptBR })
                           : '-'}{' '}
-                        ->{' '}
+                        -{' '}
                         {booking.checkOut
                           ? format(booking.checkOut, 'dd MMM yyyy', { locale: ptBR })
                           : '-'}
