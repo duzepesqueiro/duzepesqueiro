@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import SearchBox from '@/components/common/booking/SearchBox';
 import Sidebar from '@/components/common/layout/Header';
 import { api } from '@/lib/api';
+import homeBackdropImg from '@/assets/booking-reservation-bg.png';
 import heroImg from '@/assets/hero-home.jpg';
 import roomSuite from '@/assets/room-suite.jpg';
 import styles from './home.module.css';
@@ -92,6 +93,15 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className={styles.homeBackdrop} aria-hidden="true">
+        <img
+          src={homeBackdropImg}
+          alt=""
+          aria-hidden="true"
+          className={styles.homeBackdropImage}
+        />
+        <div className={styles.homeBackdropOverlay} />
+      </div>
       <div className={styles.pageBackdrop} aria-hidden="true" />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 

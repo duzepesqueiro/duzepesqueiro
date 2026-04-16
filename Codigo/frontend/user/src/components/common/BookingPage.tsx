@@ -6,6 +6,7 @@ import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
 import { rooms } from '@/data/rooms';
+import bookingReservationBg from '@/assets/booking-reservation-bg.png';
 import { useBooking } from '@/contexts/BookingContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -136,6 +137,7 @@ const BookingPage = () => {
   const selectedResponsibleAddress = selectedResponsibleGuest
     ? `${selectedResponsibleGuest.address.street}, ${selectedResponsibleGuest.address.number} - ${selectedResponsibleGuest.address.city}/${selectedResponsibleGuest.address.state} · CEP ${selectedResponsibleGuest.address.zip}`
     : '';
+  const showReservationBackground = true;
 
   useEffect(() => {
     if (!room) return;
@@ -471,7 +473,20 @@ const BookingPage = () => {
 
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      {showReservationBackground && (
+        <div className="pointer-events-none absolute inset-0">
+          <img
+            src={bookingReservationBg}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover scale-105"
+            style={{ filter: 'grayscale(42%) brightness(0.82) contrast(0.95)' }}
+          />
+          <div className="absolute inset-0 bg-stone-300/30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/15 to-black/30" />
+        </div>
+      )}
       <Header open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
@@ -504,7 +519,7 @@ const BookingPage = () => {
             ))}
           </div>
 
-          <div className="mb-8 rounded-2xl border border-border/70 bg-card p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+          <div className="mb-8 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <h2 className="font-display text-2xl font-bold text-foreground">{room.name}</h2>
@@ -546,7 +561,7 @@ const BookingPage = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
-              className="bg-card rounded-2xl p-6 md:p-8"
+              className="bg-card/85 backdrop-blur-md rounded-2xl p-6 md:p-8"
               style={{ boxShadow: 'var(--shadow-elevated)' }}
             >
               {/* STEP 0: Booking details */}
