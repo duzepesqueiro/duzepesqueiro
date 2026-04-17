@@ -6,7 +6,6 @@ import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
 import { rooms } from '@/data/rooms';
-import bookingReservationBg from '@/assets/booking-reservation-bg.png';
 import { useBooking } from '@/contexts/BookingContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -137,7 +136,6 @@ const BookingPage = () => {
   const selectedResponsibleAddress = selectedResponsibleGuest
     ? `${selectedResponsibleGuest.address.street}, ${selectedResponsibleGuest.address.number} - ${selectedResponsibleGuest.address.city}/${selectedResponsibleGuest.address.state} · CEP ${selectedResponsibleGuest.address.zip}`
     : '';
-  const showReservationBackground = true;
 
   useEffect(() => {
     if (!room) return;
@@ -471,22 +469,15 @@ const BookingPage = () => {
   const fieldClass = (key: string) =>
     fieldErrors[key] ? 'border-destructive focus-visible:ring-destructive' : '';
 
+  const formControlClass = (key: string) =>
+    `h-12 border-slate-300 bg-white text-base md:text-lg ${fieldClass(key)}`.trim();
+
+  const formTextareaClass = (key: string) =>
+    `min-h-28 border-slate-300 bg-white text-base md:text-lg ${fieldClass(key)}`.trim();
+
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      {showReservationBackground && (
-        <div className="pointer-events-none absolute inset-0">
-          <img
-            src={bookingReservationBg}
-            alt=""
-            aria-hidden="true"
-            className="h-full w-full object-cover scale-105"
-            style={{ filter: 'grayscale(42%) brightness(0.82) contrast(0.95)' }}
-          />
-          <div className="absolute inset-0 bg-stone-300/30" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/15 to-black/30" />
-        </div>
-      )}
+    <div className="relative min-h-screen bg-[#F2F2F2]">
       <Header open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
@@ -519,39 +510,41 @@ const BookingPage = () => {
             ))}
           </div>
 
-          <div className="mb-8 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">{room.name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{room.description}</p>
+          {step === 3 && (
+            <div className="mb-8 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-foreground">{room.name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{room.description}</p>
+                </div>
+
+                <div className="rounded-xl bg-muted px-4 py-3 md:text-right">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumo</p>
+                  <p className="text-sm text-foreground mt-1">
+                    {formatDateValue(booking.checkIn, 'dd MMM yyyy') || 'Check-in não definido'}
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {formatDateValue(booking.checkOut, 'dd MMM yyyy') || 'Check-out não definido'}
+                  </p>
+                  <p className="text-sm text-foreground">{booking.guests} hóspede(s)</p>
+                </div>
               </div>
 
-              <div className="rounded-xl bg-muted px-4 py-3 md:text-right">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumo</p>
-                <p className="text-sm text-foreground mt-1">
-                  {formatDateValue(booking.checkIn, 'dd MMM yyyy') || 'Check-in não definido'}
-                </p>
-                <p className="text-sm text-foreground">
-                  {formatDateValue(booking.checkOut, 'dd MMM yyyy') || 'Check-out não definido'}
-                </p>
-                <p className="text-sm text-foreground">{booking.guests} hóspede(s)</p>
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Restrições</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {room.rules.map((rule) => (
+                    <Badge key={rule} variant="secondary">
+                      {rule}
+                    </Badge>
+                  ))}
+                  <Badge variant="secondary">Check-in a partir de hoje</Badge>
+                  <Badge variant="secondary">Estadia máxima de 15 dias</Badge>
+                  {booking.pets ? <Badge className="bg-primary text-primary-foreground">Com pet</Badge> : null}
+                </div>
               </div>
             </div>
-
-            <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Restrições</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {room.rules.map((rule) => (
-                  <Badge key={rule} variant="secondary">
-                    {rule}
-                  </Badge>
-                ))}
-                <Badge variant="secondary">Check-in a partir de hoje</Badge>
-                <Badge variant="secondary">Estadia máxima de 15 dias</Badge>
-                {booking.pets ? <Badge className="bg-primary text-primary-foreground">Com pet</Badge> : null}
-              </div>
-            </div>
-          </div>
+          )}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -561,18 +554,18 @@ const BookingPage = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
-              className="bg-card/85 backdrop-blur-md rounded-2xl p-6 md:p-8"
-              style={{ boxShadow: 'var(--shadow-elevated)' }}
+              className="rounded-2xl border border-slate-200 bg-white p-7 md:p-9"
+              style={{ boxShadow: '0 18px 45px rgba(2, 64, 89, 0.12)' }}
             >
               {/* STEP 0: Booking details */}
               {step === 0 && (
                 <div className="space-y-6">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Dados da Reserva
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-muted-foreground">Check-in</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Check-in</Label>
                       <Input
                         type="date"
                         value={formatDateValue(booking.checkIn, 'yyyy-MM-dd')}
@@ -583,12 +576,12 @@ const BookingPage = () => {
                             checkIn: parseDateInput(e.target.value),
                           }))
                         }
-                        className={fieldClass('checkIn')}
+                        className={formControlClass('checkIn')}
                       />
                       {fieldError('checkIn')}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Check-out</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Check-out</Label>
                       <Input
                         type="date"
                         value={formatDateValue(booking.checkOut, 'yyyy-MM-dd')}
@@ -600,16 +593,16 @@ const BookingPage = () => {
                             checkOut: parseDateInput(e.target.value),
                           }))
                         }
-                        className={fieldClass('checkOut')}
+                        className={formControlClass('checkOut')}
                       />
                       {fieldError('checkOut')}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Check-in não pode ser antes de hoje e a estadia tem limite de 15 dias.
                   </p>
                   <div>
-                    <Label className="text-muted-foreground">Numero de hospedes</Label>
+                    <Label className="text-base text-muted-foreground md:text-lg">Numero de hospedes</Label>
                     <Input
                       type="number"
                       min={1}
@@ -621,7 +614,7 @@ const BookingPage = () => {
                           guests: Number(e.target.value),
                         }))
                       }
-                      className={fieldClass('guests')}
+                      className={formControlClass('guests')}
                     />
                     {fieldError('guests')}
                   </div>
@@ -632,16 +625,17 @@ const BookingPage = () => {
                         setBooking((prev) => ({ ...prev, pets: value }))
                       }
                     />
-                    <Label className="text-foreground">Levarei animais</Label>
+                    <Label className="text-base text-foreground md:text-lg">Levarei animais</Label>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Observacoes</Label>
+                    <Label className="text-base text-muted-foreground md:text-lg">Observacoes</Label>
                     <Textarea
                       value={booking.observations}
                       onChange={(e) =>
                         setBooking((prev) => ({ ...prev, observations: e.target.value }))
                       }
                       placeholder="Alguma solicitacao especial?"
+                      className={formTextareaClass('observations')}
                     />
                   </div>
                 </div>
@@ -650,7 +644,7 @@ const BookingPage = () => {
               {/* STEP 1: Guest details */}
               {step === 1 && (
                 <div className="space-y-6">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Dados dos Hospedes
                   </h2>
                   {fieldError('guest-count')}
@@ -659,7 +653,7 @@ const BookingPage = () => {
                       key={i}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="border border-border rounded-xl p-5 space-y-4"
+                      className="space-y-4 rounded-xl border border-slate-200 bg-white p-5"
                     >
                       <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-foreground">Hospede {i + 1}</h3>
@@ -674,32 +668,32 @@ const BookingPage = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="md:col-span-2">
-                          <Label className="text-muted-foreground">Nome completo</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Nome completo</Label>
                           <Input
                             value={guest.name}
                             onChange={(e) => updateGuest(i, 'name', e.target.value)}
-                            className={fieldClass(`${i}-name`)}
+                            className={formControlClass(`${i}-name`)}
                             placeholder="Nome e sobrenome"
                           />
                           {fieldError(`${i}-name`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">Idade</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Idade</Label>
                           <Input
                             type="number"
                             min={0}
                             value={guest.age || ''}
                             onChange={(e) => updateGuest(i, 'age', Number(e.target.value))}
-                            className={fieldClass(`${i}-age`)}
+                            className={formControlClass(`${i}-age`)}
                           />
                           {fieldError(`${i}-age`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">CPF</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">CPF</Label>
                           <Input
                             value={guest.document || ''}
                             onChange={(e) => updateGuest(i, 'document', formatCpf(e.target.value))}
-                            className={fieldClass(`${i}-document`)}
+                            className={formControlClass(`${i}-document`)}
                             placeholder="000.000.000-00"
                             inputMode="numeric"
                           />
@@ -708,37 +702,37 @@ const BookingPage = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="md:col-span-2">
-                          <Label className="text-muted-foreground">Rua</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Rua</Label>
                           <Input
                             value={guest.address.street}
                             onChange={(e) => updateGuest(i, 'address.street', e.target.value)}
-                            className={fieldClass(`${i}-address.street`)}
+                            className={formControlClass(`${i}-address.street`)}
                             placeholder="Rua e complemento"
                           />
                           {fieldError(`${i}-address.street`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">Numero</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Numero</Label>
                           <Input
                             value={guest.address.number}
                             onChange={(e) => updateGuest(i, 'address.number', e.target.value)}
-                            className={fieldClass(`${i}-address.number`)}
+                            className={formControlClass(`${i}-address.number`)}
                           />
                           {fieldError(`${i}-address.number`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">Cidade</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Cidade</Label>
                           <Input
                             value={guest.address.city}
                             onChange={(e) => updateGuest(i, 'address.city', e.target.value)}
-                            className={fieldClass(`${i}-address.city`)}
+                            className={formControlClass(`${i}-address.city`)}
                           />
                           {fieldError(`${i}-address.city`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">Estado</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Estado</Label>
                           <Select value={guest.address.state} onValueChange={(value) => updateGuest(i, 'address.state', value)}>
-                            <SelectTrigger className={fieldClass(`${i}-address.state`)}>
+                            <SelectTrigger className={formControlClass(`${i}-address.state`)}>
                               <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
                             <SelectContent>
@@ -752,13 +746,13 @@ const BookingPage = () => {
                           {fieldError(`${i}-address.state`)}
                         </div>
                         <div>
-                          <Label className="text-muted-foreground">CEP</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">CEP</Label>
                           <Input
                             value={guest.address.zip}
                             onChange={(e) =>
                               updateGuest(i, 'address.zip', formatCep(e.target.value))
                             }
-                            className={fieldClass(`${i}-address.zip`)}
+                            className={formControlClass(`${i}-address.zip`)}
                             placeholder="00000-000"
                             inputMode="numeric"
                           />
@@ -779,13 +773,13 @@ const BookingPage = () => {
               {/* STEP 2: Responsible */}
               {step === 2 && (
                 <div className="space-y-6">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Responsavel pela Reserva e veiculo
                   </h2>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <Label className="text-muted-foreground">Selecione o hospede responsavel *</Label>
-                      <span className="text-xs text-muted-foreground">Clique em um card para carregar os dados</span>
+                      <Label className="text-base text-muted-foreground md:text-lg">Selecione o hospede responsavel *</Label>
+                      <span className="text-sm text-muted-foreground">Clique em um card para carregar os dados</span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {booking.guestDetails.map((guest, i) => {
@@ -797,8 +791,8 @@ const BookingPage = () => {
                             onClick={() => selectResponsibleGuest(i)}
                             className={`rounded-xl border p-4 text-left transition-all ${
                               isSelected
-                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                : 'border-border bg-card hover:border-primary/50 hover:bg-muted/60'
+                                ? 'border-[#024059] bg-[#024059]/6 ring-1 ring-[#024059]/30'
+                                : 'border-slate-300 bg-white hover:border-[#024059]/60 hover:bg-[#024059]/4'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -814,7 +808,7 @@ const BookingPage = () => {
                                 </p>
                               </div>
                               {isSelected ? (
-                                <Badge className="shrink-0 bg-primary text-primary-foreground">Selecionado</Badge>
+                                <Badge className="shrink-0 bg-[#024059] text-white">Selecionado</Badge>
                               ) : (
                                 <span className="text-xs font-medium text-muted-foreground shrink-0">Selecionar</span>
                               )}
@@ -826,7 +820,7 @@ const BookingPage = () => {
                     {fieldError('responsible-guest')}
                   </div>
 
-                  <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-4">
+                  <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div>
                         <h3 className="font-semibold text-foreground">Dados carregados do hospede escolhido</h3>
@@ -867,11 +861,11 @@ const BookingPage = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <Label className="text-muted-foreground">Placa do veiculo *</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Placa do veiculo *</Label>
                       <Input
                         value={booking.vehiclePlate}
                         onChange={(e) => updateVehiclePlate(e.target.value)}
-                        className={fieldClass('vehiclePlate')}
+                        className={formControlClass('vehiclePlate')}
                         placeholder="ABC1234 ou ABC1D23"
                         inputMode="text"
                         autoCapitalize="characters"
@@ -886,52 +880,57 @@ const BookingPage = () => {
               {/* STEP 3: Review */}
               {step === 3 && (
                 <div className="space-y-6">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Revisao da Reserva
                   </h2>
 
-                  <div className="space-y-4">
-                    <div className="bg-muted rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        Quarto
-                      </h3>
-                      <p className="text-foreground font-medium">{room.name}</p>
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Quarto
+                        </h3>
+                        <p className="text-lg font-semibold text-foreground">{room.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{room.type}</p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Datas
+                        </h3>
+                        <p className="text-base font-medium text-foreground">
+                          {formatDateValue(booking.checkIn, 'dd MMM yyyy') || '-'}{' '}
+                          -{' '}
+                          {formatDateValue(booking.checkOut, 'dd MMM yyyy') || '-'}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{Math.max(nights, 1)} noite(s)</p>
+                      </div>
                     </div>
 
-                    <div className="bg-muted rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        Datas
-                      </h3>
-                      <p className="text-foreground">
-                        {formatDateValue(booking.checkIn, 'dd MMM yyyy') || '-'}{' '}
-                        -{' '}
-                        {formatDateValue(booking.checkOut, 'dd MMM yyyy') || '-'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{Math.max(nights, 1)} noite(s)</p>
-                    </div>
-
-                    <div className="bg-muted rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                         Hospedes ({booking.guestDetails.length})
                       </h3>
-                      {booking.guestDetails.map((g, i) => (
-                        <div key={i} className="text-foreground text-sm mb-2 last:mb-0">
-                          <p className="font-medium">{g.name || `Hospede ${i + 1}`}</p>
-                          <p className="text-muted-foreground">
-                            {g.age} anos · CPF: {g.document} · {g.address.city || 'cidade não informada'} / {g.address.state || '--'}
-                          </p>
-                        </div>
-                      ))}
-                      {booking.pets && <p className="text-sm text-accent font-medium mt-1">Com pet</p>}
+                      <div className="space-y-2">
+                        {booking.guestDetails.map((g, i) => (
+                          <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
+                            <p className="text-sm font-semibold text-foreground">{g.name || `Hospede ${i + 1}`}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {g.age} anos · CPF: {g.document} · {g.address.city || 'cidade nao informada'} / {g.address.state || '--'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {booking.pets && <p className="mt-3 text-sm font-medium text-[#024059]">Com pet</p>}
                     </div>
 
-                    <div className="bg-muted rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                         Responsavel
                       </h3>
                       {selectedResponsibleGuest ? (
                         <div className="space-y-1 text-sm">
-                          <p className="text-foreground font-medium">
+                          <p className="text-base font-semibold text-foreground">
                             {selectedResponsibleGuest.name}
                           </p>
                           <p className="text-muted-foreground">
@@ -940,7 +939,7 @@ const BookingPage = () => {
                           <p className="text-muted-foreground">
                             {selectedResponsibleAddress}
                           </p>
-                          <p className="text-muted-foreground">
+                          <p className="font-medium text-foreground">
                             Placa do veiculo: {booking.vehiclePlate || '--'}
                           </p>
                         </div>
@@ -949,14 +948,14 @@ const BookingPage = () => {
                       )}
                     </div>
 
-                    <div className="rounded-xl p-5" style={{ background: 'var(--gradient-gold)' }}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-primary-foreground font-semibold text-lg">Total</span>
-                        <span className="text-primary-foreground font-bold text-2xl">R$ {totalPrice}</span>
+                    <div className="rounded-xl border border-[#024059]/20 bg-[#024059] p-6">
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#F2F2F2]/80">Total da reserva</p>
+                          <p className="mt-1 text-xs text-[#F2F2F2]/75">{Math.max(nights, 1)} noite(s) x R$ {room.pricePerNight}</p>
+                        </div>
+                        <span className="text-4xl font-extrabold leading-none text-[#F2BF27] md:text-5xl">R$ {totalPrice}</span>
                       </div>
-                      <p className="text-primary-foreground/80 text-sm mt-1">
-                        {Math.max(nights, 1)} noite(s) x R$ {room.pricePerNight}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -967,7 +966,7 @@ const BookingPage = () => {
                 <button
                   type="button"
                   onClick={back}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-base text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <ChevronLeft className="h-4 w-4" /> Voltar
                 </button>
@@ -975,7 +974,7 @@ const BookingPage = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={next}
-                  className="btn-gold flex items-center gap-1 text-sm"
+                  className="btn-gold flex items-center gap-1 text-base"
                 >
                   {step === 3 ? 'Realizar reserva' : 'Proximo'} <ChevronRight className="h-4 w-4" />
                 </motion.button>

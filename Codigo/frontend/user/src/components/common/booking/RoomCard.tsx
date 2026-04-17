@@ -68,7 +68,10 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.5 }}
       whileHover={{ y: -4 }}
-      className={cn('card-room group', unavailable ? 'opacity-60 cursor-default' : 'cursor-pointer')}
+      className={cn(
+        'group overflow-hidden rounded-2xl border-2 border-[#F2BF27]/55 bg-[#F2F2F2] transition-all duration-300',
+        unavailable ? 'cursor-default opacity-60' : 'cursor-pointer hover:border-[#F2AB27]'
+      )}
       onClick={handleSelect}
     >
       <div className="relative overflow-hidden aspect-[4/3]">
@@ -92,26 +95,26 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.01 }}
               transition={{ duration: 0.35 }}
-              className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted via-background to-muted/70"
+              className="flex h-full w-full items-center justify-center bg-[#F2F2F2]"
             >
               <div className="text-center space-y-2">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-[#024059]/35 text-[#024059]/80">
                   <span className="text-xl">+</span>
                 </div>
-                <p className="text-xs text-muted-foreground">Imagem reservada</p>
+                <p className="text-xs text-[#024059]/70">Imagem reservada</p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[#024059]/25" />
 
         {hasCarousel && (
           <>
             <button
               type="button"
               onClick={goToPreviousImage}
-              className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/45 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-black/65"
+              className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-sm font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
               aria-label="Imagem anterior"
             >
               &lt;
@@ -119,19 +122,19 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
             <button
               type="button"
               onClick={goToNextImage}
-              className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/45 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-black/65"
+              className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-sm font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
               aria-label="Próxima imagem"
             >
               &gt;
             </button>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-[#F2F2F2]/35 bg-[#024059]/75 px-3 py-1 text-[11px] font-medium text-[#F2F2F2]">
               {activeImageIndex + 1}/{carouselImages.length}
             </div>
           </>
         )}
 
         {room.petFriendly && (
-          <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground gap-1">
+          <Badge className="absolute left-3 top-3 gap-1 bg-[#F2AB27] text-[#024059]">
             <PawPrint className="h-3 w-3" /> Pet friendly
           </Badge>
         )}
@@ -139,33 +142,38 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
 
       <div className="p-5">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-display text-lg font-semibold text-foreground">{room.name}</h3>
-          <div className="flex items-center gap-1 text-muted-foreground">
+          <h3 className="font-display text-lg font-semibold text-[#024059]">{room.name}</h3>
+          <div className="flex items-center gap-1 text-[#284003]/80">
             <Users className="h-4 w-4" />
             <span className="text-sm">até {room.capacity}</span>
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{room.description}</p>
+        <p className="mb-4 line-clamp-2 text-sm text-[#024059]/78">{room.description}</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {room.amenities.slice(0, 4).map((a) => (
             <span
               key={a}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md"
+              className="inline-flex items-center gap-1 rounded-md bg-[#F2BF27]/20 px-2 py-1 text-xs text-[#284003]"
             >
               {amenityIcons[a] || null} {a}
             </span>
           ))}
         </div>
 
-        <div className="flex items-end justify-between pt-3 border-t border-border">
+        <div className="flex items-end justify-between border-t border-[#F2BF27]/45 pt-3">
           <div>
-            <span className="text-2xl font-bold text-foreground">R$ {room.pricePerNight}</span>
-            <span className="text-sm text-muted-foreground"> /noite</span>
+            <span className="text-2xl font-bold text-[#024059]">R$ {room.pricePerNight}</span>
+            <span className="text-sm text-[#284003]/75"> /noite</span>
           </div>
           <button
-            className="btn-gold text-sm px-4 py-2"
+            className={cn(
+              'rounded-lg border px-4 py-2 text-sm font-semibold transition-colors',
+              unavailable
+                ? 'cursor-not-allowed border-[#284003]/20 bg-[#F2F2F2] text-[#284003]/55'
+                : 'border-[#F2AB27] bg-[#F2AB27] text-[#024059] hover:bg-[#F2BF27]'
+            )}
             disabled={unavailable}
             onClick={(event) => {
               event.stopPropagation();

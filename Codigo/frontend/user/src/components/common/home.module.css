@@ -18,18 +18,7 @@
 .homeBackdropOverlay {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(4, 12, 25, 0.18) 0%, rgba(4, 12, 25, 0.26) 35%, rgba(248, 244, 237, 0.15) 100%),
-    rgba(140, 140, 140, 0.12);
-}
-
-.heroOverlay {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(242, 193, 78, 0.18), transparent 22%),
-    radial-gradient(circle at 80% 25%, rgba(8, 30, 51, 0.28), transparent 28%),
-    linear-gradient(180deg, rgba(4, 12, 25, 0.78) 0%, rgba(4, 12, 25, 0.54) 48%, rgba(4, 12, 25, 0.18) 100%);
+  background: rgba(140, 140, 140, 0.12);
 }
 
 .pageBackdrop {
@@ -37,19 +26,14 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 15% 12%, rgba(242, 193, 78, 0.16), transparent 0 22%),
-    radial-gradient(circle at 84% 16%, rgba(16, 48, 77, 0.14), transparent 0 24%),
-    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.08), transparent 0 28%),
-    linear-gradient(180deg, rgba(7, 17, 29, 0.76) 0%, rgba(12, 23, 34, 0.58) 24%, rgba(247, 242, 232, 0.2) 24%, rgba(244, 239, 229, 0.28) 100%);
+  background: #e9f2f1;
 }
 
 .searchCard {
-  background: linear-gradient(135deg, rgba(7, 17, 29, 0.88) 0%, rgba(11, 30, 49, 0.84) 62%, rgba(16, 48, 77, 0.76) 100%);
-  box-shadow: 0 28px 70px -18px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
+  background: #0d5673;
+  box-shadow: none;
   border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(242, 240, 206, 0.6);
 }
 
 .scrollHint {
@@ -69,8 +53,8 @@
   padding: 10px 12px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  background: rgba(233, 242, 241, 0.78);
+  box-shadow: none;
 }
 
 .logo {

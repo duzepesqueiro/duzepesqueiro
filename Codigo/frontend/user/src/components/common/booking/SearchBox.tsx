@@ -133,14 +133,14 @@ const SearchBox = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.6 }}
       className={cn(
-        'glass rounded-3xl p-6 md:p-8 w-full max-w-5xl mx-auto shadow-xl backdrop-blur-xl',
+        'rounded-3xl p-6 md:p-8 w-full max-w-5xl mx-auto shadow-none',
         className
       )}
     >
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-4">
         {/* Date Range */}
-        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+          <label className="text-xs font-semibold text-[#E9F2F1] uppercase tracking-wider block">
             Check-in / Check-out
           </label>
           <Popover>
@@ -148,24 +148,24 @@ const SearchBox = ({
               <Button
                 variant="outline"
                 className={cn(
-                  'w-full justify-center text-center font-normal h-12 text-white border-white/20 bg-white/10 hover:bg-white/15 hover:text-white',
-                  !dateRange?.from && 'text-white/70'
+                  'w-full justify-center text-center font-normal h-12 text-[#E9F2F1] border-0 bg-[#E9F2F1]/10 hover:bg-[#E9F2F1]/16 hover:text-[#E9F2F1]',
+                  !dateRange?.from && 'text-[#E9F2F1]/75'
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4 text-white" />
+                <CalendarIcon className="mr-2 h-4 w-4 text-[#E9F2F1]" />
                 {dateRange?.from ? (
                   dateRange.to ? (
-                    <span className="text-sm text-white">
+                    <span className="text-sm text-[#E9F2F1]">
                       {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {' '}
                       {format(dateRange.to, 'dd/MM', { locale: ptBR })}
                     </span>
                   ) : (
-                    <span className="text-sm text-white">
+                    <span className="text-sm text-[#E9F2F1]">
                       {format(dateRange.from, 'dd MMM', { locale: ptBR })}
                     </span>
                   )
                 ) : (
-                  <span className="text-sm text-white/70">Selecione as datas</span>
+                  <span className="text-sm text-[#E9F2F1]/75">Selecione as datas</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -188,24 +188,24 @@ const SearchBox = ({
         </div>
 
         {/* Guests */}
-        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+          <label className="text-xs font-semibold text-[#E9F2F1] uppercase tracking-wider block">
             Hospedes
           </label>
-          <div className="flex items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3">
-            <Users className="h-4 w-4 text-white/80" />
+          <div className="flex items-center justify-center gap-3 rounded-xl bg-[#E9F2F1]/10 px-4 py-3">
+            <Users className="h-4 w-4 text-[#E9F2F1]/85" />
             <button
               onClick={decrementGuests}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white font-bold text-lg hover:bg-white/20 hover:text-white transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-[#E9F2F1]/12 text-[#E9F2F1] font-bold text-lg hover:bg-[#F2F0CE] hover:text-[#0D5673] transition-colors"
             >
               -
             </button>
-            <span className="min-w-[20px] text-center font-semibold text-white">
+            <span className="min-w-[20px] text-center font-semibold text-[#E9F2F1]">
               {booking.guests}
             </span>
             <button
               onClick={incrementGuests}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white font-bold text-lg hover:bg-white/20 hover:text-white transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-[#E9F2F1]/12 text-[#E9F2F1] font-bold text-lg hover:bg-[#F2F0CE] hover:text-[#0D5673] transition-colors"
             >
               +
             </button>
@@ -213,36 +213,39 @@ const SearchBox = ({
         </div>
 
         {/* Pets */}
-        <div className="flex h-full flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
-          <label className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+          <label className="text-xs font-semibold text-[#E9F2F1] uppercase tracking-wider block">
             Levara animais?
           </label>
-          <div className="flex items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3">
-            <PawPrint className="h-4 w-4 text-white/80" />
+          <div className="flex items-center justify-center gap-3 rounded-xl bg-[#E9F2F1]/10 px-4 py-3">
+            <PawPrint className="h-4 w-4 text-[#E9F2F1]/85" />
             <Switch
               checked={booking.pets}
               onCheckedChange={(checked) =>
                 setBooking((prev) => ({ ...prev, pets: checked }))
               }
             />
-            <span className="text-sm text-white">
+            <span className="text-sm text-[#E9F2F1]">
               {booking.pets ? 'Sim' : 'Nao'}
             </span>
           </div>
         </div>
 
         {/* CTA */}
-        <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-center">
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+          <span className="text-xs font-semibold uppercase tracking-wider opacity-0 select-none">
+            Acao
+          </span>
           <button
             onClick={handleSearch}
             disabled={isLoadingBlocked}
-            className="btn-gold w-full max-w-xs h-12 flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            className="btn-gold w-full max-w-xs h-12 border-0 shadow-none flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Search className="h-4 w-4" />
             {isLoadingBlocked ? 'Validando datas...' : 'Ver disponibilidade'}
           </button>
           {searchError && (
-            <p className="mt-2 text-xs text-red-200">{searchError}</p>
+            <p className="mt-2 text-xs text-[#F2F0CE]">{searchError}</p>
           )}
         </div>
       </div>

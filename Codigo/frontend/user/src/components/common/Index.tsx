@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowUpRight,
   Building2,
-  ChevronDown,
   ChevronUp,
   Clock,
   Mail,
@@ -17,9 +16,8 @@ import { motion } from 'framer-motion';
 import SearchBox from '@/components/common/booking/SearchBox';
 import Sidebar from '@/components/common/layout/Header';
 import { api } from '@/lib/api';
-import homeBackdropImg from '@/assets/booking-reservation-bg.png';
-import heroImg from '@/assets/hero-home.jpg';
-import roomSuite from '@/assets/room-suite.jpg';
+import heroImg from '@/assets/duzepesqueiro3.jpeg';
+import roomSuite from '@/assets/duzepesqueiro4.jpeg';
 import styles from './home.module.css';
 
 type BlockedApiItem = {
@@ -83,25 +81,12 @@ const Index = () => {
     []
   );
 
-  const scrollToHighlights = () => {
-    document.getElementById('destaques')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className={styles.homeBackdrop} aria-hidden="true">
-        <img
-          src={homeBackdropImg}
-          alt=""
-          aria-hidden="true"
-          className={styles.homeBackdropImage}
-        />
-        <div className={styles.homeBackdropOverlay} />
-      </div>
+    <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: '#E9F2F1' }}>
       <div className={styles.pageBackdrop} aria-hidden="true" />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
@@ -113,13 +98,12 @@ const Index = () => {
             alt="DuZé Pesqueiro"
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className={styles.heroOverlay} />
           <div className="relative z-10 text-center px-4 w-full max-w-6xl mx-auto space-y-6">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-tight drop-shadow-lg"
+              className="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-tight"
             >
               Sua estadia dos sonhos
             </motion.h1>
@@ -155,35 +139,34 @@ const Index = () => {
               </Link>
             </div>
 
-            <div className={styles.scrollHint}>
-              <button
-                type="button"
-                onClick={scrollToHighlights}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/95 shadow-lg backdrop-blur-md transition hover:bg-white/15 hover:text-white"
-              >
-                <ChevronDown className="h-5 w-5 animate-bounce" />
-                Role para ver mais
-              </button>
-            </div>
           </div>
         </section>
 
-        <section id="destaques" className="relative overflow-hidden py-20 px-4">
+        <section id="destaques" className="relative overflow-hidden py-24 px-4">
           <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(242,193,78,0.08),transparent_28%),linear-gradient(180deg,#f8f4ed_0%,#f2ebdf_100%)]"
+            className="pointer-events-none absolute inset-0 bg-[#F2F0CE]/70"
             aria-hidden="true"
           />
-          <div className="relative container mx-auto max-w-5xl space-y-12">
-            <motion.h2
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+          <div className="relative container mx-auto max-w-6xl space-y-12">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="font-display text-3xl md:text-4xl font-bold text-center text-foreground"
+              className="mx-auto max-w-3xl space-y-4 text-center"
             >
-              Por que escolher o DuZé Pesqueiro?
-            </motion.h2>
+              <span className="inline-flex items-center rounded-full border border-[#0D5673]/25 bg-[#E9F2F1] px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#0D5673]">
+                Destaques da hospedagem
+              </span>
+              <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-[#0D5673]">
+                Por que escolher o DuZé Pesqueiro?
+              </h2>
+              <p className="text-sm md:text-base leading-relaxed text-[#0D5673]/85">
+                Experiência planejada para facilitar sua reserva, com clareza nas etapas e conforto em cada detalhe da estadia.
+              </p>
+              <div className="mx-auto h-1 w-24 rounded-full bg-[#F2AB27]" aria-hidden="true" />
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-7">
               {featureItems.map((f, i) => (
                 <motion.div
                   key={f.title}
@@ -191,26 +174,49 @@ const Index = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.12 }}
-                  className="nature-card text-center p-6"
+                  className="group relative overflow-hidden rounded-2xl border-2 border-[#0D5673]/20 bg-[#E9F2F1] p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:border-[#0D5673]/45"
                 >
-                  <h3 className="font-display text-xl font-semibold text-foreground mb-3">
+                  <div className="mb-5 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#0D5673]/25 bg-[#F2F0CE] text-sm font-bold text-[#0D5673]">
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                  <h3 className="mb-3 font-display text-xl font-semibold text-[#0D5673]">
                     {f.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
+                  <p className="text-sm leading-relaxed text-[#0D5673]/82">
                     {f.desc}
                   </p>
+                  <div className="mt-5 h-[2px] w-14 bg-[#F2AB27]" aria-hidden="true" />
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="relative overflow-hidden py-16 px-4 bg-card/60 backdrop-blur-sm">
+        <section className="relative overflow-hidden py-24 px-4 bg-card/60">
           <div
-            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.46)_0%,rgba(246,239,228,0.9)_100%)]"
+            className="pointer-events-none absolute inset-0 bg-[#E9F2F1]/80"
             aria-hidden="true"
           />
-          <div className="relative container mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="relative container mx-auto max-w-6xl space-y-12">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mx-auto max-w-3xl space-y-4 text-center"
+            >
+              <span className="inline-flex items-center rounded-full border border-[#0D5673]/25 bg-[#F2F0CE] px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#0D5673]">
+                Beneficios da estadia
+              </span>
+              <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-[#0D5673]">
+                O que voce encontra ao reservar
+              </h2>
+              <p className="text-sm md:text-base leading-relaxed text-[#0D5673]/85">
+                Recursos desenhados para facilitar sua decisao e deixar toda a jornada de hospedagem mais previsivel.
+              </p>
+              <div className="mx-auto h-1 w-24 rounded-full bg-[#F2AB27]" aria-hidden="true" />
+            </motion.div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-7">
             {[
               {
                 icon: <Trees className="h-5 w-5 text-primary" />,
@@ -234,34 +240,50 @@ const Index = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="rounded-2xl p-6 bg-card shadow-sm border border-border/60"
+                className="group relative overflow-hidden rounded-2xl border-2 border-[#0D5673]/20 bg-[#F2F0CE] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-[#0D5673]/45"
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-full bg-primary/10 text-primary">{card.icon}</div>
-                  <h3 className="font-display text-lg font-semibold text-foreground">{card.title}</h3>
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#0D5673]/25 bg-[#E9F2F1] text-[#0D5673]">
+                    {card.icon}
+                  </div>
+                  <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-[#0D5673]/25 bg-[#E9F2F1] px-2 text-xs font-bold text-[#0D5673]">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
                 </div>
-                <p className="text-muted-foreground leading-relaxed text-sm">{card.desc}</p>
+                <h3 className="mb-3 font-display text-xl font-semibold text-[#0D5673]">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-[#0D5673]/82">{card.desc}</p>
+                <div className="mt-5 h-[2px] w-14 bg-[#F2AB27]" aria-hidden="true" />
               </motion.div>
             ))}
+            </div>
           </div>
         </section>
 
-        <section className="relative overflow-hidden py-16 px-4">
+        <section className="relative overflow-hidden pt-24 pb-14 px-4">
           <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(242,193,78,0.07),transparent_26%),linear-gradient(180deg,#f4efe5_0%,#fbf8f2_100%)]"
+            className="pointer-events-none absolute inset-0 bg-[#F2F0CE]/65"
             aria-hidden="true"
           />
-          <div className="relative container mx-auto max-w-5xl space-y-10">
-            <motion.h2
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+          <div className="relative container mx-auto max-w-6xl space-y-12">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="font-display text-3xl font-bold text-center text-foreground"
+              className="mx-auto max-w-3xl space-y-4 text-center"
             >
-              Como funciona o fluxo de reserva
-            </motion.h2>
+              <span className="inline-flex items-center rounded-full border border-[#0D5673]/25 bg-[#E9F2F1] px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#0D5673]">
+                Fluxo de reserva
+              </span>
+              <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-[#0D5673]">
+                Como funciona o fluxo de reserva
+              </h2>
+              <p className="text-sm md:text-base leading-relaxed text-[#0D5673]/85">
+                Em tres etapas voce chega ao quarto ideal, valida datas e acompanha tudo sem perder o contexto.
+              </p>
+              <div className="mx-auto h-1 w-24 rounded-full bg-[#F2AB27]" aria-hidden="true" />
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-7">
               {[
                 {
                   step: '1. Escolha datas, hóspedes e pets',
@@ -282,24 +304,28 @@ const Index = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
-                  className="p-5 rounded-xl border border-border bg-card"
+                  className="group relative overflow-hidden rounded-2xl border-2 border-[#0D5673]/20 bg-[#E9F2F1] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-[#0D5673]/45"
                 >
-                  <p className="text-sm font-semibold text-primary mb-1">{item.step}</p>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{item.text}</p>
+                  <span className="mb-4 inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-[#0D5673]/25 bg-[#F2F0CE] px-2 text-xs font-bold text-[#0D5673]">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <p className="mb-2 font-display text-lg font-semibold text-[#0D5673]">{item.step}</p>
+                  <p className="text-sm leading-relaxed text-[#0D5673]/82">{item.text}</p>
+                  <div className="mt-5 h-[2px] w-14 bg-[#F2AB27]" aria-hidden="true" />
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="relative overflow-hidden py-24 px-4">
-          <div className="mx-auto max-w-[1840px]">
+        <section className="relative overflow-hidden pt-0 pb-0">
+          <div className="w-full">
             <div
-              className="relative overflow-hidden rounded-[2.5rem] border border-white/10 px-6 py-8 shadow-2xl md:px-10 md:py-12"
-              style={{ background: 'linear-gradient(135deg, #07111d 0%, #0b1e31 46%, #10304d 100%)' }}
+              className="relative overflow-hidden rounded-none border border-[#F2F0CE] px-6 py-8 md:px-10 md:py-12"
+              style={{ backgroundColor: '#0D5673' }}
             >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_42%)]" />
-              <div className="absolute inset-y-0 left-0 w-1/3 bg-white/5 blur-3xl" />
+              <div className="absolute inset-0 bg-[#E9F2F1]/8" />
+              <div className="absolute inset-y-0 left-0 w-1/3 bg-[#F2F0CE]/12" />
 
               <div className="relative grid gap-12 lg:grid-cols-[0.95fr_1.15fr] lg:items-center">
                 <motion.div
@@ -309,15 +335,15 @@ const Index = () => {
                   transition={{ duration: 0.55 }}
                   className="space-y-6 text-primary-foreground"
                 >
-                  <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/90">
+                  <span className="inline-flex items-center rounded-full bg-[#E9F2F1]/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#E9F2F1]">
                     Hospedagem
                   </span>
 
                   <div className="space-y-4">
-                    <h2 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">
+                    <h2 className="font-display text-3xl md:text-4xl font-bold text-[#E9F2F1] leading-tight">
                       Conforto simples para uma estadia sem complicação
                     </h2>
-                    <p className="max-w-xl text-white/75 leading-relaxed">
+                    <p className="max-w-xl text-[#E9F2F1]/85 leading-relaxed">
                       Escolha as datas, veja os quartos disponíveis e finalize sua reserva de forma direta. A área de hospedagem foi pensada para ser clara, bonita e fácil de usar.
                     </p>
                   </div>
@@ -325,30 +351,30 @@ const Index = () => {
                   <div className="grid gap-3 sm:grid-cols-3">
                     {[
                       {
-                        icon: <ShieldCheck className="h-4 w-4 text-white/90" />,
+                        icon: <ShieldCheck className="h-4 w-4 text-[#E9F2F1]" />,
                         title: 'Reserva guiada',
                         desc: 'Datas e regras validam antes de seguir.',
                       },
                       {
-                        icon: <Trees className="h-4 w-4 text-white/90" />,
+                        icon: <Trees className="h-4 w-4 text-[#E9F2F1]" />,
                         title: 'Ambiente tranquilo',
                         desc: 'Natureza e conforto no mesmo espaço.',
                       },
                       {
-                        icon: <Sparkles className="h-4 w-4 text-white/90" />,
+                        icon: <Sparkles className="h-4 w-4 text-[#E9F2F1]" />,
                         title: 'Fluxo rápido',
                         desc: 'Escolha, revise e conclua sem atrito.',
                       },
                     ].map((item) => (
                       <div
                         key={item.title}
-                        className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md"
+                        className="rounded-2xl border border-[#F2F0CE]/60 bg-[#E9F2F1]/14 p-4 backdrop-blur-md"
                       >
-                        <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">
+                        <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#E9F2F1]/18 text-[#E9F2F1]">
                           {item.icon}
                         </div>
-                        <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-                        <p className="mt-1 text-sm leading-relaxed text-white/75">{item.desc}</p>
+                        <h3 className="text-sm font-semibold text-[#E9F2F1]">{item.title}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-[#E9F2F1]/82">{item.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -359,7 +385,7 @@ const Index = () => {
                     </Link>
                     <Link
                       to="/hospedagem/my-reservations"
-                      className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/15"
+                      className="inline-flex items-center justify-center rounded-lg border border-[#F2F0CE]/60 bg-[#E9F2F1]/16 px-5 py-3 text-sm font-medium text-[#E9F2F1] transition hover:bg-[#E9F2F1]/22"
                     >
                       Minhas reservas
                     </Link>
@@ -373,24 +399,24 @@ const Index = () => {
                   transition={{ duration: 0.55, delay: 0.08 }}
                   className="relative"
                 >
-                  <div className="absolute -bottom-6 -right-6 hidden h-2/3 w-2/3 rounded-[2rem] border border-white/10 md:block" />
-                  <div className="absolute -top-6 -left-6 hidden h-2/3 w-2/3 rounded-[2rem] bg-white/5 md:block" />
+                  <div className="absolute -bottom-6 -right-6 hidden h-2/3 w-2/3 rounded-none border border-[#F2F0CE]/55 md:block" />
+                  <div className="absolute -top-6 -left-6 hidden h-2/3 w-2/3 rounded-none bg-[#E9F2F1]/12 md:block" />
 
-                  <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.65)]">
+                  <div className="relative overflow-hidden rounded-none border border-[#F2F0CE]/60 bg-[#0D5673]">
                     <img
                       src={roomSuite}
                       alt="Hospedagem Du Zé Pesqueiro"
                       className="h-[520px] w-full object-cover object-center md:h-[620px] lg:h-[700px]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/18 to-transparent" />
+                    <div className="absolute inset-0 bg-[#0D5673]/42" />
                     <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-800">
+                      <span className="rounded-full bg-[#E9F2F1] px-3 py-1 text-xs font-semibold text-[#0D5673]">
                         Natureza
                       </span>
-                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-800">
+                      <span className="rounded-full bg-[#E9F2F1] px-3 py-1 text-xs font-semibold text-[#0D5673]">
                         Conforto
                       </span>
-                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-800">
+                      <span className="rounded-full bg-[#E9F2F1] px-3 py-1 text-xs font-semibold text-[#0D5673]">
                         Estadia tranquila
                       </span>
                     </div>
@@ -399,31 +425,35 @@ const Index = () => {
               </div>
             </div>
           </div>
+          <div
+            className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-[linear-gradient(180deg,rgba(13,86,115,0)_0%,rgba(2,64,89,0.95)_100%)]"
+            aria-hidden="true"
+          />
         </section>
 
-        <footer className="relative overflow-hidden border-t border-white/10 px-4 py-16 text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,193,78,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,#07111d_0%,#06101a_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.05)_0%,transparent_26%,transparent_74%,rgba(255,255,255,0.05)_100%)]" />
+        <footer className="relative overflow-hidden border-t border-[#F2F0CE]/50 px-4 pt-10 pb-16 text-[#E9F2F1]">
+          <div className="absolute inset-0 bg-[#024059]" />
+          <div className="absolute inset-0 bg-[#E9F2F1]/5" />
           <div className="relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.15fr_0.7fr_0.8fr_0.95fr]">
             <div className="space-y-4">
-              <Link to="/hospedagem" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-white">
+              <Link to="/hospedagem" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-[#E9F2F1]">
                 Du Zé Pesqueiro
               </Link>
-              <p className="max-w-md text-sm leading-relaxed text-white/75">
+              <p className="max-w-md text-sm leading-relaxed text-[#E9F2F1]/82">
                 Hospedagem pensada para descanso, conforto e reservas simples. Escolha seu quarto, acompanhe sua estadia e fale com a equipe sempre que precisar.
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
+                <span className="rounded-full border border-[#F2F0CE]/60 bg-[#E9F2F1]/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#E9F2F1]">
                   Reserva online
                 </span>
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
+                <span className="rounded-full border border-[#F2F0CE]/60 bg-[#E9F2F1]/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#E9F2F1]">
                   Atendimento rápido
                 </span>
               </div>
             </div>
 
             <div>
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#F2F0CE]">
                 Atalhos
               </h3>
               <ul className="space-y-3 text-sm">
@@ -437,9 +467,9 @@ const Index = () => {
                   <li key={item.to}>
                     <Link
                       to={item.to}
-                      className="group inline-flex items-center gap-2 text-white/75 transition hover:text-white"
+                      className="group inline-flex items-center gap-2 text-[#E9F2F1]/82 transition hover:text-[#E9F2F1]"
                     >
-                      <ArrowUpRight className="h-4 w-4 text-white/35 transition group-hover:text-white/80" />
+                      <ArrowUpRight className="h-4 w-4 text-[#F2F0CE]/75 transition group-hover:text-[#F2AB27]" />
                       {item.label}
                     </Link>
                   </li>
@@ -448,38 +478,38 @@ const Index = () => {
             </div>
 
             <div>
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#F2F0CE]">
                 Contato
               </h3>
-              <div className="space-y-3 text-sm text-white/75">
+              <div className="space-y-3 text-sm text-[#E9F2F1]/82">
                 <a
                   href="mailto:contato@duzpesqueiro.com"
-                  className="flex items-center gap-3 transition hover:text-white"
+                  className="flex items-center gap-3 transition hover:text-[#E9F2F1]"
                 >
-                  <Mail className="h-4 w-4 text-white/60" />
+                  <Mail className="h-4 w-4 text-[#F2F0CE]" />
                   contato@duzpesqueiro.com
                 </a>
                 <a
                   href="https://wa.me/5511999999999"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-3 transition hover:text-white"
+                  className="flex items-center gap-3 transition hover:text-[#E9F2F1]"
                 >
-                  <MessageCircle className="h-4 w-4 text-white/60" />
+                  <MessageCircle className="h-4 w-4 text-[#F2F0CE]" />
                   WhatsApp +55 11 99999-9999
                 </a>
                 <p className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-white/60" />
+                  <Clock className="h-4 w-4 text-[#F2F0CE]" />
                   Atendimento todos os dias, das 8h às 18h
                 </p>
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.65)] backdrop-blur-md">
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
+            <div className="rounded-[1.5rem] border border-[#F2F0CE]/55 bg-[#E9F2F1]/12 p-5 backdrop-blur-md">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#F2F0CE]">
                 Próximo passo
               </h3>
-              <p className="text-sm leading-relaxed text-white/75">
+              <p className="text-sm leading-relaxed text-[#E9F2F1]/82">
                 Veja os quartos disponíveis, escolha as datas e siga para a reserva sem perder o fluxo da hospedagem.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
@@ -489,7 +519,7 @@ const Index = () => {
                 <button
                   type="button"
                   onClick={scrollToTop}
-                  className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/15"
+                  className="inline-flex items-center justify-center rounded-lg border border-[#F2F0CE]/60 bg-[#E9F2F1]/12 px-4 py-3 text-sm font-medium text-[#E9F2F1] transition hover:bg-[#E9F2F1]/20"
                 >
                   Voltar ao topo
                   <ChevronUp className="ml-2 h-4 w-4" />
@@ -498,9 +528,9 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="relative mx-auto mt-12 flex max-w-6xl flex-col gap-4 border-t border-white/10 pt-6 text-sm text-white/65 md:flex-row md:items-center md:justify-between">
+          <div className="relative mx-auto mt-12 flex max-w-6xl flex-col gap-4 border-t border-[#F2F0CE]/50 pt-6 text-sm text-[#E9F2F1]/88 md:flex-row md:items-center md:justify-between">
             <p>© 2026 Du Zé Pesqueiro. Todos os direitos reservados.</p>
-            <p className="text-white/55">
+            <p className="text-[#E9F2F1]/72">
               Hospedagem online, reservas simples e atendimento direto com a equipe.
             </p>
           </div>
