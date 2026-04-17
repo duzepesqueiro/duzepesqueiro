@@ -2,7 +2,7 @@ import { Mail, MessageCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-const ADMIN_EMAIL = 'contato@villaserena.com';
+const ADMIN_EMAIL = 'contato@duzpesqueiro.com';
 const ADMIN_WHATSAPP = '5511999999999';
 
 interface CancelReservationDialogProps {
