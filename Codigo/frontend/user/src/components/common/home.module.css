@@ -1,15 +1,39 @@
-.heroOverlay {
+.homeBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.homeBackdropImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.08);
+  filter: grayscale(55%) brightness(0.7) contrast(0.92);
+  opacity: 0.58;
+}
+
+.homeBackdropOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(4, 12, 25, 0.72) 0%, rgba(4, 12, 25, 0.45) 48%, rgba(4, 12, 25, 0.18) 100%);
+  background: rgba(140, 140, 140, 0.12);
+}
+
+.pageBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: #e9f2f1;
 }
 
 .searchCard {
-  background: linear-gradient(135deg, rgba(7, 17, 29, 0.88) 0%, rgba(11, 30, 49, 0.84) 62%, rgba(16, 48, 77, 0.76) 100%);
-  box-shadow: 0 28px 70px -18px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
+  background: #0d5673;
+  box-shadow: none;
   border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(242, 240, 206, 0.6);
 }
 
 .scrollHint {
@@ -29,8 +53,8 @@
   padding: 10px 12px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  background: rgba(233, 242, 241, 0.78);
+  box-shadow: none;
 }
 
 .logo {
