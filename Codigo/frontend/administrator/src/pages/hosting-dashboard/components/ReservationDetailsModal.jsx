@@ -8,6 +8,7 @@ const statusStyles = {
   Ocupado: 'bg-orange-100 text-orange-700',
   Finalizada: 'bg-green-100 text-green-700',
   Cancelada: 'bg-red-100 text-red-700',
+  'No-show': 'bg-red-100 text-red-700',
 };
 
 const formatDateTime = (value) =>
@@ -25,7 +26,7 @@ const formatCurrency = (value) =>
     currency: 'BRL',
   }).format(Number(value || 0));
 
-const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onCheckIn }) => {
+const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onCheckIn, processingAction }) => {
   const portalElement = useMemo(() => {
     if (typeof document === 'undefined') {
       return null;
@@ -44,16 +45,32 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
     return null;
   }
 
-  const showCheckOut = reservation.checkInDone && !reservation.checkOutDone && reservation.status !== 'Cancelada';
-  const showCheckIn = !reservation.checkInDone && reservation.status !== 'Cancelada' && reservation.status !== 'Finalizada';
+  const showCheckOut =
+    reservation.checkInDone &&
+    !reservation.checkOutDone &&
+    reservation.status !== 'Cancelada' &&
+    reservation.status !== 'No-show';
+  const showCheckIn =
+    !reservation.checkInDone &&
+    reservation.status !== 'Cancelada' &&
+    reservation.status !== 'Finalizada' &&
+    reservation.status !== 'No-show';
+  const isProcessingCurrent = processingAction?.reservationId === reservation.id;
+  const isProcessingCheckIn = isProcessingCurrent && processingAction?.type === 'checkin';
+  const isProcessingCheckOut = isProcessingCurrent && processingAction?.type === 'checkout';
 
   return createPortal(
     <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Fechar modal" />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        onClick={isProcessingCurrent ? undefined : onClose}
+        aria-label="Fechar modal"
+      />
       <div className="relative w-full max-w-4xl bg-card border border-border rounded-lg shadow-soft-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h3 className="text-xl font-heading font-semibold text-foreground">Detalhes da Reserva {reservation.code}</h3>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar" disabled={isProcessingCurrent}>
             ✕
           </Button>
         </div>
@@ -87,7 +104,10 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
             <h4 className="text-sm font-semibold text-foreground">Hóspedes ({reservation.guests.length})</h4>
             {reservation.guests.map((guest, index) => (
               <div key={`${guest.name}-${index}`} className="text-sm text-muted-foreground">
-                <p>• {guest.name}, {guest.age} anos</p>
+                <p>
+                  • {guest.name}
+                  {typeof guest.age === 'number' ? `, ${guest.age} anos` : ''}
+                </p>
                 <p className="ml-3">Check-in realizado: {guest.checkInAt ? formatDateTime(guest.checkInAt) : 'Pendente'}</p>
               </div>
             ))}
@@ -100,17 +120,17 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
         </div>
 
         <div className="p-6 border-t border-border flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isProcessingCurrent}>
             Fechar
           </Button>
           {showCheckIn ? (
-            <Button type="button" onClick={() => onCheckIn(reservation)}>
-              Fazer Check-in
+            <Button type="button" onClick={() => onCheckIn(reservation)} disabled={isProcessingCurrent} loading={isProcessingCheckIn}>
+              {isProcessingCheckIn ? 'Processando Check-in...' : 'Fazer Check-in'}
             </Button>
           ) : null}
           {showCheckOut ? (
-            <Button type="button" onClick={() => onCheckOut(reservation)}>
-              Fazer Check-out
+            <Button type="button" onClick={() => onCheckOut(reservation)} disabled={isProcessingCurrent} loading={isProcessingCheckOut}>
+              {isProcessingCheckOut ? 'Processando Check-out...' : 'Fazer Check-out'}
             </Button>
           ) : null}
         </div>

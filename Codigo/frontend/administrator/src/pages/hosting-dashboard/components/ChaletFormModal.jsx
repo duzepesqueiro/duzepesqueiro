@@ -23,11 +23,10 @@ const initialValues = {
   status: 'AVAILABLE',
 };
 
-const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
+const ChaletFormModal = ({ isOpen, onClose, onSave, chalet, isSaving = false }) => {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
-  const [chaletImageFiles, setChaletImageFiles] = useState([]);
-  const [chaletImagePreviews, setChaletImagePreviews] = useState([]);
+  const [imageItems, setImageItems] = useState([]);
   const [isImageDragOver, setIsImageDragOver] = useState(false);
   const imageInputRef = useRef(null);
 
@@ -63,8 +62,7 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
     if (!chalet) {
       setValues(initialValues);
       setErrors({});
-      setChaletImageFiles([]);
-      setChaletImagePreviews([]);
+      setImageItems([]);
       return;
     }
     setValues({
@@ -78,23 +76,31 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
       notes: chalet.notes || '',
       status: chalet.status || 'AVAILABLE',
     });
-    const existingImages = Array.isArray(chalet.images) && chalet.images.length
-      ? chalet.images
-      : (chalet.image ? [chalet.image] : []);
-    setChaletImageFiles([]);
-    setChaletImagePreviews(existingImages);
+    const existingImageEntries = Array.isArray(chalet.imageEntries)
+      ? chalet.imageEntries
+      : (Array.isArray(chalet.images) ? chalet.images.map((url) => ({ id: null, url })) : []);
+    setImageItems(
+      existingImageEntries
+        .filter((entry) => Boolean(entry?.url))
+        .map((entry, index) => ({
+          key: `existing-${entry.id || index}`,
+          source: 'existing',
+          id: entry.id || null,
+          url: entry.url,
+        }))
+    );
     setErrors({});
   }, [isOpen, chalet]);
 
   useEffect(() => {
     return () => {
-      chaletImagePreviews.forEach((preview) => {
-        if (preview?.startsWith('blob:')) {
-          URL.revokeObjectURL(preview);
+      imageItems.forEach((item) => {
+        if (item?.source === 'new' && item?.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(item.url);
         }
       });
     };
-  }, [chaletImagePreviews]);
+  }, [imageItems]);
 
   if (!isOpen || !portalElement) {
     return null;
@@ -127,12 +133,10 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
 
   const applySelectedImages = (incomingFiles) => {
     const files = Array.from(incomingFiles || []);
-    if (!files.length) {
-      setChaletImageFiles([]);
-      setChaletImagePreviews(Array.isArray(chalet?.images) ? chalet.images : (chalet?.image ? [chalet.image] : []));
+    if (!files.length || isSaving) {
       return;
     }
-    if (files.length > 10) {
+    if (imageItems.length + files.length > 10) {
       alert('Selecione no máximo 10 imagens.');
       return;
     }
@@ -146,8 +150,14 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
         return;
       }
     }
-    setChaletImageFiles(files);
-    setChaletImagePreviews(files.map((file) => URL.createObjectURL(file)));
+    const newItems = files.map((file, index) => ({
+      key: `new-${Date.now()}-${index}`,
+      source: 'new',
+      id: null,
+      url: URL.createObjectURL(file),
+      file,
+    }));
+    setImageItems((prev) => [...prev, ...newItems]);
   };
 
   const handleChaletImageSelect = (event) => {
@@ -161,12 +171,19 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
   };
 
   const openImagePicker = () => {
+    if (isSaving) return;
     imageInputRef.current?.click();
   };
 
   const removeSelectedImage = (indexToRemove) => {
-    setChaletImagePreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
-    setChaletImageFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    if (isSaving) return;
+    setImageItems((prev) => {
+      const target = prev[indexToRemove];
+      if (target?.source === 'new' && target?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter((_, index) => index !== indexToRemove);
+    });
   };
 
   const renderImageUploader = () => (
@@ -209,17 +226,17 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
           <p className="text-xs text-muted-foreground">
             PNG, JPG, WEBP ou GIF • até 2MB por imagem • máximo 10 imagens
           </p>
-          <Button variant="outline" size="sm" iconName="Upload" className="mt-2">
+          <Button type="button" variant="outline" size="sm" iconName="Upload" className="mt-2">
             Selecionar Imagens
           </Button>
         </div>
       </div>
-      {chaletImagePreviews?.length ? (
+      {imageItems?.length ? (
         <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-          {chaletImagePreviews.map((preview, index) => (
-            <div key={`${preview}-${index}`} className="relative rounded-md overflow-hidden border border-border bg-background">
+          {imageItems.map((item, index) => (
+            <div key={item.key} className="relative rounded-md overflow-hidden border border-border bg-background">
               <img
-                src={preview}
+                src={item.url}
                 alt={`Pré-visualização ${index + 1}`}
                 className="h-20 w-full object-cover"
               />
@@ -229,6 +246,7 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
                   event.stopPropagation();
                   removeSelectedImage(index);
                 }}
+                disabled={isSaving}
                 className="absolute right-1 top-1 h-5 w-5 rounded-full bg-black/75 text-white flex items-center justify-center hover:bg-black"
               >
                 <Icon name="X" size={12} />
@@ -243,11 +261,20 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
     </div>
   );
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const handleSubmit = () => {
+    if (isSaving) return;
     if (!validate()) {
       return;
     }
+    const newImageFiles = imageItems
+      .filter((item) => item.source === 'new' && item.file)
+      .map((item) => item.file);
+    const keptImageIds = imageItems
+      .filter((item) => item.source === 'existing' && item.id)
+      .map((item) => item.id);
+    const originalImageIds = Array.isArray(chalet?.imageEntries)
+      ? chalet.imageEntries.map((item) => item?.id).filter(Boolean)
+      : [];
     onSave({
       ...chalet,
       name: values.name.trim(),
@@ -259,16 +286,23 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
       rooms: values.rooms.split(',').map((item) => item.trim()).filter(Boolean),
       notes: values.notes.trim(),
       status: values.status || 'AVAILABLE',
-      imageFiles: chaletImageFiles,
-      images: chaletImagePreviews,
-      image: chaletImagePreviews[0] || '',
+      imageFiles: newImageFiles,
+      keptImageIds,
+      originalImageIds,
+      images: imageItems.map((item) => item.url),
+      image: imageItems[0]?.url || '',
     });
+  };
+
+  const handleFormSubmit = (event) => {
+    // Bloqueia submit implícito (ex.: Enter em campos)
+    event.preventDefault();
   };
 
   return createPortal(
     <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Fechar modal" />
-      <form onSubmit={handleSubmit} className="relative w-full max-w-3xl bg-card border border-border rounded-lg shadow-soft-lg max-h-[90vh] overflow-y-auto">
+      <button type="button" className="absolute inset-0 bg-black/50" onClick={() => { if (!isSaving) onClose(); }} aria-label="Fechar modal" />
+      <form onSubmit={handleFormSubmit} className="relative w-full max-w-3xl bg-card border border-border rounded-lg shadow-soft-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-border">
           <h3 className="text-xl font-heading font-semibold text-foreground">
             {chalet ? `Editar Chalé: ${chalet.name}` : 'Novo Chalé'}
@@ -364,11 +398,11 @@ const ChaletFormModal = ({ isOpen, onClose, onSave, chalet }) => {
           </div>
         </div>
         <div className="p-6 border-t border-border flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="submit">
-            Salvar Chalé
+          <Button type="button" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? 'Salvando...' : 'Salvar Chalé'}
           </Button>
         </div>
       </form>

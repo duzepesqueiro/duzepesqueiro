@@ -1,8 +1,18 @@
-import React, { useMemo, useState } from 'react';
-import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from 'date-fns';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Icon from '../../../components/AppIcon';
 import HostingReservationModal from './HostingReservationModal';
+import CreateManualReservationModal from './CreateManualReservationModal';
+import BlockDatesModal from './BlockDatesModal';
+import FreeDateActionModal from './FreeDateActionModal';
+import {
+  createBlock,
+  createManualReservation,
+  getHostingOccupancyMap,
+  listBlocks,
+  listChalets,
+} from '../../../utils/hostingService';
 
 const weekDays = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 
@@ -25,58 +35,46 @@ const statusConfig = {
   },
 };
 
-const chaletsData = [
-  {
-    id: 'jardim',
-    name: 'Quarto Jardim',
-    bookings: [
-      { start: new Date(2026, 3, 1), end: new Date(2026, 3, 2), status: 'occupied', guest: 'Carlos Mendes', details: 'Check-in concluído' },
-      { start: new Date(2026, 3, 3), end: new Date(2026, 3, 5), status: 'reserved', guest: 'Fernanda Rocha', details: 'Check-in previsto às 14:00' },
-      { start: new Date(2026, 3, 14), end: new Date(2026, 3, 15), status: 'maintenance', guest: null, details: 'Manutenção preventiva' },
-    ],
-  },
-  {
-    id: 'serra',
-    name: 'Quarto Serra',
-    bookings: [
-      { start: new Date(2026, 3, 8), end: new Date(2026, 3, 11), status: 'occupied', guest: 'Bianca Almeida', details: 'Hospedagem em andamento' },
-      { start: new Date(2026, 3, 17), end: new Date(2026, 3, 19), status: 'reserved', guest: 'José Silveira', details: 'Pagamento confirmado' },
-    ],
-  },
-  {
-    id: 'lago',
-    name: 'Quarto Lago',
-    bookings: [
-      { start: new Date(2026, 3, 2), end: new Date(2026, 3, 4), status: 'reserved', guest: 'Marina Lopes', details: 'Aguardando check-in' },
-      { start: new Date(2026, 3, 20), end: new Date(2026, 3, 23), status: 'occupied', guest: 'Paulo Nunes', details: 'Check-in concluído' },
-      { start: new Date(2026, 3, 28), end: new Date(2026, 3, 30), status: 'maintenance', guest: null, details: 'Bloqueado para limpeza profunda' },
-    ],
-  },
-  {
-    id: 'bosque',
-    name: 'Quarto Bosque',
-    bookings: [
-      { start: new Date(2026, 3, 6), end: new Date(2026, 3, 7), status: 'occupied', guest: 'Sofia Teixeira', details: 'Check-in concluído' },
-      { start: new Date(2026, 3, 12), end: new Date(2026, 3, 14), status: 'reserved', guest: 'Ricardo Matos', details: 'Pré-pagamento aprovado' },
-    ],
-  },
-];
+const statusByApiValue = {
+  AVAILABLE: 'free',
+  RESERVED: 'reserved',
+  OCCUPIED: 'occupied',
+  BLOCKED: 'maintenance',
+};
+
+const detailsByStatus = {
+  free: 'Disponível para reserva',
+  reserved: 'Reservado (check-in pendente)',
+  occupied: 'Ocupado (hóspede em estadia)',
+  maintenance: 'Indisponível por bloqueio operacional/manutenção',
+};
 
 const compareDay = (a, b) => format(a, 'yyyy-MM-dd') === format(b, 'yyyy-MM-dd');
 
-const getDayInfo = (chalet, day) => {
-  const booking = chalet.bookings.find((item) => day >= item.start && day <= item.end);
-  if (!booking) {
-    return {
-      status: 'free',
-      guest: null,
-      details: 'Disponível para reserva',
-    };
+const toErrorMessage = (error, fallback) => {
+  const message = error?.response?.data?.message;
+  if (Array.isArray(message) && message.length) {
+    return message.join(', ');
   }
-  return booking;
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+  return fallback;
 };
 
-const MonthCalendar = ({ chalet, monthDate, onOpenReservation }) => {
+const normalizeStatusMap = (mapResponse) => {
+  const days = Array.isArray(mapResponse?.dias) ? mapResponse.dias : [];
+  return days.reduce((acc, item) => {
+    const dateKey = item?.data ? String(item.data).slice(0, 10) : null;
+    if (!dateKey) {
+      return acc;
+    }
+    acc[dateKey] = item?.status || 'AVAILABLE';
+    return acc;
+  }, {});
+};
+
+const MonthCalendar = ({ chalet, monthDate, getStatusForDay, onOpenDate }) => {
   const days = useMemo(() => {
     const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
@@ -102,28 +100,34 @@ const MonthCalendar = ({ chalet, monthDate, onOpenReservation }) => {
       <div className="grid grid-cols-7 gap-1">
         {days.map((day) => {
           const isCurrentMonth = isSameMonth(day, monthDate);
-          const dayInfo = getDayInfo(chalet, day);
-          const status = statusConfig[dayInfo.status] || statusConfig.free;
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const apiStatus = getStatusForDay(day);
+          const uiStatus = statusByApiValue[apiStatus] || 'free';
+          const status = statusConfig[uiStatus] || statusConfig.free;
+          const details = detailsByStatus[uiStatus] || detailsByStatus.free;
 
           return (
             <button
               key={`${chalet.id}-${format(monthDate, 'yyyy-MM')}-${format(day, 'yyyy-MM-dd')}`}
               type="button"
               onClick={() =>
-                onOpenReservation({
+                onOpenDate({
+                  chaletId: chalet.id,
                   chaletName: chalet.name,
+                  dateKey,
                   statusLabel: status.label,
+                  statusKey: uiStatus,
                   dateLabel: format(day, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
-                  guest: dayInfo.guest,
-                  details: dayInfo.details,
+                  guest: null,
+                  details,
                 })
               }
-              title={`${format(day, 'dd/MM/yyyy')} - ${status.label}${dayInfo.guest ? ` - ${dayInfo.guest}` : ''}`}
+              title={`${format(day, 'dd/MM/yyyy')} - ${status.label}`}
               className={`h-8 rounded-md text-xs font-medium flex items-center justify-center transition-smooth border border-transparent hover:border-border ${status.color} ${
                 isCurrentMonth ? 'text-gray-900' : 'text-gray-500 opacity-55'
               } ${compareDay(day, new Date()) ? 'ring-1 ring-primary ring-offset-1 ring-offset-card' : ''}`}
             >
-              {format(day, 'dd')}
+              {dateKey.slice(-2)}
             </button>
           );
         })}
@@ -132,8 +136,61 @@ const MonthCalendar = ({ chalet, monthDate, onOpenReservation }) => {
   );
 };
 
-const ChaletCalendar = ({ chalet, onOpenReservation }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1));
+const ChaletCalendar = ({ chalet, onOpenDate, loadMonthMap, refreshToken }) => {
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [monthStatusMaps, setMonthStatusMaps] = useState({});
+  const [loadingMonths, setLoadingMonths] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const monthsToLoad = [
+      addMonths(currentMonth, -1),
+      currentMonth,
+      addMonths(currentMonth, 1),
+      addMonths(currentMonth, 2),
+    ];
+
+    const fetchMaps = async () => {
+      setLoadingMonths(true);
+      try {
+        const loaded = await Promise.all(
+          monthsToLoad.map(async (monthDate) => {
+            const monthKey = format(monthDate, 'yyyy-MM');
+            const statusMap = await loadMonthMap(chalet.id, monthDate);
+            return [monthKey, statusMap];
+          }),
+        );
+        if (!isMounted) {
+          return;
+        }
+        setMonthStatusMaps((prev) => {
+          const next = { ...prev };
+          loaded.forEach(([monthKey, statusMap]) => {
+            next[monthKey] = statusMap;
+          });
+          return next;
+        });
+      } finally {
+        if (isMounted) {
+          setLoadingMonths(false);
+        }
+      }
+    };
+
+    fetchMaps();
+    return () => {
+      isMounted = false;
+    };
+  }, [chalet.id, currentMonth, loadMonthMap, refreshToken]);
+
+  const getStatusForDay = useCallback(
+    (day) => {
+      const monthKey = format(day, 'yyyy-MM');
+      const dateKey = format(day, 'yyyy-MM-dd');
+      return monthStatusMaps[monthKey]?.[dateKey] || 'AVAILABLE';
+    },
+    [monthStatusMaps],
+  );
 
   return (
     <div className="bg-card border border-border rounded-lg p-4">
@@ -159,13 +216,17 @@ const ChaletCalendar = ({ chalet, onOpenReservation }) => {
           <Icon name="ChevronRight" size={14} />
         </button>
       </div>
+      {loadingMonths ? (
+        <p className="text-xs text-muted-foreground mb-3">Atualizando disponibilidade...</p>
+      ) : null}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {[currentMonth, addMonths(currentMonth, 1)].map((month) => (
           <MonthCalendar
             key={`${chalet.id}-${format(month, 'yyyy-MM')}`}
             chalet={chalet}
             monthDate={month}
-            onOpenReservation={onOpenReservation}
+            getStatusForDay={getStatusForDay}
+            onOpenDate={onOpenDate}
           />
         ))}
       </div>
@@ -175,6 +236,138 @@ const ChaletCalendar = ({ chalet, onOpenReservation }) => {
 
 const OccupationMap = () => {
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const [freeDateSelection, setFreeDateSelection] = useState(null);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [chalets, setChalets] = useState([]);
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [loadingChalets, setLoadingChalets] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [mapRefreshToken, setMapRefreshToken] = useState(0);
+  const monthMapCacheRef = useRef(new Map());
+
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      setLoadingChalets(true);
+      setLoadError('');
+      try {
+        const [chaletList, blocksList] = await Promise.all([listChalets(), listBlocks()]);
+        if (!isMounted) {
+          return;
+        }
+        setChalets(
+          (Array.isArray(chaletList) ? chaletList : []).map((item) => ({
+            id: item.id,
+            name: item.name || 'Chalé',
+            dailyRate: Number(item.currentPrice ?? item.basePrice ?? 0),
+          })),
+        );
+        setBlockedDates(Array.isArray(blocksList) ? blocksList : []);
+      } catch {
+        if (isMounted) {
+          setLoadError('Não foi possível carregar os chalés e o mapa de ocupação.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingChalets(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const reloadMapData = useCallback(async () => {
+    monthMapCacheRef.current.clear();
+    setMapRefreshToken((prev) => prev + 1);
+    try {
+      const blocksList = await listBlocks();
+      setBlockedDates(Array.isArray(blocksList) ? blocksList : []);
+    } catch {
+      setBlockedDates([]);
+    }
+  }, []);
+
+  const loadMonthMap = useCallback(async (chaletId, monthDate) => {
+    const monthKey = format(monthDate, 'yyyy-MM');
+    const cacheKey = `${chaletId}:${monthKey}`;
+    if (monthMapCacheRef.current.has(cacheKey)) {
+      return monthMapCacheRef.current.get(cacheKey);
+    }
+
+    const response = await getHostingOccupancyMap({
+      chaletId,
+      referenceDate: monthDate,
+    });
+    const normalized = normalizeStatusMap(response);
+    monthMapCacheRef.current.set(cacheKey, normalized);
+    return normalized;
+  }, []);
+
+  const handleOpenDate = useCallback((payload) => {
+    if (payload?.statusKey === 'free') {
+      setFreeDateSelection(payload);
+      setIsActionModalOpen(true);
+      return;
+    }
+    setSelectedReservation(payload);
+  }, []);
+
+  const handleOpenCreateReservation = useCallback(() => {
+    setIsActionModalOpen(false);
+    setIsCreateOpen(true);
+  }, []);
+
+  const handleOpenBlockDate = useCallback(() => {
+    setIsActionModalOpen(false);
+    setIsBlockModalOpen(true);
+  }, []);
+
+  const handleCreateManual = useCallback(
+    async (payload) => {
+      await createManualReservation({
+        chaletId: payload.chaletId,
+        checkInDate: payload.checkInDate,
+        checkOutDate: payload.checkOutDate,
+        adults: payload.guests.length,
+        children: 0,
+        vehiclePlate: payload.vehiclePlate,
+        notes: payload.notes,
+        guests: payload.guests.map((guest, index) => ({
+          fullName: guest.name,
+          email: guest.email,
+          phone: guest.phone,
+          cpf: guest.cpf,
+          isPrimary: index === 0,
+        })),
+      });
+      setIsCreateOpen(false);
+      setFreeDateSelection(null);
+      await reloadMapData();
+    },
+    [reloadMapData]
+  );
+
+  const handleSaveBlockDates = useCallback(
+    async (payload) => {
+      await createBlock({
+        chaletId: payload.chaletId,
+        startDate: payload.dataInicio,
+        endDate: payload.dataFim,
+        reason: payload.reason,
+        notes: payload.notes,
+        isActive: payload.isActive,
+      });
+      setIsBlockModalOpen(false);
+      setFreeDateSelection(null);
+      await reloadMapData();
+    },
+    [reloadMapData]
+  );
 
   return (
     <div className="bg-card border border-border rounded-lg p-6 space-y-5">
@@ -184,9 +377,22 @@ const OccupationMap = () => {
       </div>
 
       <div className="flex flex-col gap-4">
-        {chaletsData.map((chalet) => (
-          <ChaletCalendar key={chalet.id} chalet={chalet} onOpenReservation={setSelectedReservation} />
-        ))}
+        {loadingChalets ? <p className="text-sm text-muted-foreground">Carregando chalés...</p> : null}
+        {!loadingChalets && loadError ? <p className="text-sm text-red-600">{loadError}</p> : null}
+        {!loadingChalets && !loadError && chalets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum chalé cadastrado para exibir no mapa.</p>
+        ) : null}
+        {!loadingChalets && !loadError
+          ? chalets.map((chalet) => (
+              <ChaletCalendar
+                key={`${chalet.id}-${mapRefreshToken}`}
+                chalet={chalet}
+                onOpenDate={handleOpenDate}
+                loadMonthMap={loadMonthMap}
+                refreshToken={mapRefreshToken}
+              />
+            ))
+          : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -202,6 +408,69 @@ const OccupationMap = () => {
         isOpen={Boolean(selectedReservation)}
         reservation={selectedReservation}
         onClose={() => setSelectedReservation(null)}
+      />
+
+      <FreeDateActionModal
+        isOpen={isActionModalOpen && Boolean(freeDateSelection)}
+        selection={freeDateSelection}
+        onClose={() => {
+          setIsActionModalOpen(false);
+          setFreeDateSelection(null);
+        }}
+        onCreateReservation={handleOpenCreateReservation}
+        onBlockDate={handleOpenBlockDate}
+      />
+
+      <CreateManualReservationModal
+        isOpen={isCreateOpen}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setFreeDateSelection(null);
+        }}
+        chalets={chalets}
+        onCreate={async (payload) => {
+          try {
+            await handleCreateManual(payload);
+          } catch (error) {
+            alert(toErrorMessage(error, 'Não foi possível criar a reserva manual.'));
+            throw error;
+          }
+        }}
+        initialValues={
+          freeDateSelection
+            ? {
+                chaletId: freeDateSelection.chaletId,
+                checkInDate: freeDateSelection.dateKey,
+                checkOutDate: format(addDays(new Date(`${freeDateSelection.dateKey}T00:00:00`), 1), 'yyyy-MM-dd'),
+              }
+            : undefined
+        }
+      />
+
+      <BlockDatesModal
+        isOpen={isBlockModalOpen}
+        onClose={() => {
+          setIsBlockModalOpen(false);
+          setFreeDateSelection(null);
+        }}
+        chalets={chalets}
+        blockedDates={blockedDates}
+        onSave={async (payload) => {
+          try {
+            await handleSaveBlockDates(payload);
+          } catch (error) {
+            alert(toErrorMessage(error, 'Não foi possível bloquear a data.'));
+          }
+        }}
+        initialValues={
+          freeDateSelection
+            ? {
+                chaletId: freeDateSelection.chaletId,
+                dataInicio: freeDateSelection.dateKey,
+                dataFim: freeDateSelection.dateKey,
+              }
+            : undefined
+        }
       />
     </div>
   );

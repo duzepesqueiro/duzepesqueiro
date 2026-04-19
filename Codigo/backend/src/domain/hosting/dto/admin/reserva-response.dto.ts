@@ -48,6 +48,7 @@ export class ReservaDTO {
   noShowAt?: Date | null;
   noShowFeeAmount?: number | null;
   noShowReason?: string | null;
+  vehiclePlate?: string | null;
   contactChannel?: HostingContactChannel | null;
   contactNotes?: string | null;
   notes?: string | null;

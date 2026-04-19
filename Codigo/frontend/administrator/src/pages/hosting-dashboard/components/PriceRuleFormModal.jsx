@@ -30,6 +30,7 @@ const PriceRuleFormModal = ({
   chalets,
   editingRule,
   validateConflict,
+  isSaving = false,
 }) => {
   const [values, setValues] = useState(initialState);
   const [errors, setErrors] = useState({});
@@ -77,6 +78,7 @@ const PriceRuleFormModal = ({
   }
 
   const selectedChaletIds = values.applyMode === 'all' ? chalets.map((item) => item.id) : values.chaletIds;
+  const isDiscountType = values.type === 'Desconto';
   const previewBase = chalets.find((item) => selectedChaletIds.includes(item.id))?.basePrice || 150;
   const previewPercent = Number(values.modifierPercent || 0);
   const multiplier = values.modifierDirection === 'increase' ? 1 + previewPercent / 100 : 1 - previewPercent / 100;
@@ -158,6 +160,9 @@ const PriceRuleFormModal = ({
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isSaving) {
+      return;
+    }
     if (!validate()) {
       return;
     }
@@ -178,7 +183,7 @@ const PriceRuleFormModal = ({
 
   return createPortal(
     <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Fechar modal" />
+      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} disabled={isSaving} aria-label="Fechar modal" />
       <form onSubmit={handleSubmit} className="relative w-full max-w-4xl bg-card border border-border rounded-lg shadow-soft-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-border">
           <h3 className="text-xl font-heading font-semibold text-foreground">
@@ -205,7 +210,12 @@ const PriceRuleFormModal = ({
                     type="radio"
                     name="price-rule-type"
                     checked={values.type === type}
-                    onChange={() => setField('type', type)}
+                    onChange={() => {
+                      setField('type', type);
+                      if (type === 'Desconto') {
+                        setField('modifierDirection', 'decrease');
+                      }
+                    }}
                     className="h-4 w-4 accent-primary"
                   />
                   <span>{type}</span>
@@ -237,6 +247,9 @@ const PriceRuleFormModal = ({
                   <span>{chalet.name}</span>
                 </label>
               ))}
+              {!chalets.length ? (
+                <p className="text-sm text-muted-foreground">Nenhum chalé cadastrado no sistema.</p>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-2">
@@ -291,6 +304,7 @@ const PriceRuleFormModal = ({
                   type="radio"
                   name="modifier-direction"
                   checked={values.modifierDirection === 'increase'}
+                  disabled={isDiscountType}
                   onChange={() => setField('modifierDirection', 'increase')}
                   className="h-4 w-4 accent-primary"
                 />
@@ -321,10 +335,10 @@ const PriceRuleFormModal = ({
         </div>
 
         <div className="p-6 border-t border-border flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="submit">
+          <Button type="submit" loading={isSaving} disabled={isSaving}>
             Salvar Regra
           </Button>
         </div>

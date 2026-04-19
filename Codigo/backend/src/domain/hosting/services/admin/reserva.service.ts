@@ -91,6 +91,8 @@ export class ReservaService {
       {
         ...data,
         origin: 'ADMIN',
+        policiesAccepted: true,
+        policiesAcceptedAt: data.policiesAcceptedAt ?? new Date().toISOString(),
         createdById: operadorId,
       },
       data.userId,
@@ -466,6 +468,7 @@ export class ReservaService {
     noShowAt: Date | null;
     noShowFeeAmount: Prisma.Decimal | number | string | null;
     noShowReason: string | null;
+    vehiclePlate: string | null;
     contactChannel: any;
     contactNotes: string | null;
     notes: string | null;
@@ -498,6 +501,7 @@ export class ReservaService {
       noShowAt: data.noShowAt,
       noShowFeeAmount: data.noShowFeeAmount !== null ? Number(data.noShowFeeAmount) : null,
       noShowReason: data.noShowReason,
+      vehiclePlate: data.vehiclePlate,
       contactChannel: data.contactChannel,
       contactNotes: data.contactNotes,
       notes: data.notes,
