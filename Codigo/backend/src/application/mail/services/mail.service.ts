@@ -369,6 +369,7 @@ export class MailService {
         `Failed to send hosting check-in email to ${payload.email}`,
         error,
       );
+      throw error;
     }
   }
 

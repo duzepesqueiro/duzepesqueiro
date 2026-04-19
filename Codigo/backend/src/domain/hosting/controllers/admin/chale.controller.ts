@@ -26,6 +26,8 @@ import { JwtAuthGuard } from '../../../../application/auth/guards/jwt-auth.guard
 import { RolesGuard } from '../../../../application/auth/guards/roles.guard';
 import {
   AvailabilityDTO,
+  ChaleCalendarioDTO,
+  ChaleCalendarioQueryDTO,
   AvaliacaoListDTO,
   ChaleDetailDTO,
   ChaleDTO,
@@ -100,6 +102,16 @@ export class ChaleController {
   @ApiResponse({ status: 404, description: 'Chalé não encontrado' })
   async obter(@Param('id', ParseUUIDPipe) id: string): Promise<ChaleDetailDTO> {
     return this.chaleService.obterChale(id);
+  }
+
+  @Get(':id/calendario')
+  @ApiOperation({ summary: 'Obter calendário de disponibilidade/reservas do chalé' })
+  @ApiResponse({ status: 200, type: ChaleCalendarioDTO })
+  async obterCalendario(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ChaleCalendarioQueryDTO,
+  ): Promise<ChaleCalendarioDTO> {
+    return this.chaleService.obterCalendarioChale(id, query.from, query.to);
   }
 
   @Post()

@@ -31,5 +31,6 @@ export class UpdateReservaDTO {
   policiesAcceptedAt?: string | null;
   policyVersion?: string | null;
   policyTerm?: string | null;
+  vehiclePlate?: string | null;
   updatedById?: string | null;
 }

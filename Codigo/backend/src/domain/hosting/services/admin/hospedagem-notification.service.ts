@@ -216,6 +216,17 @@ export class HospedagemNotificationService {
             name: true,
           },
         },
+        user: {
+          select: {
+            emails: {
+              select: {
+                email: true,
+                isPrimary: true,
+                isVerified: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -229,11 +240,29 @@ export class HospedagemNotificationService {
   private resolveReservationEmail(reserva: {
     guestEmail: string | null;
     guestName: string;
+    user?: {
+      emails: Array<{
+        email: string;
+        isPrimary: boolean;
+        isVerified: boolean;
+      }>;
+    } | null;
   }): string {
-    if (!reserva.guestEmail) {
+    if (reserva.guestEmail) {
+      return reserva.guestEmail;
+    }
+
+    const userEmails = Array.isArray(reserva.user?.emails) ? reserva.user.emails : [];
+    const fallbackEmail =
+      userEmails.find((item) => item.isPrimary)?.email ||
+      userEmails.find((item) => item.isVerified)?.email ||
+      userEmails[0]?.email;
+
+    if (!fallbackEmail) {
       throw new BadRequestException('Reserva não possui e-mail para envio de notificação.');
     }
-    return reserva.guestEmail;
+
+    return fallbackEmail;
   }
 
   private async getOrCreateVoucher(reservaId: string, reservaCode: string) {

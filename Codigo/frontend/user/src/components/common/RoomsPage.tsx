@@ -12,10 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Room } from '@/types/booking';
 import { api } from '@/lib/api';
-import roomStandard from '@/assets/room-standard.jpg';
-import roomDeluxe from '@/assets/room-deluxe.jpg';
-import roomSuite from '@/assets/room-suite.jpg';
-import roomCabin from '@/assets/room-cabin.jpg';
+import { mapApiChaletToRoom, resolveEffectiveRoomPrice } from '@/lib/hostingRoomMapper';
 
 type ApiChalet = {
   id: string;
@@ -24,107 +21,25 @@ type ApiChalet = {
   unitType?: string;
   maxGuests?: number;
   basePrice?: number;
+  currentPrice?: number;
   amenities?: string[];
   images?: { imageUrl: string }[] | string[];
   petFriendly?: boolean;
   status?: string;
   isActive?: boolean;
+  imagesCount?: number;
   unavailableDates?: string[];
 };
 
-const fallbackRooms: Room[] = [
-  {
-    id: 'room-standard-1',
-    name: 'Quarto Conforto',
-    type: 'standard',
-    description:
-      'Aconchegante e funcional, perfeito para uma estadia tranquila. Decoração em tons neutros com toques de madeira.',
-    capacity: 2,
-    pricePerNight: 280,
-    amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart', 'Frigobar'],
-    petFriendly: true,
-    images: [roomStandard],
-    beds: '1 cama queen',
-    bathroom: 'Banheiro privativo',
-    extras: ['Café da manhã', 'Estacionamento'],
-    rules: ['Check-in a partir das 14h', 'Check-out até 12h'],
-    unavailableDates: [],
-  },
-  {
-    id: 'room-deluxe-1',
-    name: 'Quarto Jardim',
-    type: 'deluxe',
-    description:
-      'Varanda privativa com vista para o jardim tropical. Ideal para casais em busca de espaço extra e luz natural.',
-    capacity: 3,
-    pricePerNight: 420,
-    amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart 65"', 'Frigobar'],
-    petFriendly: true,
-    images: [roomDeluxe],
-    beds: '1 cama queen + 1 cama de solteiro',
-    bathroom: 'Banheiro privativo com ducha',
-    extras: ['Café da manhã', 'Amenities premium'],
-    rules: ['Check-in a partir das 14h', 'Silêncio após 22h'],
-    unavailableDates: [],
-  },
-  {
-    id: 'room-suite-1',
-    name: 'Suíte Master',
-    type: 'suite',
-    description: 'Experiência premium com ambiente amplo, living integrado e vista privilegiada.',
-    capacity: 4,
-    pricePerNight: 560,
-    amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart 65"', 'Frigobar'],
-    petFriendly: false,
-    images: [roomSuite],
-    beds: '1 cama king + sofá-cama',
-    bathroom: 'Banheiro amplo com amenities',
-    extras: ['Café da manhã', 'Late checkout sujeito à disponibilidade'],
-    rules: ['Check-in a partir das 14h', 'Não fumar no quarto'],
-    unavailableDates: [],
-  },
-  {
-    id: 'room-cabin-1',
-    name: 'Chalé da Serra',
-    type: 'cabin',
-    description: 'Chalé privativo para grupos e famílias em contato com a natureza.',
-    capacity: 5,
-    pricePerNight: 640,
-    amenities: ['Wi-Fi', 'Ar condicionado', 'TV Smart', 'Frigobar'],
-    petFriendly: true,
-    images: [roomCabin],
-    beds: '2 camas queen + 1 sofá-cama',
-    bathroom: '2 banheiros',
-    extras: ['Café da manhã', 'Área externa privativa'],
-    rules: ['Check-in a partir das 14h', 'Não realizar festas'],
-    unavailableDates: [],
-  },
-];
+type ApiChaletDetail = ApiChalet & {
+  images?: Array<{ imageUrl?: string; id?: string }>;
+};
 
-const mapApiChaletToRoom = (item: ApiChalet): Room => ({
-  id: item.id,
-  name: item.name,
-  type: (item.unitType as Room['type']) || 'standard',
-  description: item.description || 'Acomodações preparadas para sua estadia.',
-  capacity: item.maxGuests || 2,
-  pricePerNight: item.basePrice ?? 0,
-  amenities: item.amenities && item.amenities.length ? item.amenities : ['Wi-Fi', 'Ar condicionado'],
-  petFriendly: Boolean(item.petFriendly),
-  images:
-    Array.isArray(item.images) && item.images.length
-      ? item.images.map((img) => (typeof img === 'string' ? img : img.imageUrl))
-      : [roomStandard],
-  beds: '1 cama queen',
-  bathroom: 'Banheiro privativo',
-  extras: [],
-  rules: [],
-  unavailableDates: item.unavailableDates || [],
-});
-
-const isUnavailable = (room: Room, status?: string, isActive?: boolean) => {
-  if (isActive === false) return true;
-  if (status && status !== 'ACTIVE' && status !== 'AVAILABLE') return true;
-  return false;
+type AvailabilityResponse = {
+  chaletId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  available: boolean;
 };
 
 const RoomsPage = () => {
@@ -135,6 +50,7 @@ const RoomsPage = () => {
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
   const [petsOnly, setPetsOnly] = useState(booking.pets);
   const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
+  const [priceFilterEnabled, setPriceFilterEnabled] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -170,49 +86,107 @@ const RoomsPage = () => {
   }, [booking.guests, searchParams, setBooking]);
 
   const { data: serverRooms = [], isLoading } = useQuery<ApiChalet[]>({
-    queryKey: [
-      'rooms',
-      typeFilter,
-      capacityFilter,
-      booking.checkIn ? booking.checkIn.toISOString() : null,
-      booking.checkOut ? booking.checkOut.toISOString() : null,
-      petsOnly,
-    ],
+    queryKey: ['rooms'],
     queryFn: async (): Promise<ApiChalet[]> => {
-      const params: Record<string, string | number | boolean | undefined> = {
-        checkin: booking.checkIn ? booking.checkIn.toISOString() : undefined,
-        checkout: booking.checkOut ? booking.checkOut.toISOString() : undefined,
-        capacidadeAdultos: capacityFilter > 0 ? capacityFilter : undefined,
-        tipo: typeFilter !== 'all' ? typeFilter : undefined,
-      };
-      const { data } = await api.get('/api/chales', { params });
+      const { data } = await api.get('/api/chales');
       if (!Array.isArray(data)) return [];
-      return data as ApiChalet[];
+      const base = data as ApiChalet[];
+
+      const enriched = await Promise.all(
+        base.map(async (item) => {
+          if (item.imagesCount === 0) {
+            return { ...item, images: [] };
+          }
+          try {
+            const { data: detail } = await api.get(`/api/chales/${item.id}`);
+            const images = Array.isArray((detail as ApiChaletDetail)?.images)
+              ? (detail as ApiChaletDetail).images
+              : [];
+            return {
+              ...item,
+              images,
+              currentPrice: resolveEffectiveRoomPrice({
+                ...(item as Record<string, unknown>),
+                ...((detail as Record<string, unknown>) || {}),
+              }),
+            };
+          } catch {
+            return { ...item, images: [] };
+          }
+        })
+      );
+
+      return enriched;
     },
-    staleTime: 1000 * 60 * 3,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
 
-  const roomList: { room: Room; status?: string; isActive?: boolean }[] = serverRooms.length
-    ? serverRooms.map((c) => ({ room: mapApiChaletToRoom(c), status: c.status, isActive: c.isActive }))
-    : fallbackRooms.map((r) => ({ room: r, status: 'ACTIVE', isActive: true }));
+  const roomList: Room[] = serverRooms.length
+    ? serverRooms.map((c) => mapApiChaletToRoom(c))
+    : [];
+
+  const hasDateFilter = Boolean(booking.checkIn && booking.checkOut);
+
+  const { data: availabilityMap = {}, isLoading: isLoadingAvailability } = useQuery<Record<string, boolean>>({
+    queryKey: [
+      'rooms-availability',
+      roomList.map((room) => room.id).join('|'),
+      booking.checkIn ? booking.checkIn.toISOString() : null,
+      booking.checkOut ? booking.checkOut.toISOString() : null,
+    ],
+    enabled: hasDateFilter && roomList.length > 0,
+    queryFn: async () => {
+      const checkin = booking.checkIn!.toISOString();
+      const checkout = booking.checkOut!.toISOString();
+      const responses = await Promise.all(
+        roomList.map(async (room) => {
+          try {
+            const { data } = await api.get('/api/chales/disponibilidade', {
+              params: { chaleId: room.id, checkin, checkout },
+            });
+            const dto = data as AvailabilityResponse;
+            return [room.id, !dto?.available] as const;
+          } catch {
+            return [room.id, true] as const;
+          }
+        })
+      );
+      return Object.fromEntries(responses);
+    },
+    staleTime: 1000 * 60,
+  });
+
+  const priceSliderMax = useMemo(() => {
+    if (!roomList.length) return 1000;
+    const maxPrice = Math.max(...roomList.map((room) => room.pricePerNight || 0));
+    return Math.max(1000, Math.ceil(maxPrice / 100) * 100);
+  }, [roomList]);
+
+  useEffect(() => {
+    if (!priceFilterEnabled) {
+      setPriceRange([0, priceSliderMax]);
+      return;
+    }
+    setPriceRange((prev) => [Math.min(prev[0], priceSliderMax), Math.min(prev[1], priceSliderMax)]);
+  }, [priceSliderMax, priceFilterEnabled]);
 
   const filteredRooms = useMemo(() => {
     return roomList
-      .filter(({ room, status, isActive }) => {
+      .filter((room) => {
         if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
         if (petsOnly && !room.petFriendly) return false;
-        if (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1]) return false;
+        if (priceFilterEnabled && (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1])) return false;
         if (typeFilter !== 'all' && room.type !== typeFilter) return false;
-        if (booking.guests > room.capacity) return false;
-        if (isUnavailable(room, status, isActive)) return false;
         return true;
       })
-      .map(({ room, status, isActive }) => ({
+      .map((room) => ({
         room,
-        unavailable: isUnavailable(room, status, isActive),
+        unavailable: hasDateFilter ? Boolean(availabilityMap[room.id]) : false,
       }));
-  }, [roomList, capacityFilter, petsOnly, priceRange, typeFilter, booking.guests]);
+  }, [roomList, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
 
   const summaryChips = [
     booking.checkIn && booking.checkOut
@@ -227,8 +201,11 @@ const RoomsPage = () => {
     const params = new URLSearchParams();
     if (booking.checkIn) params.set('checkIn', booking.checkIn.toISOString());
     if (booking.checkOut) params.set('checkOut', booking.checkOut.toISOString());
-    params.set('price', String(room.pricePerNight));
-    navigate(`/hospedagem/rooms/${room.id}?${params.toString()}`, { state: { room } });
+    const query = params.toString();
+    navigate(
+      query ? `/hospedagem/rooms/${room.id}?${query}` : `/hospedagem/rooms/${room.id}`,
+      { state: { room } },
+    );
   };
 
   return (
@@ -337,7 +314,16 @@ const RoomsPage = () => {
                     <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
                       Faixa de preço: R${priceRange[0]} - R${priceRange[1]}
                     </label>
-                    <Slider value={priceRange} onValueChange={setPriceRange} min={0} max={1000} step={20} />
+                    <Slider
+                      value={priceRange}
+                      onValueChange={(value) => {
+                        setPriceFilterEnabled(true);
+                        setPriceRange(value);
+                      }}
+                      min={0}
+                      max={priceSliderMax}
+                      step={20}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between rounded-lg border border-[#024059]/25 bg-[#F2BF27]/20 px-3 py-2">
@@ -351,7 +337,7 @@ const RoomsPage = () => {
             </motion.aside>
 
             <div className="flex-1">
-              {isLoading ? (
+              {isLoading || (hasDateFilter && isLoadingAvailability) ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2" aria-label="Carregando quartos">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <div

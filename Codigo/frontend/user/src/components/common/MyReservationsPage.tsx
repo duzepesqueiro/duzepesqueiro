@@ -1,17 +1,35 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDays, XCircle, Eye, UserPen } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/common/layout/Header';
 import { useBooking } from '@/contexts/BookingContext';
-import { rooms } from '@/data/rooms';
+import { api } from '@/lib/api';
+import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ReservationDetailDialog from '@/components/common/reservation/ReservationDetailDialog';
 import EditGuestsDialog from '@/components/common/reservation/EditGuestsDialog';
 import CancelReservationDialog from '@/components/common/reservation/CancelReservationDialog';
 import type { Reservation, Guest } from '@/types/booking';
+import type { Room } from '@/types/booking';
+
+type ApiChaletDetail = {
+  id: string;
+  name: string;
+  description?: string;
+  unitType?: string;
+  maxGuests?: number;
+  basePrice?: number;
+  currentPrice?: number;
+  amenities?: string[];
+  images?: Array<{ id?: string; imageUrl?: string }>;
+  petFriendly?: boolean;
+  rooms?: string[];
+  notes?: string;
+};
 
 const statusColors: Record<string, string> = {
   confirmed: 'bg-primary text-primary-foreground',
@@ -35,6 +53,40 @@ const MyReservationsPage = () => {
     updateReservationGuests(id, guests);
   };
 
+  const reservationRoomIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          reservations
+            .map((res) => res.bookingData.roomId)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ),
+    [reservations],
+  );
+
+  const { data: roomById = {} } = useQuery<Record<string, Room>>({
+    queryKey: ['my-reservations-rooms', reservationRoomIds.join('|')],
+    enabled: reservationRoomIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        reservationRoomIds.map(async (id) => {
+          try {
+            const { data } = await api.get(`/api/chales/${id}`);
+            return [id, mapApiChaletToRoom(data as ApiChaletDetail)] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      );
+      const entries = responses.filter(([, room]) => Boolean(room)) as Array<[string, Room]>;
+      return Object.fromEntries(entries);
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -57,7 +109,7 @@ const MyReservationsPage = () => {
           ) : (
             <div className="space-y-4">
               {reservations.map((res, i) => {
-                const room = rooms.find(r => r.id === res.bookingData.roomId);
+                const room = roomById[res.bookingData.roomId];
                 return (
                   <motion.div
                     key={res.id}
@@ -122,7 +174,7 @@ const MyReservationsPage = () => {
           open={!!detailRes}
           onOpenChange={(o) => !o && setDetailRes(null)}
           reservation={detailRes}
-          room={rooms.find(r => r.id === detailRes.bookingData.roomId)}
+          room={roomById[detailRes.bookingData.roomId]}
         />
       )}
 
@@ -131,7 +183,7 @@ const MyReservationsPage = () => {
           open={!!editRes}
           onOpenChange={(o) => !o && setEditRes(null)}
           guests={editRes.bookingData.guestDetails}
-          maxCapacity={rooms.find(r => r.id === editRes.bookingData.roomId)?.capacity || 10}
+          maxCapacity={roomById[editRes.bookingData.roomId]?.capacity || 10}
           onSave={(guests) => handleSaveGuests(editRes.id, guests)}
         />
       )}

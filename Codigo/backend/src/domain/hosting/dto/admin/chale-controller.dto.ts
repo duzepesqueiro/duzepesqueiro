@@ -104,3 +104,17 @@ export class DisponibilidadeChaleQueryDTO {
   @ValidateIf((o) => !o.tipo)
   chaleId?: string;
 }
+
+export class ChaleCalendarioQueryDTO {
+  @ApiPropertyOptional({ description: 'Data inicial da janela (ISO string)' })
+  @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : value))
+  @IsDate()
+  from?: Date;
+
+  @ApiPropertyOptional({ description: 'Data final da janela (ISO string)' })
+  @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : value))
+  @IsDate()
+  to?: Date;
+}
