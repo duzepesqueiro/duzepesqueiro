@@ -1,65 +1,145 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import HostingLayout from './components/HostingLayout';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import PriceSimulator from './components/PriceSimulator';
 import PriceRuleFormModal from './components/PriceRuleFormModal';
 import PriceRulesList from './components/PriceRulesList';
+import {
+  createPricingRule,
+  deletePricingRule,
+  listChalets,
+  listPricingRules,
+  togglePricingRule,
+  updatePricingRule,
+} from '../../utils/hostingService';
 
-const chalets = [
-  { id: 'chalet-1', name: 'Quarto Jardim', type: 'Standard', basePrice: 150 },
-  { id: 'chalet-2', name: 'Quarto Serra', type: 'Deluxe', basePrice: 220 },
-  { id: 'chalet-3', name: 'Quarto Montanha', type: 'Suite', basePrice: 320 },
-];
+const ruleTypeToUiLabel = {
+  SEASON: 'Temporada',
+  WEEKEND: 'Final de Semana',
+  HOLIDAY: 'Feriado',
+  DISCOUNT: 'Desconto',
+};
 
-const initialRules = [
-  {
-    id: 'rule-1',
-    name: 'Fds Abril',
-    type: 'Final de Semana',
-    modifierPercent: 10,
-    modifierDirection: 'decrease',
-    startDate: '2026-04-05',
-    endDate: '2026-04-30',
-    applyMode: 'all',
-    applyAll: true,
-    chaletIds: chalets.map((item) => item.id),
-    active: true,
-  },
-  {
-    id: 'rule-2',
-    name: 'Alta 2026',
-    type: 'Temporada',
-    modifierPercent: 15,
-    modifierDirection: 'decrease',
-    startDate: '2026-12-15',
-    endDate: '2027-02-15',
-    applyMode: 'manual',
-    applyAll: false,
-    chaletIds: ['chalet-1', 'chalet-2'],
-    active: false,
-  },
-];
+const uiLabelToRuleTypeIncrease = {
+  Temporada: 'SEASON',
+  'Final de Semana': 'WEEKEND',
+  Feriado: 'HOLIDAY',
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+};
+
+const normalizeChalet = (chalet) => ({
+  ...chalet,
+  basePrice: Number(chalet?.basePrice || 0),
+});
+
+const normalizeRuleFromApi = (rule) => {
+  const isDiscount = rule?.ruleType === 'DISCOUNT';
+  return {
+    id: rule?.id,
+    name: rule?.name || '',
+    type: ruleTypeToUiLabel[rule?.ruleType] || 'Temporada',
+    modifierPercent: Number(rule?.percentage || 0),
+    modifierDirection: isDiscount ? 'decrease' : 'increase',
+    startDate: toDateInputValue(rule?.startDate),
+    endDate: toDateInputValue(rule?.endDate),
+    applyMode: rule?.appliesToAll ? 'all' : 'manual',
+    applyAll: Boolean(rule?.appliesToAll),
+    chaletIds: Array.isArray(rule?.chaletIds) ? rule.chaletIds : [],
+    active: rule?.isActive !== false,
+    createdAt: rule?.createdAt,
+    updatedAt: rule?.updatedAt,
+  };
+};
+
+const toBackendRulePayload = (rule) => {
+  const direction = rule?.modifierDirection;
+  const uiType = rule?.type;
+  const appliesToAll = Boolean(rule?.applyAll);
+  const fallbackType = 'SEASON';
+  const ruleType =
+    direction === 'decrease'
+      ? 'DISCOUNT'
+      : (uiLabelToRuleTypeIncrease[uiType] || fallbackType);
+
+  return {
+    name: String(rule?.name || '').trim(),
+    ruleType,
+    percentage: Number(rule?.modifierPercent || 0),
+    startDate: rule?.startDate,
+    endDate: rule?.endDate,
+    appliesToAll,
+    chaletIds: appliesToAll ? [] : (Array.isArray(rule?.chaletIds) ? rule.chaletIds : []),
+    isActive: rule?.active !== false,
+  };
+};
+
+const toErrorMessage = (error, fallback) => {
+  const message = error?.response?.data?.message;
+  if (Array.isArray(message) && message.length) {
+    return message.join(', ');
+  }
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+  return fallback;
+};
+
+const toLocalDateOnly = (value) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
 const dateInRange = (date, startDate, endDate) => {
-  const target = new Date(date);
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const target = toLocalDateOnly(date);
+  const start = toLocalDateOnly(startDate);
+  const end = toLocalDateOnly(endDate);
   return target >= start && target <= end;
 };
 
 const overlap = (aStart, aEnd, bStart, bEnd) => {
-  const aS = new Date(aStart);
-  const aE = new Date(aEnd);
-  const bS = new Date(bStart);
-  const bE = new Date(bEnd);
+  const aS = toLocalDateOnly(aStart);
+  const aE = toLocalDateOnly(aEnd);
+  const bS = toLocalDateOnly(bStart);
+  const bE = toLocalDateOnly(bEnd);
   return aS <= bE && aE >= bS;
 };
 
 const PricingManagementPage = () => {
-  const [rules, setRules] = useState(initialRules);
+  const [rules, setRules] = useState([]);
+  const [chalets, setChalets] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isSavingRule, setIsSavingRule] = useState(false);
+  const [rowActionByRuleId, setRowActionByRuleId] = useState({});
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [chaletsResponse, rulesResponse] = await Promise.all([
+        listChalets(),
+        listPricingRules(true),
+      ]);
+      setChalets(chaletsResponse.map(normalizeChalet));
+      setRules(rulesResponse.map(normalizeRuleFromApi));
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível carregar os dados da gestão de preços.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const chaletNameById = useMemo(
     () =>
@@ -67,7 +147,7 @@ const PricingManagementPage = () => {
         acc[item.id] = item.name;
         return acc;
       }, {}),
-    []
+    [chalets]
   );
 
   const simulation = useMemo(() => {
@@ -111,7 +191,7 @@ const PricingManagementPage = () => {
         sign: activeRule.modifierDirection,
       };
     });
-  }, [rules]);
+  }, [rules, chalets]);
 
   const validateConflict = ({ id, chaletIds, startDate, endDate, active }) => {
     if (!active) {
@@ -139,36 +219,66 @@ const PricingManagementPage = () => {
     return '';
   };
 
-  const handleSaveRule = (payload) => {
-    if (payload.id) {
-      setRules((prev) => prev.map((rule) => (rule.id === payload.id ? payload : rule)));
-    } else {
-      setRules((prev) => [
-        ...prev,
-        {
-          ...payload,
-          id: `rule-${Date.now()}`,
-        },
-      ]);
+  const handleSaveRule = async (payload) => {
+    if (isSavingRule) {
+      return;
     }
-    setIsModalOpen(false);
-    setEditingRule(null);
+    const backendPayload = toBackendRulePayload(payload);
+    setIsSavingRule(true);
+    try {
+      if (payload.id) {
+        const updated = await updatePricingRule(payload.id, backendPayload);
+        setRules((prev) =>
+          prev.map((rule) => (rule.id === payload.id ? normalizeRuleFromApi(updated) : rule))
+        );
+      } else {
+        const created = await createPricingRule(backendPayload);
+        setRules((prev) => [normalizeRuleFromApi(created), ...prev]);
+      }
+      setIsModalOpen(false);
+      setEditingRule(null);
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível salvar a regra de preço.'));
+    } finally {
+      setIsSavingRule(false);
+    }
   };
 
   const handleEditRule = (rule) => {
+    if (rowActionByRuleId[rule.id]) {
+      return;
+    }
+    setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: 'edit' }));
     setEditingRule(rule);
     setIsModalOpen(true);
+    setTimeout(() => {
+      setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: null }));
+    }, 0);
   };
 
-  const handleDeleteRule = (rule) => {
+  const handleDeleteRule = async (rule) => {
+    if (rowActionByRuleId[rule.id]) {
+      return;
+    }
     const shouldDelete = window.confirm(`Deseja excluir a regra '${rule.name}'?`);
     if (!shouldDelete) {
       return;
     }
-    setRules((prev) => prev.filter((item) => item.id !== rule.id));
+    setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: 'delete' }));
+    try {
+      await deletePricingRule(rule.id);
+      setRules((prev) => prev.filter((item) => item.id !== rule.id));
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível excluir a regra.'));
+    } finally {
+      setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: null }));
+    }
   };
 
-  const handleToggleRule = (rule) => {
+  const handleToggleRule = async (rule) => {
+    if (rowActionByRuleId[rule.id]) {
+      return;
+    }
     const nextActive = !rule.active;
     if (nextActive) {
       const conflict = validateConflict({
@@ -183,16 +293,17 @@ const PricingManagementPage = () => {
         return;
       }
     }
-    setRules((prev) =>
-      prev.map((item) =>
-        item.id === rule.id
-          ? {
-              ...item,
-              active: nextActive,
-            }
-          : item
-      )
-    );
+    setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: 'toggle' }));
+    try {
+      const updated = await togglePricingRule(rule.id, nextActive);
+      setRules((prev) =>
+        prev.map((item) => (item.id === rule.id ? normalizeRuleFromApi(updated) : item))
+      );
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível alterar o status da regra.'));
+    } finally {
+      setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: null }));
+    }
   };
 
   return (
@@ -213,18 +324,24 @@ const PricingManagementPage = () => {
         onToggle={handleToggleRule}
         onEdit={handleEditRule}
         onDelete={handleDeleteRule}
+        rowActionByRuleId={rowActionByRuleId}
       />
       <PriceRuleFormModal
         isOpen={isModalOpen}
         chalets={chalets}
         editingRule={editingRule}
+        isSaving={isSavingRule}
         onClose={() => {
+          if (isSavingRule) return;
           setIsModalOpen(false);
           setEditingRule(null);
         }}
         onSave={handleSaveRule}
         validateConflict={validateConflict}
       />
+      {loading ? (
+        <div className="mt-4 text-sm text-muted-foreground">Carregando regras e chalés...</div>
+      ) : null}
     </HostingLayout>
   );
 };

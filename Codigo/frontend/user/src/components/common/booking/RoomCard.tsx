@@ -27,17 +27,16 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
   const navigate = useNavigate();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const carouselImages: Array<string | null> = [
-    ...room.images.slice(0, MAX_IMAGES),
-    ...Array.from({ length: Math.max(0, MAX_IMAGES - room.images.length) }, () => null),
-  ];
+  const carouselImages: string[] = room.images.slice(0, MAX_IMAGES);
 
   const hasCarousel = carouselImages.length > 1;
-  const activeImage = carouselImages[activeImageIndex] ?? carouselImages[0];
+  const activeImage = carouselImages[activeImageIndex] ?? null;
 
   useEffect(() => {
-    setActiveImageIndex(0);
-  }, [room.id, room.images.length]);
+    if (activeImageIndex >= carouselImages.length) {
+      setActiveImageIndex(0);
+    }
+  }, [room.id, room.images.length, carouselImages.length, activeImageIndex]);
 
   const handleSelect = () => {
     if (unavailable) return;

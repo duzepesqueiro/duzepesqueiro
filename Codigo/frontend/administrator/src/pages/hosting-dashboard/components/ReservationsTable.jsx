@@ -8,6 +8,7 @@ const statusStyles = {
   Ocupado: 'bg-orange-100 text-orange-700',
   Finalizada: 'bg-green-100 text-green-700',
   Cancelada: 'bg-red-100 text-red-700',
+  'No-show': 'bg-red-100 text-red-700',
 };
 
 const codeStyles = {
@@ -16,6 +17,7 @@ const codeStyles = {
   Ocupado: 'bg-orange-100 text-orange-700',
   Finalizada: 'bg-green-100 text-green-700',
   Cancelada: 'bg-red-100 text-red-700',
+  'No-show': 'bg-red-100 text-red-700',
 };
 
 const formatDateTime = (value) => {
@@ -38,12 +40,23 @@ const formatCurrency = (value) =>
     currency: 'BRL',
   }).format(Number(value || 0));
 
-const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCancel, onNoShow }) => {
-  const isFinal = reservation.status === 'Finalizada' || reservation.status === 'Cancelada';
+const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCancel, onNoShow, processingAction }) => {
+  const isFinal = reservation.status === 'Finalizada' || reservation.status === 'Cancelada' || reservation.status === 'No-show';
+  const isProcessingCurrent = processingAction?.reservationId === reservation.id;
+  const isProcessingCheckIn = isProcessingCurrent && processingAction?.type === 'checkin';
+  const isProcessingCheckOut = isProcessingCurrent && processingAction?.type === 'checkout';
 
   if (isFinal) {
     return (
-      <Button type="button" variant="ghost" size="icon" onClick={() => onView(reservation)} aria-label={`Ver ${reservation.code}`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onView(reservation)}
+        aria-label={`Ver ${reservation.code}`}
+        title="Ver detalhes da reserva"
+        disabled={isProcessingCurrent}
+      >
         <Icon name="Eye" size={16} />
       </Button>
     );
@@ -52,16 +65,49 @@ const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCanc
   if (!reservation.checkInDone) {
     return (
       <div className="flex items-center gap-1">
-        <Button type="button" variant="ghost" size="icon" onClick={() => onView(reservation)} aria-label={`Ver ${reservation.code}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onView(reservation)}
+          aria-label={`Ver ${reservation.code}`}
+          title="Ver detalhes da reserva"
+          disabled={isProcessingCurrent}
+        >
           <Icon name="Eye" size={16} />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onCheckIn(reservation)} aria-label={`Check-in ${reservation.code}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onCheckIn(reservation)}
+          aria-label={`Check-in ${reservation.code}`}
+          title="Realizar check-in"
+          disabled={isProcessingCurrent}
+          loading={isProcessingCheckIn}
+        >
           <Icon name="ClipboardCheck" size={16} />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onNoShow(reservation)} aria-label={`No-show ${reservation.code}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onNoShow(reservation)}
+          aria-label={`No-show ${reservation.code}`}
+          title="Registrar no-show"
+          disabled={isProcessingCurrent}
+        >
           <Icon name="UserX" size={16} />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onCancel(reservation)} aria-label={`Cancelar ${reservation.code}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onCancel(reservation)}
+          aria-label={`Cancelar ${reservation.code}`}
+          title="Cancelar reserva"
+          disabled={isProcessingCurrent}
+        >
           <Icon name="XCircle" size={16} />
         </Button>
       </div>
@@ -70,13 +116,38 @@ const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCanc
 
   return (
     <div className="flex items-center gap-1">
-      <Button type="button" variant="ghost" size="icon" onClick={() => onView(reservation)} aria-label={`Ver ${reservation.code}`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onView(reservation)}
+        aria-label={`Ver ${reservation.code}`}
+        title="Ver detalhes da reserva"
+        disabled={isProcessingCurrent}
+      >
         <Icon name="Eye" size={16} />
       </Button>
-      <Button type="button" variant="ghost" size="icon" onClick={() => onCheckOut(reservation)} aria-label={`Check-out ${reservation.code}`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onCheckOut(reservation)}
+        aria-label={`Check-out ${reservation.code}`}
+        title="Realizar check-out"
+        disabled={isProcessingCurrent}
+        loading={isProcessingCheckOut}
+      >
         <Icon name="LogOut" size={16} />
       </Button>
-      <Button type="button" variant="ghost" size="icon" onClick={() => onCancel(reservation)} aria-label={`Cancelar ${reservation.code}`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onCancel(reservation)}
+        aria-label={`Cancelar ${reservation.code}`}
+        title="Cancelar reserva"
+        disabled={isProcessingCurrent}
+      >
         <Icon name="XCircle" size={16} />
       </Button>
     </div>
@@ -90,6 +161,7 @@ const ReservationsTable = ({
   onCheckOut,
   onCancel,
   onNoShow,
+  processingAction,
 }) => {
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -153,6 +225,7 @@ const ReservationsTable = ({
                     onCheckOut={onCheckOut}
                     onCancel={onCancel}
                     onNoShow={onNoShow}
+                    processingAction={processingAction}
                   />
                 </td>
               </tr>

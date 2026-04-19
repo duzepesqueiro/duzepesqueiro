@@ -1,12 +1,14 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
-import { rooms } from '@/data/rooms';
 import { useBooking } from '@/contexts/BookingContext';
+import { api } from '@/lib/api';
+import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +25,21 @@ type BookingErrors = Record<string, string>;
 type BookingLocationState = {
   room?: Room;
   booking?: Pick<BookingData, 'checkIn' | 'checkOut' | 'guests' | 'pets'>;
+};
+
+type ApiChaletDetail = {
+  id: string;
+  name: string;
+  description?: string;
+  unitType?: string;
+  maxGuests?: number;
+  basePrice?: number;
+  currentPrice?: number;
+  amenities?: string[];
+  images?: Array<{ id?: string; imageUrl?: string }>;
+  petFriendly?: boolean;
+  rooms?: string[];
+  notes?: string;
 };
 
 const createEmptyGuest = (): Guest => ({
@@ -122,7 +139,20 @@ const BookingPage = () => {
   const locationState = location.state as BookingLocationState | null | undefined;
   const locationRoom = locationState?.room;
   const bookingSeed = locationState?.booking;
-  const room = locationRoom ?? rooms.find((r) => r.id === booking.roomId);
+  const roomId = locationRoom?.id || booking.roomId;
+
+  const { data: apiRoomData } = useQuery<ApiChaletDetail>({
+    queryKey: ['booking-room-detail', roomId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/chales/${roomId}`);
+      return data as ApiChaletDetail;
+    },
+    enabled: Boolean(roomId && !locationRoom),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+  const room = locationRoom ?? (apiRoomData ? mapApiChaletToRoom(apiRoomData) : null);
   const checkInDate = isValidDateValue(booking.checkIn) ? startOfDay(booking.checkIn) : null;
   const checkOutDate = isValidDateValue(booking.checkOut) ? startOfDay(booking.checkOut) : null;
   const nights = checkInDate && checkOutDate

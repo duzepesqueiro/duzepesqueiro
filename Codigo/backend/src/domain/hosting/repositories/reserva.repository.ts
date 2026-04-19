@@ -172,6 +172,7 @@ export class ReservaRepository {
           policiesAcceptedAt: data.policiesAcceptedAt ? new Date(data.policiesAcceptedAt) : undefined,
           policyVersion: data.policyVersion,
           policyTerm: data.policyTerm,
+          vehiclePlate: data.vehiclePlate,
           notes: data.notes,
           createdById: data.createdById,
         },
@@ -241,6 +242,7 @@ export class ReservaRepository {
                 : undefined,
           policyVersion: data.policyVersion,
           policyTerm: data.policyTerm,
+          vehiclePlate: data.vehiclePlate,
           updatedById: data.updatedById,
         },
       });
@@ -256,12 +258,20 @@ export class ReservaRepository {
   }
 
   async processCheckin(id: string, horaReal: Date): Promise<Reserva> {
-    await this.ensureExists(id);
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Reserva não encontrada.');
+    }
+
+    const shouldAutoAcceptPoliciesForManual = existing.origin === 'ADMIN' && !existing.policiesAccepted;
     return this.prisma.hostingReservation.update({
       where: { id },
       data: {
         status: ReservationStatus.OCCUPIED,
         checkedInAt: horaReal,
+        policiesAccepted: shouldAutoAcceptPoliciesForManual ? true : undefined,
+        policiesAcceptedAt:
+          shouldAutoAcceptPoliciesForManual && !existing.policiesAcceptedAt ? new Date() : undefined,
       },
     });
   }
@@ -413,11 +423,24 @@ export class ReservaRepository {
         checkInDate: { lt: checkOutDate },
         checkOutDate: { gt: checkInDate },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        code: true,
+        checkInDate: true,
+        checkOutDate: true,
+      },
+      orderBy: { checkInDate: 'asc' },
     });
 
     if (overlaps.length > 0) {
-      throw new BadRequestException('Já existe reserva no período informado para o chalé.');
+      const conflict = overlaps[0];
+      const conflictStart = this.formatDateBr(conflict.checkInDate);
+      const conflictEnd = this.formatDateBr(conflict.checkOutDate);
+      throw new BadRequestException(
+        `Chalé ocupado no período de ${conflictStart} até ${conflictEnd}${
+          conflict.code ? ` (reserva ${conflict.code})` : ''
+        }.`,
+      );
     }
 
     const blocks = await tx.hostingChaletBlock.findMany({
@@ -443,7 +466,9 @@ export class ReservaRepository {
     guestCount: number,
   ): Promise<number> {
     try {
-      const rows = await tx.$queryRaw<Array<{ total: Prisma.Decimal | number | string }>>`
+      // Run raw pricing calculation outside current transaction.
+      // If DB function is missing, we avoid aborting tx and safely fallback below.
+      const rows = await this.prisma.$queryRaw<Array<{ total: Prisma.Decimal | number | string }>>`
         SELECT calculate_total_reservation(${chaleId}, ${checkInDate}::date, ${checkOutDate}::date, ${guestCount}) AS total
       `;
       const total = rows?.[0]?.total;
@@ -466,5 +491,13 @@ export class ReservaRepository {
       throw new BadRequestException('Valor total da reserva não pode ser negativo.');
     }
     return total;
+  }
+
+  private formatDateBr(date: Date): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
   }
 }

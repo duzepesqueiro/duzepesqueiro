@@ -92,6 +92,7 @@ export class PrecoRegraRepository {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      await this.cleanupStaleChaletLinks(tx, chaletIds);
       if (data.isActive ?? true) {
         await this.ensureNoActiveRuleConflict(tx, chaletIds, undefined, appliesToAll);
       }
@@ -149,6 +150,7 @@ export class PrecoRegraRepository {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      await this.cleanupStaleChaletLinks(tx, chaletIds);
       const nextIsActive = data.isActive ?? existing.isActive;
       if (nextIsActive) {
         await this.ensureNoActiveRuleConflict(tx, chaletIds, id, appliesToAll);
@@ -224,20 +226,27 @@ export class PrecoRegraRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const result = await this.prisma.hostingPricingRule.updateMany({
-      where: {
-        id,
-        deletedAt: null,
-      },
-      data: {
-        deletedAt: new Date(),
-        isActive: false,
-      },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.hostingPricingRule.updateMany({
+        where: {
+          id,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          isActive: false,
+        },
+      });
 
-    if (result.count === 0) {
-      throw new NotFoundException('Price rule not found.');
-    }
+      if (result.count === 0) {
+        throw new NotFoundException('Price rule not found.');
+      }
+
+      // Remove links to fully release chalets for new rules after soft-delete.
+      await tx.hostingPricingRuleChalet.deleteMany({
+        where: { ruleId: id },
+      });
+    });
   }
 
   async hasActiveRuleForChale(chaleId: string, excludeRuleId?: string): Promise<boolean> {
@@ -335,5 +344,22 @@ export class PrecoRegraRepository {
     if (linked.length > 0) {
       throw new BadRequestException('One of the selected chalets already has a linked price rule.');
     }
+  }
+
+  private async cleanupStaleChaletLinks(
+    tx: Prisma.TransactionClient,
+    chaletIds: string[],
+  ): Promise<void> {
+    if (!chaletIds.length) {
+      return;
+    }
+    await tx.hostingPricingRuleChalet.deleteMany({
+      where: {
+        chaletId: { in: chaletIds },
+        rule: {
+          deletedAt: { not: null },
+        },
+      },
+    });
   }
 }
