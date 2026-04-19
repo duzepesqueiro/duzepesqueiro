@@ -12,15 +12,17 @@ const reasons = [
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
-const BlockDatesModal = ({ isOpen, onClose, chalets, blockedDates, onSave }) => {
-  const [values, setValues] = useState({
-    chaletId: '',
-    dataInicio: '',
-    dataFim: '',
-    reason: '',
-    notes: '',
-    isActive: true,
-  });
+const initialFormValues = {
+  chaletId: '',
+  dataInicio: '',
+  dataFim: '',
+  reason: '',
+  notes: '',
+  isActive: true,
+};
+
+const BlockDatesModal = ({ isOpen, onClose, chalets, blockedDates, onSave, initialValues }) => {
+  const [values, setValues] = useState(initialFormValues);
   const [errors, setErrors] = useState({});
 
   const portalElement = useMemo(() => {
@@ -42,12 +44,8 @@ const BlockDatesModal = ({ isOpen, onClose, chalets, blockedDates, onSave }) => 
       return;
     }
     setValues({
-      chaletId: '',
-      dataInicio: '',
-      dataFim: '',
-      reason: '',
-      notes: '',
-      isActive: true,
+      ...initialFormValues,
+      ...initialValues,
     });
     setErrors({});
     const previousOverflow = document.body.style.overflow;
@@ -55,7 +53,7 @@ const BlockDatesModal = ({ isOpen, onClose, chalets, blockedDates, onSave }) => 
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, initialValues]);
 
   if (!isOpen || !portalElement) {
     return null;

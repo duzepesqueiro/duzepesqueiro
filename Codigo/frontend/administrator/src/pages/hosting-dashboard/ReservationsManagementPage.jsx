@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import HostingLayout from './components/HostingLayout';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -8,100 +8,93 @@ import ReservationDetailsModal from './components/ReservationDetailsModal';
 import CancelReservationModal from './components/CancelReservationModal';
 import NoShowModal from './components/NoShowModal';
 import CreateManualReservationModal from './components/CreateManualReservationModal';
+import {
+  cancelReservation,
+  createManualReservation,
+  getReservationById,
+  listChalets,
+  listReservations,
+  processReservationCheckIn,
+  processReservationCheckOut,
+  registerReservationNoShow,
+} from '../../utils/hostingService';
 
 const tabs = ['Todas', 'Ativas', 'Check-in Feito', 'Finalizadas', 'Canceladas'];
 
-const chaletOptions = [
-  { id: 'chalet-1', name: 'Quarto Jardim', dailyRate: 150 },
-  { id: 'chalet-2', name: 'Quarto Serra', dailyRate: 220 },
-  { id: 'chalet-3', name: 'Quarto Bosque', dailyRate: 280 },
-];
+const toErrorMessage = (error, fallback) => {
+  const message = error?.response?.data?.message;
+  if (Array.isArray(message) && message.length) {
+    return message.join(', ');
+  }
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+  return fallback;
+};
 
-const initialReservations = [
-  {
-    id: 'res-1',
-    code: 'RES-001',
-    chaletId: 'chalet-1',
-    chaletName: 'Quarto Jardim',
+const statusToLabel = {
+  PENDING: 'Pendente',
+  CONFIRMED: 'Confirmado',
+  OCCUPIED: 'Ocupado',
+  COMPLETED: 'Finalizada',
+  CANCELLED: 'Cancelada',
+  NO_SHOW: 'No-show',
+};
+
+const normalizeChalet = (chalet) => ({
+  id: chalet?.id,
+  name: chalet?.name || 'Chalé',
+  dailyRate: Number(chalet?.basePrice || 0),
+});
+
+const normalizeReservation = (reservation, chaletsById = {}) => {
+  const uiStatus = statusToLabel[reservation?.status] || 'Pendente';
+  const guestName = reservation?.guestName || 'Hóspede';
+  const mappedGuests = Array.isArray(reservation?.guests)
+    ? reservation.guests.map((guest) => ({
+        name: guest?.fullName || guestName,
+        cpf: guest?.cpf || '-',
+        checkInAt: reservation?.checkedInAt || null,
+      }))
+    : [];
+
+  const guests = mappedGuests.length
+    ? mappedGuests
+    : [
+        {
+          name: guestName,
+          checkInAt: reservation?.checkedInAt || null,
+        },
+      ];
+
+  return {
+    id: reservation?.id,
+    code: reservation?.code,
+    chaletId: reservation?.chaletId,
+    chaletName: chaletsById[reservation?.chaletId] || 'Chalé',
     guest: {
-      name: 'Maria Silva',
-      email: 'maria@email.com',
-      phone: '(11) 99999-0001',
-      cpf: '123.456.789-00',
+      name: guestName,
+      email: reservation?.guestEmail || '-',
+      phone: reservation?.guestPhone || '-',
+      cpf: guests?.[0]?.cpf || '-',
     },
-    guests: [{ name: 'Maria Silva', age: 32, checkInAt: '2026-04-04T14:05:00.000Z' }],
-    checkInAt: '2026-04-04T14:00:00.000Z',
-    checkOutAt: '2026-04-07T12:00:00.000Z',
-    checkInDone: true,
-    checkOutDone: false,
-    status: 'Ocupado',
-    notes: 'Cliente prefere quarto silencioso.',
-    total: 1260,
-  },
-  {
-    id: 'res-2',
-    code: 'RES-002',
-    chaletId: 'chalet-2',
-    chaletName: 'Quarto Serra',
-    guest: {
-      name: 'João Martins',
-      email: 'joao@email.com',
-      phone: '(11) 98888-2200',
-      cpf: '456.111.777-09',
-    },
-    guests: [{ name: 'João Martins', age: 35, checkInAt: null }],
-    checkInAt: '2026-04-05T14:00:00.000Z',
-    checkOutAt: '2026-04-08T12:00:00.000Z',
-    checkInDone: false,
-    checkOutDone: false,
-    status: 'Confirmado',
-    notes: '',
-    total: 930,
-  },
-  {
-    id: 'res-3',
-    code: 'RES-003',
-    chaletId: 'chalet-3',
-    chaletName: 'Quarto Bosque',
-    guest: {
-      name: 'Ana Oliveira',
-      email: 'ana@email.com',
-      phone: '(11) 97777-0088',
-      cpf: '908.333.122-10',
-    },
-    guests: [{ name: 'Ana Oliveira', age: 29, checkInAt: '2026-03-10T14:01:00.000Z' }],
-    checkInAt: '2026-03-10T14:00:00.000Z',
-    checkOutAt: '2026-03-13T12:00:00.000Z',
-    checkInDone: true,
-    checkOutDone: true,
-    status: 'Finalizada',
-    notes: 'Estadia sem ocorrências.',
-    total: 1350,
-  },
-  {
-    id: 'res-4',
-    code: 'RES-004',
-    chaletId: 'chalet-1',
-    chaletName: 'Quarto Jardim',
-    guest: {
-      name: 'Pedro Reis',
-      email: 'pedro@email.com',
-      phone: '(11) 96666-5511',
-      cpf: '229.122.447-11',
-    },
-    guests: [{ name: 'Pedro Reis', age: 41, checkInAt: null }],
-    checkInAt: '2026-04-12T14:00:00.000Z',
-    checkOutAt: '2026-04-15T12:00:00.000Z',
-    checkInDone: false,
-    checkOutDone: false,
-    status: 'Cancelada',
-    notes: 'Cancelada pelo hóspede.',
-    total: 450,
-  },
-];
+    guests,
+    checkInAt: reservation?.checkInDate,
+    checkOutAt: reservation?.checkOutDate,
+    checkInDone:
+      Boolean(reservation?.checkedInAt) ||
+      reservation?.status === 'OCCUPIED' ||
+      reservation?.status === 'COMPLETED',
+    checkOutDone: Boolean(reservation?.checkedOutAt) || reservation?.status === 'COMPLETED',
+    status: uiStatus,
+    notes: reservation?.notes || '',
+    total: Number(reservation?.totalAmount || 0),
+  };
+};
 
 const ReservationsManagementPage = () => {
-  const [reservations, setReservations] = useState(initialReservations);
+  const [reservations, setReservations] = useState([]);
+  const [chalets, setChalets] = useState([]);
   const [activeTab, setActiveTab] = useState('Todas');
   const [search, setSearch] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -109,6 +102,40 @@ const ReservationsManagementPage = () => {
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isNoShowOpen, setIsNoShowOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [processingAction, setProcessingAction] = useState({ reservationId: null, type: null });
+  const [errorPopup, setErrorPopup] = useState({ open: false, title: '', message: '' });
+
+  const chaletNameMap = useMemo(
+    () =>
+      chalets.reduce((acc, chalet) => {
+        acc[chalet.id] = chalet.name;
+        return acc;
+      }, {}),
+    [chalets]
+  );
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [chaletsResponse, reservationsResponse] = await Promise.all([listChalets(), listReservations()]);
+      const normalizedChalets = chaletsResponse.map(normalizeChalet);
+      const normalizedMap = normalizedChalets.reduce((acc, chalet) => {
+        acc[chalet.id] = chalet.name;
+        return acc;
+      }, {});
+      setChalets(normalizedChalets);
+      setReservations(reservationsResponse.map((reservation) => normalizeReservation(reservation, normalizedMap)));
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível carregar os dados de reservas.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filteredReservations = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -118,7 +145,7 @@ const ReservationsManagementPage = () => {
         (activeTab === 'Ativas' && ['Confirmado', 'Pendente', 'Ocupado'].includes(reservation.status)) ||
         (activeTab === 'Check-in Feito' && reservation.checkInDone && reservation.status !== 'Finalizada' && reservation.status !== 'Cancelada') ||
         (activeTab === 'Finalizadas' && reservation.status === 'Finalizada') ||
-        (activeTab === 'Canceladas' && reservation.status === 'Cancelada');
+        (activeTab === 'Canceladas' && ['Cancelada', 'No-show'].includes(reservation.status));
 
       if (!matchesTab) {
         return false;
@@ -141,35 +168,46 @@ const ReservationsManagementPage = () => {
     });
   }, [reservations, activeTab, search]);
 
-  const setReservationStatus = (reservationId, changes) => {
-    setReservations((prev) =>
-      prev.map((item) => (item.id === reservationId ? { ...item, ...changes } : item))
-    );
-  };
-
-  const handleView = (reservation) => {
-    setSelectedReservation(reservation);
+  const handleView = async (reservation) => {
+    try {
+      const detail = await getReservationById(reservation.id);
+      setSelectedReservation(normalizeReservation(detail, chaletNameMap));
+    } catch {
+      setSelectedReservation(reservation);
+    }
     setIsDetailsOpen(true);
   };
 
-  const handleCheckIn = (reservation) => {
-    setReservationStatus(reservation.id, {
-      checkInDone: true,
-      status: 'Ocupado',
-      guests: reservation.guests.map((guest) => ({
-        ...guest,
-        checkInAt: guest.checkInAt || new Date().toISOString(),
-      })),
-    });
-    setIsDetailsOpen(false);
+  const handleCheckIn = async (reservation) => {
+    if (processingAction.reservationId) {
+      return;
+    }
+    setProcessingAction({ reservationId: reservation.id, type: 'checkin' });
+    try {
+      await processReservationCheckIn(reservation.id);
+      await loadData();
+      setIsDetailsOpen(false);
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível processar o check-in.'));
+    } finally {
+      setProcessingAction({ reservationId: null, type: null });
+    }
   };
 
-  const handleCheckOut = (reservation) => {
-    setReservationStatus(reservation.id, {
-      checkOutDone: true,
-      status: 'Finalizada',
-    });
-    setIsDetailsOpen(false);
+  const handleCheckOut = async (reservation) => {
+    if (processingAction.reservationId) {
+      return;
+    }
+    setProcessingAction({ reservationId: reservation.id, type: 'checkout' });
+    try {
+      await processReservationCheckOut(reservation.id);
+      await loadData();
+      setIsDetailsOpen(false);
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível processar o check-out.'));
+    } finally {
+      setProcessingAction({ reservationId: null, type: null });
+    }
   };
 
   const handleOpenCancel = (reservation) => {
@@ -177,12 +215,15 @@ const ReservationsManagementPage = () => {
     setIsCancelOpen(true);
   };
 
-  const handleConfirmCancel = (reservation) => {
-    setReservationStatus(reservation.id, {
-      status: 'Cancelada',
-    });
-    setIsCancelOpen(false);
-    setIsDetailsOpen(false);
+  const handleConfirmCancel = async (reservation) => {
+    try {
+      await cancelReservation(reservation.id, 'Cancelamento realizado pelo administrador.');
+      await loadData();
+      setIsCancelOpen(false);
+      setIsDetailsOpen(false);
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível cancelar a reserva.'));
+    }
   };
 
   const handleOpenNoShow = (reservation) => {
@@ -190,46 +231,47 @@ const ReservationsManagementPage = () => {
     setIsNoShowOpen(true);
   };
 
-  const handleConfirmNoShow = (reservation) => {
-    setReservationStatus(reservation.id, {
-      status: 'Cancelada',
-      notes: 'No-show registrado. Cobrança integral aplicada.',
-    });
-    setIsNoShowOpen(false);
+  const handleConfirmNoShow = async (reservation) => {
+    try {
+      await registerReservationNoShow(reservation.id);
+      await loadData();
+      setIsNoShowOpen(false);
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível registrar no-show.'));
+    }
   };
 
-  const handleCreateManual = (payload) => {
-    const chalet = chaletOptions.find((item) => item.id === payload.chaletId);
-    const codeNumber = reservations.length + 1;
-    const code = `RES-${String(codeNumber).padStart(3, '0')}`;
-    const mainGuest = payload.guests[0];
-    const newReservation = {
-      id: `res-${Date.now()}`,
-      code,
-      chaletId: payload.chaletId,
-      chaletName: chalet?.name || 'Chalé',
-      guest: {
-        name: mainGuest.name,
-        email: mainGuest.email,
-        phone: mainGuest.phone,
-        cpf: mainGuest.cpf,
-      },
-      guests: payload.guests.map((guest) => ({
-        name: guest.name,
-        age: 30,
-        checkInAt: null,
-      })),
-      checkInAt: payload.checkInAt,
-      checkOutAt: payload.checkOutAt,
-      checkInDone: false,
-      checkOutDone: false,
-      status: 'Pendente',
-      notes: payload.notes,
-      total: payload.total,
-    };
-    setReservations((prev) => [newReservation, ...prev]);
-    setIsCreateOpen(false);
-    setActiveTab('Todas');
+  const handleCreateManual = async (payload) => {
+    try {
+      await createManualReservation({
+        chaletId: payload.chaletId,
+        checkInDate: payload.checkInDate,
+        checkOutDate: payload.checkOutDate,
+        adults: payload.guests.length,
+        children: 0,
+        vehiclePlate: payload.vehiclePlate,
+        notes: payload.notes,
+        guests: payload.guests.map((guest, index) => ({
+          fullName: guest.name,
+          email: guest.email,
+          phone: guest.phone,
+          cpf: guest.cpf,
+          isPrimary: index === 0,
+        })),
+      });
+
+      await loadData();
+      setIsCreateOpen(false);
+      setActiveTab('Todas');
+    } catch (error) {
+      const message = toErrorMessage(error, 'Não foi possível criar a reserva manual.');
+      setErrorPopup({
+        open: true,
+        title: 'Conflito de disponibilidade',
+        message,
+      });
+      throw error;
+    }
   };
 
   const headerActions = (
@@ -273,12 +315,13 @@ const ReservationsManagementPage = () => {
       </div>
 
       <ReservationsTable
-        reservations={filteredReservations}
+        reservations={loading ? [] : filteredReservations}
         onView={handleView}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
         onCancel={handleOpenCancel}
         onNoShow={handleOpenNoShow}
+        processingAction={processingAction}
       />
 
       <ReservationDetailsModal
@@ -287,6 +330,7 @@ const ReservationsManagementPage = () => {
         onClose={() => setIsDetailsOpen(false)}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
+        processingAction={processingAction}
       />
 
       <CancelReservationModal
@@ -306,9 +350,38 @@ const ReservationsManagementPage = () => {
       <CreateManualReservationModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        chalets={chaletOptions}
+        chalets={chalets}
         onCreate={handleCreateManual}
       />
+
+      {processingAction.reservationId ? (
+        <div className="fixed inset-0 z-[1400] bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg px-5 py-4 text-sm text-foreground shadow-soft-lg">
+            {processingAction.type === 'checkout' ? 'Processando check-out...' : 'Processando check-in...'}
+          </div>
+        </div>
+      ) : null}
+
+      {errorPopup.open ? (
+        <div className="fixed inset-0 z-[1450] bg-black/45 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-card border border-border rounded-lg shadow-soft-lg">
+            <div className="p-5 border-b border-border">
+              <h4 className="text-base font-semibold text-foreground">{errorPopup.title}</h4>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-muted-foreground">{errorPopup.message}</p>
+            </div>
+            <div className="p-5 border-t border-border flex justify-end">
+              <Button
+                type="button"
+                onClick={() => setErrorPopup({ open: false, title: '', message: '' })}
+              >
+                Entendi
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </HostingLayout>
   );
 };

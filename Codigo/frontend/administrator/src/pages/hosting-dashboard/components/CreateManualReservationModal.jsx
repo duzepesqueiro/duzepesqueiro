@@ -17,6 +17,44 @@ const initialGuest = {
   cpf: '',
 };
 
+const initialFormValues = {
+  chaletId: '',
+  checkInDate: '',
+  checkInTime: '14:00',
+  checkOutDate: '',
+  checkOutTime: '12:00',
+  vehiclePlate: '',
+  notes: '',
+  guests: [{ ...initialGuest }],
+};
+
+const NAME_REGEX = /^[A-Za-zÀ-ÿ'`´\s]{2,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
+const CPF_REGEX = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+
+const digitsOnly = (value) => String(value || '').replace(/\D/g, '');
+
+const formatCpf = (value) => {
+  const digits = digitsOnly(value).slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+};
+
+const formatPhone = (value) => {
+  const digits = digitsOnly(value).slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/^(\(\d{2}\)\s\d{4})(\d)/, '$1-$2');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/^(\(\d{2}\)\s\d{5})(\d)/, '$1-$2');
+};
+
 const getDateTimeIso = (date, time) => {
   if (!date || !time) {
     return null;
@@ -24,17 +62,10 @@ const getDateTimeIso = (date, time) => {
   return new Date(`${date}T${time}:00`).toISOString();
 };
 
-const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) => {
-  const [values, setValues] = useState({
-    chaletId: '',
-    checkInDate: '',
-    checkInTime: '14:00',
-    checkOutDate: '',
-    checkOutTime: '12:00',
-    notes: '',
-    guests: [{ ...initialGuest }],
-  });
+const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate, initialValues }) => {
+  const [values, setValues] = useState(initialFormValues);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const portalElement = useMemo(() => {
     if (typeof document === 'undefined') {
@@ -55,21 +86,18 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
       return;
     }
     setValues({
-      chaletId: '',
-      checkInDate: '',
-      checkInTime: '14:00',
-      checkOutDate: '',
-      checkOutTime: '12:00',
-      notes: '',
-      guests: [{ ...initialGuest }],
+      ...initialFormValues,
+      ...initialValues,
+      guests: Array.isArray(initialValues?.guests) && initialValues.guests.length ? initialValues.guests : [{ ...initialGuest }],
     });
     setErrors({});
+    setIsSubmitting(false);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, initialValues]);
 
   const selectedChalet = useMemo(
     () => chalets.find((item) => item.id === values.chaletId),
@@ -98,9 +126,16 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
   };
 
   const setGuestField = (index, field, value) => {
+    const nextValue =
+      field === 'cpf'
+        ? formatCpf(value)
+        : field === 'phone'
+          ? formatPhone(value)
+          : value;
+
     setValues((prev) => ({
       ...prev,
-      guests: prev.guests.map((guest, guestIndex) => (guestIndex === index ? { ...guest, [field]: value } : guest)),
+      guests: prev.guests.map((guest, guestIndex) => (guestIndex === index ? { ...guest, [field]: nextValue } : guest)),
     }));
     setErrors((prev) => ({ ...prev, guests: undefined }));
   };
@@ -133,34 +168,68 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
       nextErrors.guests = 'Adicione ao menos um hóspede.';
     } else if (values.guests.some((guest) => !guest.name || !guest.email || !guest.phone || !guest.cpf)) {
       nextErrors.guests = 'Preencha nome, email, telefone e CPF de todos os hóspedes.';
+    } else {
+      const invalidGuestIndex = values.guests.findIndex(
+        (guest) =>
+          !NAME_REGEX.test(guest.name.trim()) ||
+          !EMAIL_REGEX.test(guest.email.trim()) ||
+          !PHONE_REGEX.test(guest.phone.trim()) ||
+          !CPF_REGEX.test(guest.cpf.trim())
+      );
+      if (invalidGuestIndex !== -1) {
+        const guest = values.guests[invalidGuestIndex];
+        if (!NAME_REGEX.test(guest.name.trim())) {
+          nextErrors.guests = `Hóspede ${invalidGuestIndex + 1}: nome inválido.`;
+        } else if (!EMAIL_REGEX.test(guest.email.trim())) {
+          nextErrors.guests = `Hóspede ${invalidGuestIndex + 1}: email inválido.`;
+        } else if (!PHONE_REGEX.test(guest.phone.trim())) {
+          nextErrors.guests = `Hóspede ${invalidGuestIndex + 1}: telefone inválido. Use (99) 99999-9999.`;
+        } else if (!CPF_REGEX.test(guest.cpf.trim())) {
+          nextErrors.guests = `Hóspede ${invalidGuestIndex + 1}: CPF inválido. Use 000.000.000-00.`;
+        }
+      }
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
     if (!validate()) {
       return;
     }
 
-    onCreate({
-      chaletId: values.chaletId,
-      checkInAt: getDateTimeIso(values.checkInDate, values.checkInTime),
-      checkOutAt: getDateTimeIso(values.checkOutDate, values.checkOutTime),
-      guests: values.guests,
-      notes: values.notes.trim(),
-      total: estimatedTotal,
-    });
+    setIsSubmitting(true);
+    try {
+      await Promise.resolve(onCreate({
+        chaletId: values.chaletId,
+        checkInDate: getDateTimeIso(values.checkInDate, values.checkInTime),
+        checkOutDate: getDateTimeIso(values.checkOutDate, values.checkOutTime),
+        guests: values.guests,
+        vehiclePlate: values.vehiclePlate.trim().toUpperCase(),
+        notes: values.notes.trim(),
+        total: estimatedTotal,
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return createPortal(
     <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Fechar modal" />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        onClick={isSubmitting ? undefined : onClose}
+        aria-label="Fechar modal"
+      />
       <form onSubmit={handleSubmit} className="relative w-full max-w-4xl bg-card border border-border rounded-lg shadow-soft-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h3 className="text-xl font-heading font-semibold text-foreground">Criar Reserva Manualmente</h3>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">✕</Button>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar" disabled={isSubmitting}>✕</Button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -169,6 +238,7 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
             <select
               value={values.chaletId}
               onChange={(event) => setField('chaletId', event.target.value)}
+              disabled={isSubmitting}
               className={`w-full h-10 rounded-md border px-3 text-sm bg-background focus-visible:outline-none focus-visible:ring-2 ${
                 errors.chaletId ? 'border-destructive focus-visible:ring-destructive' : 'border-input focus-visible:ring-ring'
               }`}
@@ -190,12 +260,14 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
                 type="date"
                 value={values.checkInDate}
                 onChange={(event) => setField('checkInDate', event.target.value)}
+                disabled={isSubmitting}
               />
               <Input
                 label="Horário"
                 type="time"
                 value={values.checkInTime}
                 onChange={(event) => setField('checkInTime', event.target.value)}
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -204,12 +276,14 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
                 type="date"
                 value={values.checkOutDate}
                 onChange={(event) => setField('checkOutDate', event.target.value)}
+                disabled={isSubmitting}
               />
               <Input
                 label="Horário"
                 type="time"
                 value={values.checkOutTime}
                 onChange={(event) => setField('checkOutTime', event.target.value)}
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -219,7 +293,7 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
           <div className="border border-border rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-foreground">Hóspedes</h4>
-              <Button type="button" variant="outline" size="sm" onClick={addGuest}>
+              <Button type="button" variant="outline" size="sm" onClick={addGuest} disabled={isSubmitting}>
                 + Adicionar Hóspede
               </Button>
             </div>
@@ -231,7 +305,7 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
                     Hóspede {index + 1} {index === 0 ? '(Responsável)' : ''}
                   </p>
                   {index > 0 ? (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeGuest(index)} aria-label="Remover hóspede">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeGuest(index)} aria-label="Remover hóspede" disabled={isSubmitting}>
                       ✕
                     </Button>
                   ) : null}
@@ -241,23 +315,38 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
                     label="Nome"
                     value={guest.name}
                     onChange={(event) => setGuestField(index, 'name', event.target.value)}
+                    disabled={isSubmitting}
                   />
                   <Input
                     label="Email"
                     type="email"
                     value={guest.email}
                     onChange={(event) => setGuestField(index, 'email', event.target.value)}
+                    disabled={isSubmitting}
                   />
                   <Input
                     label="Telefone"
                     value={guest.phone}
                     onChange={(event) => setGuestField(index, 'phone', event.target.value)}
+                    placeholder="(99) 99999-9999"
+                    disabled={isSubmitting}
                   />
                   <Input
                     label="CPF"
                     value={guest.cpf}
                     onChange={(event) => setGuestField(index, 'cpf', event.target.value)}
+                    placeholder="000.000.000-00"
+                    disabled={isSubmitting}
                   />
+                  {index === 0 ? (
+                    <Input
+                      label="Placa do Veículo (Responsável)"
+                      value={values.vehiclePlate}
+                      onChange={(event) => setField('vehiclePlate', event.target.value.toUpperCase())}
+                      placeholder="ABC1D23"
+                      disabled={isSubmitting}
+                    />
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -270,6 +359,7 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
               rows={3}
               value={values.notes}
               onChange={(event) => setField('notes', event.target.value)}
+              disabled={isSubmitting}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
@@ -282,11 +372,11 @@ const CreateManualReservationModal = ({ isOpen, onClose, chalets, onCreate }) =>
         </div>
 
         <div className="p-6 border-t border-border flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button type="submit">
-            Criar Reserva
+          <Button type="submit" loading={isSubmitting} disabled={isSubmitting}>
+            {isSubmitting ? 'Criando...' : 'Criar Reserva'}
           </Button>
         </div>
       </form>

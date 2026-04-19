@@ -21,6 +21,7 @@ export class ChaleDTO {
   unitType: ChaleType;
   status: ChaleStatus;
   basePrice: number;
+  currentPrice?: number;
   maxGuests: number;
   isActive: boolean;
   createdAt: Date;
@@ -33,4 +34,12 @@ export class ChaleListDTO extends ChaleDTO {
 
 export class ChaleDetailDTO extends ChaleDTO {
   images: ChaleImagemDTO[];
+}
+
+export class ChaleCalendarioDTO {
+  chaletId: string;
+  from: string;
+  to: string;
+  reservedDates: string[];
+  unavailableDates: string[];
 }

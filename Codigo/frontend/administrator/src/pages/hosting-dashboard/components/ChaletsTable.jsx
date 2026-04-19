@@ -77,7 +77,7 @@ const statusLabel = {
   INTERDICTED: 'Interditado',
 };
 
-const ChaletsTable = ({ chalets, onEdit, onDelete }) => {
+const ChaletsTable = ({ chalets, onEdit, onDelete, deletingChaletId = null }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   const sortedChalets = useMemo(() => {
@@ -156,8 +156,15 @@ const ChaletsTable = ({ chalets, onEdit, onDelete }) => {
                     <Button type="button" variant="ghost" size="icon" onClick={() => onEdit(chalet)} aria-label={`Editar ${chalet.name}`}>
                       <Icon name="Pencil" size={16} />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(chalet)} aria-label={`Excluir ${chalet.name}`}>
-                      <Icon name="Trash2" size={16} />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(chalet)}
+                      aria-label={`Excluir ${chalet.name}`}
+                      disabled={Boolean(deletingChaletId)}
+                    >
+                      {deletingChaletId === chalet.id ? <Icon name="Loader2" size={16} className="animate-spin" /> : <Icon name="Trash2" size={16} />}
                     </Button>
                   </div>
                 </td>

@@ -4,8 +4,62 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import type { Guest } from '@/types/booking';
+
+const FULL_NAME_REGEX = /^[A-Za-zÀ-ÿ]+(?:[ '\-][A-Za-zÀ-ÿ]+)+$/;
+const STREET_REGEX = /^[A-Za-zÀ-ÿ0-9]+(?:[ '\-][A-Za-zÀ-ÿ0-9]+)+$/;
+const CPF_REGEX = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+const CEP_REGEX = /^\d{5}-\d{3}$/;
+
+const BRAZIL_STATES = [
+  { value: 'AC', label: 'Acre' },
+  { value: 'AL', label: 'Alagoas' },
+  { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' },
+  { value: 'BA', label: 'Bahia' },
+  { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
+  { value: 'MT', label: 'Mato Grosso' },
+  { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
+  { value: 'PE', label: 'Pernambuco' },
+  { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' },
+  { value: 'RN', label: 'Rio Grande do Norte' },
+  { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' },
+  { value: 'RR', label: 'Roraima' },
+  { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' },
+  { value: 'SE', label: 'Sergipe' },
+  { value: 'TO', label: 'Tocantins' },
+] as const;
+
+const normalizeDigits = (value: string) => value.replace(/\D/g, '');
+
+const formatCpf = (value: string) => {
+  const digits = normalizeDigits(value).slice(0, 11);
+  if (!digits) return '';
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+};
+
+const formatCep = (value: string) => {
+  const digits = normalizeDigits(value).slice(0, 8);
+  if (!digits) return '';
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+};
 
 interface EditGuestsDialogProps {
   open: boolean;
@@ -54,12 +108,24 @@ const EditGuestsDialog = ({ open, onOpenChange, guests, maxCapacity, onSave }: E
     const newErrors: Record<string, string> = {};
     editGuests.forEach((g, i) => {
       if (!g.name.trim()) newErrors[`${i}-name`] = 'Nome obrigatório';
+      else if (!FULL_NAME_REGEX.test(g.name.trim())) newErrors[`${i}-name`] = 'Informe nome e sobrenome';
+
       if (!g.age || g.age <= 0) newErrors[`${i}-age`] = 'Idade inválida';
+      else if (i === 0 && g.age < 18) newErrors[`${i}-age`] = 'O hóspede principal precisa ter pelo menos 18 anos';
+
+      if (!g.document.trim()) newErrors[`${i}-document`] = 'CPF obrigatório';
+      else if (!CPF_REGEX.test(g.document.trim())) newErrors[`${i}-document`] = 'CPF inválido';
+
       if (!g.address.street.trim()) newErrors[`${i}-address.street`] = 'Rua obrigatória';
+      else if (!STREET_REGEX.test(g.address.street.trim())) newErrors[`${i}-address.street`] = 'Informe rua e complemento com pelo menos duas palavras';
+
       if (!g.address.number.trim()) newErrors[`${i}-address.number`] = 'Número obrigatório';
       if (!g.address.city.trim()) newErrors[`${i}-address.city`] = 'Cidade obrigatória';
       if (!g.address.state.trim()) newErrors[`${i}-address.state`] = 'Estado obrigatório';
+      else if (!BRAZIL_STATES.some((state) => state.value === g.address.state)) newErrors[`${i}-address.state`] = 'Selecione um estado válido';
+
       if (!g.address.zip.trim()) newErrors[`${i}-address.zip`] = 'CEP obrigatório';
+      else if (!CEP_REGEX.test(g.address.zip.trim())) newErrors[`${i}-address.zip`] = 'CEP inválido. Use 00000-000';
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -103,7 +169,7 @@ const EditGuestsDialog = ({ open, onOpenChange, guests, maxCapacity, onSave }: E
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
                   <Label className="text-muted-foreground text-xs">Nome completo *</Label>
-                  <Input value={guest.name} onChange={e => updateGuest(i, 'name', e.target.value)} className={errors[`${i}-name`] ? 'border-destructive' : ''} />
+                  <Input value={guest.name} onChange={e => updateGuest(i, 'name', e.target.value)} className={errors[`${i}-name`] ? 'border-destructive' : ''} placeholder="Nome e sobrenome" />
                   {fieldError(`${i}-name`)}
                 </div>
                 <div>
@@ -112,14 +178,15 @@ const EditGuestsDialog = ({ open, onOpenChange, guests, maxCapacity, onSave }: E
                   {fieldError(`${i}-age`)}
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Documento (opcional)</Label>
-                  <Input value={guest.document || ''} onChange={e => updateGuest(i, 'document', e.target.value)} />
+                  <Label className="text-muted-foreground text-xs">CPF *</Label>
+                  <Input value={guest.document || ''} onChange={e => updateGuest(i, 'document', formatCpf(e.target.value))} className={errors[`${i}-document`] ? 'border-destructive' : ''} placeholder="000.000.000-00" inputMode="numeric" />
+                  {fieldError(`${i}-document`)}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-2">
                   <Label className="text-muted-foreground text-xs">Rua *</Label>
-                  <Input value={guest.address.street} onChange={e => updateGuest(i, 'address.street', e.target.value)} className={errors[`${i}-address.street`] ? 'border-destructive' : ''} />
+                  <Input value={guest.address.street} onChange={e => updateGuest(i, 'address.street', e.target.value)} className={errors[`${i}-address.street`] ? 'border-destructive' : ''} placeholder="Rua e complemento" />
                   {fieldError(`${i}-address.street`)}
                 </div>
                 <div>
@@ -134,12 +201,23 @@ const EditGuestsDialog = ({ open, onOpenChange, guests, maxCapacity, onSave }: E
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Estado *</Label>
-                  <Input value={guest.address.state} onChange={e => updateGuest(i, 'address.state', e.target.value)} className={errors[`${i}-address.state`] ? 'border-destructive' : ''} />
+                  <Select value={guest.address.state} onValueChange={(value) => updateGuest(i, 'address.state', value)}>
+                    <SelectTrigger className={errors[`${i}-address.state`] ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BRAZIL_STATES.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {fieldError(`${i}-address.state`)}
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">CEP *</Label>
-                  <Input value={guest.address.zip} onChange={e => updateGuest(i, 'address.zip', e.target.value.replace(/\D/g, '').slice(0, 8))} className={errors[`${i}-address.zip`] ? 'border-destructive' : ''} placeholder="00000000" />
+                  <Input value={guest.address.zip} onChange={e => updateGuest(i, 'address.zip', formatCep(e.target.value))} className={errors[`${i}-address.zip`] ? 'border-destructive' : ''} placeholder="00000-000" inputMode="numeric" />
                   {fieldError(`${i}-address.zip`)}
                 </div>
               </div>

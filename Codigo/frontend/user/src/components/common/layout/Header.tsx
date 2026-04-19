@@ -1,64 +1,68 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
-import { useState } from 'react';
 
-const Header = () => {
-  const [open, setOpen] = useState(false);
+// FontAwesome via react-icons
+import { FaChevronLeft, FaChevronRight, FaHome, FaBed, FaBook } from 'react-icons/fa';
+
+const Sidebar = ({ open, setOpen }) => {
   const location = useLocation();
 
   const links = [
-    { to: '/hospedagem/home', label: 'Início' },
-    { to: '/hospedagem/rooms', label: 'Quartos' },
-    { to: '/hospedagem/my-reservations', label: 'Minhas Reservas' },
+    { to: '/hospedagem/home', label: 'Início', icon: <FaHome /> },
+    { to: '/hospedagem/rooms', label: 'Quartos', icon: <FaBed /> },
+    { to: '/hospedagem/my-reservations', label: 'Minhas Reservas', icon: <FaBook /> },
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/hospedagem" className="font-display text-xl font-bold text-foreground tracking-tight">
-          DuZe<span className="text-accent">Pesqueiro</span>
-        </Link>
+    <motion.aside
+      animate={{ width: open ? 256 : 64 }}
+      transition={{ duration: 0.3 }}
+      className="fixed top-0 left-0 h-screen z-50 glass border-r border-border flex flex-col"
+    >
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-3 border-b border-border">
+        {open && (
+          <Link
+            to="/hospedagem"
+            className="font-display text-lg font-bold text-foreground tracking-tight"
+          >
+            DuZe<span className="text-accent">Pesqueiro</span>
+          </Link>
+        )}
 
-        <nav className="hidden md:flex items-center gap-8">
-          {links.map(l => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className={`text-sm font-medium transition-colors duration-200 ${
-                location.pathname === l.to ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-
-        <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>
-          {open ? <X size={24} /> : <Menu size={24} />}
+        <button onClick={() => setOpen(!open)} className="p-2 text-foreground">
+          {open ? <FaChevronLeft /> : <FaChevronRight />}
         </button>
       </div>
 
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="md:hidden glass border-t border-border"
-        >
-          {links.map(l => (
+      {/* Links */}
+      <nav className="flex flex-col gap-2 p-2">
+        {links.map((l) => {
+          const active = location.pathname === l.to;
+
+          return (
             <Link
               key={l.to}
               to={l.to}
-              onClick={() => setOpen(false)}
-              className="block px-4 py-3 text-sm font-medium text-foreground hover:bg-muted"
+              className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all ${
+                active
+                  ? 'bg-primary text-white'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
             >
-              {l.label}
+              <span className="text-lg">{l.icon}</span>
+
+              {open && (
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {l.label}
+                </span>
+              )}
             </Link>
-          ))}
-        </motion.div>
-      )}
-    </header>
+          );
+        })}
+      </nav>
+    </motion.aside>
   );
 };
 
-export default Header;
+export default Sidebar;

@@ -332,7 +332,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
             Loja
           </RouterLink>
           <RouterLink
-            to="/hospedagem"
+            to="/hospedagem/home"
             className="font-medium hover:text-[#F2C14E] transition-colors duration-200"
           >
             Hospedagem
@@ -534,7 +534,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                 Loja
               </RouterLink>
               <RouterLink
-                to="/hospedagem"
+                to="/hospedagem/home"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
               >

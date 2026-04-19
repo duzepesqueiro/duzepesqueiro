@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ChaleStatus, ChaleType, Prisma, ReservationStatus } from '@prisma/client';
+import { ChaleStatus, ChaleType, PriceRuleType, Prisma, ReservationStatus } from '@prisma/client';
 import {
+  ChaleCalendarioDTO,
   ChaleDTO,
   ChaleDetailDTO,
   ChaleImagemDTO,
@@ -49,6 +50,7 @@ export class ChaleService {
     });
 
     const ids = filtered.map((item) => item.id);
+    const currentPriceByChaleId = await this.resolveCurrentPriceMap(ids);
     const images = ids.length
       ? await this.prisma.hostingChaletImage.findMany({
           where: { chaletId: { in: ids } },
@@ -63,6 +65,7 @@ export class ChaleService {
 
     return filtered.map((item) => ({
       ...this.toChaleDTO(item),
+      currentPrice: currentPriceByChaleId.get(item.id) ?? Number(item.basePrice),
       imagesCount: imagesCountByChaleId.get(item.id) ?? 0,
     }));
   }
@@ -77,9 +80,11 @@ export class ChaleService {
       where: { chaletId: chale.id },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
+    const currentPriceByChaleId = await this.resolveCurrentPriceMap([chale.id]);
 
     return {
       ...this.toChaleDTO(chale),
+      currentPrice: currentPriceByChaleId.get(chale.id) ?? Number(chale.basePrice),
       images: images.map((image) => this.toChaleImageDTO(image)),
     };
   }
@@ -94,10 +99,84 @@ export class ChaleService {
       where: { chaletId: chale.id },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
+    const currentPriceByChaleId = await this.resolveCurrentPriceMap([chale.id]);
 
     return {
       ...this.toChaleDTO(chale),
+      currentPrice: currentPriceByChaleId.get(chale.id) ?? Number(chale.basePrice),
       images: images.map((image) => this.toChaleImageDTO(image)),
+    };
+  }
+
+  async obterCalendarioChale(id: string, from?: Date, to?: Date): Promise<ChaleCalendarioDTO> {
+    const chale = await this.chaleRepository.findById(id);
+    if (!chale) {
+      throw new NotFoundException('Chalé não encontrado.');
+    }
+
+    const startDate = from ?? new Date();
+    const endDate = to ?? new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365);
+    if (endDate <= startDate) {
+      throw new BadRequestException('A data final deve ser posterior à data inicial.');
+    }
+
+    const reservas = await this.prisma.hostingReservation.findMany({
+      where: {
+        chaletId: id,
+        deletedAt: null,
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED, ReservationStatus.OCCUPIED],
+        },
+        checkInDate: { lt: endDate },
+        checkOutDate: { gt: startDate },
+      },
+      select: {
+        status: true,
+        checkInDate: true,
+        checkOutDate: true,
+      },
+    });
+
+    const bloqueios = await this.prisma.hostingChaletBlock.findMany({
+      where: {
+        chaletId: id,
+        isActive: true,
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    const reservedDates = new Set<string>();
+    const unavailableDates = new Set<string>();
+
+    for (const reserva of reservas) {
+      const targetSet =
+        reserva.status === ReservationStatus.OCCUPIED ? unavailableDates : reservedDates;
+      for (const day of this.expandDateRange(reserva.checkInDate, reserva.checkOutDate, false)) {
+        targetSet.add(day);
+      }
+    }
+
+    for (const bloqueio of bloqueios) {
+      for (const day of this.expandDateRange(bloqueio.startDate, bloqueio.endDate, true)) {
+        unavailableDates.add(day);
+      }
+    }
+
+    for (const date of unavailableDates) {
+      reservedDates.delete(date);
+    }
+
+    return {
+      chaletId: id,
+      from: this.toIsoDate(startDate),
+      to: this.toIsoDate(endDate),
+      reservedDates: Array.from(reservedDates).sort(),
+      unavailableDates: Array.from(unavailableDates).sort(),
     };
   }
 
@@ -185,6 +264,7 @@ export class ChaleService {
 
     const result = await this.chaleRepository.findAvailable(capacidadeAdultos, capacidadeCriancas, checkin, checkout);
     const ids = result.map((item) => item.id);
+    const currentPriceByChaleId = await this.resolveCurrentPriceMap(ids);
     const images = ids.length
       ? await this.prisma.hostingChaletImage.findMany({
           where: { chaletId: { in: ids } },
@@ -199,6 +279,7 @@ export class ChaleService {
 
     return result.map((item) => ({
       ...this.toChaleDTO(item),
+      currentPrice: currentPriceByChaleId.get(item.id) ?? Number(item.basePrice),
       imagesCount: imagesCountByChaleId.get(item.id) ?? 0,
     }));
   }
@@ -325,5 +406,87 @@ export class ChaleService {
       position: data.position,
       createdAt: data.createdAt,
     };
+  }
+
+  private toIsoDate(date: Date): string {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  private async resolveCurrentPriceMap(chaletIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (!chaletIds.length) {
+      return map;
+    }
+
+    const referenceDate = this.toIsoDate(new Date());
+    const referenceDateValue = new Date(`${referenceDate}T00:00:00.000Z`);
+    const chalets = await this.prisma.hostingChalet.findMany({
+      where: {
+        id: { in: chaletIds },
+      },
+      select: {
+        id: true,
+        basePrice: true,
+      },
+    });
+    const activeRules = await this.prisma.hostingPricingRule.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        startDate: { lte: referenceDateValue },
+        endDate: { gte: referenceDateValue },
+      },
+      include: {
+        chalets: {
+          select: { chaletId: true },
+        },
+      },
+      orderBy: [{ appliesToAll: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    for (const chalet of chalets) {
+      const basePrice = Number(chalet.basePrice ?? 0);
+      const rule = activeRules.find((candidate) => {
+        const applies = candidate.appliesToAll || candidate.chalets.some((item) => item.chaletId === chalet.id);
+        if (!applies) {
+          return false;
+        }
+        if (candidate.ruleType === PriceRuleType.WEEKEND) {
+          const day = referenceDateValue.getUTCDay();
+          return day === 0 || day === 6;
+        }
+        return true;
+      });
+      map.set(chalet.id, this.applyPriceRule(basePrice, rule?.ruleType, Number(rule?.percentage ?? 0)));
+    }
+
+    return map;
+  }
+
+  private applyPriceRule(basePrice: number, ruleType?: PriceRuleType, percentage = 0): number {
+    if (!ruleType || !Number.isFinite(percentage) || percentage <= 0) {
+      return Number(basePrice.toFixed(2));
+    }
+    const ratio = percentage / 100;
+    const adjusted =
+      ruleType === PriceRuleType.DISCOUNT
+        ? basePrice * (1 - ratio)
+        : basePrice * (1 + ratio);
+    return Number(Math.max(adjusted, 0).toFixed(2));
+  }
+
+  private expandDateRange(start: Date, end: Date, inclusiveEnd: boolean): string[] {
+    const result: string[] = [];
+    const current = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+    const limit = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+
+    while (current < limit || (inclusiveEnd && current.getTime() === limit.getTime())) {
+      result.push(current.toISOString().slice(0, 10));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return result;
   }
 }

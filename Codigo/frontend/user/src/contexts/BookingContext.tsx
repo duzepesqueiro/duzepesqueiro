@@ -20,7 +20,8 @@ const defaultBooking: BookingData = {
   guests: 1,
   pets: false,
   guestDetails: [],
-  responsible: { name: '', email: '', phone: '', cpf: '' },
+  responsibleGuestIndex: null,
+  vehiclePlate: '',
   observations: '',
 };
 
