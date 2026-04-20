@@ -66,6 +66,19 @@ const mapUnitTypeToRoomType = (value?: string): Room['type'] => {
   return 'standard';
 };
 
+const inferPetFriendly = (item: ApiRoomLike): boolean => {
+  if (typeof item.petFriendly === 'boolean') {
+    return item.petFriendly;
+  }
+
+  const amenitiesSignal = (item.amenities ?? []).some((amenity) =>
+    /pet|animal/i.test(String(amenity)),
+  );
+  const notesSignal = /pet|animal/i.test(String(item.notes ?? ''));
+
+  return amenitiesSignal || notesSignal;
+};
+
 export const mapApiChaletToRoom = (item: ApiRoomLike): Room => ({
   id: item.id,
   name: item.name,
@@ -74,7 +87,7 @@ export const mapApiChaletToRoom = (item: ApiRoomLike): Room => ({
   capacity: Number(item.maxGuests || 2),
   pricePerNight: resolveEffectiveRoomPrice(item),
   amenities: item.amenities && item.amenities.length ? item.amenities : ['Wi-Fi', 'Ar condicionado'],
-  petFriendly: Boolean(item.petFriendly),
+  petFriendly: inferPetFriendly(item),
   images:
     Array.isArray(item.images) && item.images.length
       ? item.images
