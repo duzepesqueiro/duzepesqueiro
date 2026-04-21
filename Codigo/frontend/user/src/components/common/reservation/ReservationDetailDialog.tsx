@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import RoomInfoGrid from './RoomInfoGrid';
 import type { Reservation } from '@/types/booking';
 import type { Room } from '@/types/booking';
+import { formatBRL } from '@/lib/currency';
 
 const statusColors: Record<string, string> = {
   confirmed: 'bg-primary text-primary-foreground',
@@ -123,10 +124,10 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
           <div className="rounded-xl p-4" style={{ background: 'var(--gradient-gold)' }}>
             <div className="flex justify-between items-center">
               <span className="text-primary-foreground font-semibold">Total pago</span>
-              <span className="text-primary-foreground font-bold text-2xl">R$ {totalPrice}</span>
+              <span className="text-primary-foreground font-bold text-2xl">{formatBRL(totalPrice)}</span>
             </div>
             {room && (
-              <p className="text-primary-foreground/80 text-sm mt-1">{nights} noite(s) × R$ {room.pricePerNight}</p>
+              <p className="text-primary-foreground/80 text-sm mt-1">{nights} noite(s) × {formatBRL(room.pricePerNight)}</p>
             )}
           </div>
 

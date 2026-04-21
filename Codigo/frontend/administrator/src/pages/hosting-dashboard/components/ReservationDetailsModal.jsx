@@ -11,14 +11,27 @@ const statusStyles = {
   'No-show': 'bg-red-100 text-red-700',
 };
 
-const formatDateTime = (value) =>
-  new Intl.DateTimeFormat('pt-BR', {
+const formatDate = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
+  }).format(date);
+};
+
+const formatDateTime = (value) =>
+  value
+    ? new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(value))
+    : '-';
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('pt-BR', {
@@ -87,9 +100,13 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
 
           <div className="border border-border rounded-lg p-4 space-y-2">
             <h4 className="text-sm font-semibold text-foreground">Dados da Reserva</h4>
-            <p className="text-sm text-muted-foreground">Check-in: <span className="text-foreground">{formatDateTime(reservation.checkInAt)}</span></p>
-            <p className="text-sm text-muted-foreground">Check-out: <span className="text-foreground">{formatDateTime(reservation.checkOutAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Origem: <span className="text-foreground">{reservation.origin || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Check-in (previsto): <span className="text-foreground">{formatDateTime(reservation.checkInDate || reservation.checkInAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Check-out (previsto): <span className="text-foreground">{formatDateTime(reservation.checkOutDate || reservation.checkOutAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Check-in realizado: <span className="text-foreground">{formatDateTime(reservation.checkedInAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Check-out realizado: <span className="text-foreground">{formatDateTime(reservation.checkedOutAt)}</span></p>
             <p className="text-sm text-muted-foreground">Chalé: <span className="text-foreground">{reservation.chaletName}</span></p>
+            <p className="text-sm text-muted-foreground">Adultos/Crianças: <span className="text-foreground">{reservation.adults} / {reservation.children}</span></p>
             <p className="text-sm text-muted-foreground">Total: <span className="text-foreground font-semibold">{formatCurrency(reservation.total)}</span></p>
           </div>
 
@@ -98,24 +115,85 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
             <p className="text-sm text-foreground">{reservation.guest.name}</p>
             <p className="text-sm text-muted-foreground">{reservation.guest.email} · {reservation.guest.phone}</p>
             <p className="text-sm text-muted-foreground">CPF: {reservation.guest.cpf}</p>
+            <p className="text-sm text-muted-foreground">Canal de contato: {reservation.contactChannel || '-'}</p>
+            <p className="text-sm text-muted-foreground">Observação de contato: {reservation.contactNotes || '-'}</p>
           </div>
 
           <div className="border border-border rounded-lg p-4 space-y-2">
             <h4 className="text-sm font-semibold text-foreground">Hóspedes ({reservation.guests.length})</h4>
             {reservation.guests.map((guest, index) => (
-              <div key={`${guest.name}-${index}`} className="text-sm text-muted-foreground">
+              <div key={`${guest.id || guest.name}-${index}`} className="text-sm text-muted-foreground">
                 <p>
-                  • {guest.name}
-                  {typeof guest.age === 'number' ? `, ${guest.age} anos` : ''}
+                  • {guest.name}{guest.isPrimary ? ' (Responsável)' : ''}
                 </p>
-                <p className="ml-3">Check-in realizado: {guest.checkInAt ? formatDateTime(guest.checkInAt) : 'Pendente'}</p>
+                <p className="ml-3">Email/Telefone: {guest.email || '-'} · {guest.phone || '-'}</p>
+                <p className="ml-3">CPF/RG: {guest.cpf || '-'} · {guest.rg || '-'}</p>
+                <p className="ml-3">Nascimento: {formatDate(guest.birthDate)}</p>
               </div>
             ))}
           </div>
 
           <div className="border border-border rounded-lg p-4 space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Pagamento e Valores</h4>
+            <p className="text-sm text-muted-foreground">Status pagamento: <span className="text-foreground">{reservation.paymentStatus || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Método: <span className="text-foreground">{reservation.paymentMethod || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">ID pagamento: <span className="text-foreground">{reservation.paymentId || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Pago em: <span className="text-foreground">{formatDateTime(reservation.paidAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Valor base: <span className="text-foreground">{formatCurrency(reservation.baseAmount)}</span></p>
+            <p className="text-sm text-muted-foreground">Desconto: <span className="text-foreground">{formatCurrency(reservation.discountAmount)}</span></p>
+            <p className="text-sm text-muted-foreground">Acréscimo: <span className="text-foreground">{formatCurrency(reservation.surchargeAmount)}</span></p>
+            <p className="text-sm text-muted-foreground">Cama extra: <span className="text-foreground">{reservation.extraBedRequested ? `Sim (${formatCurrency(reservation.extraBedFee)})` : 'Não'}</span></p>
+            <p className="text-sm text-muted-foreground">Total: <span className="text-foreground font-semibold">{formatCurrency(reservation.total)}</span></p>
+          </div>
+
+          <div className="border border-border rounded-lg p-4 space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Veículo</h4>
+            <p className="text-sm text-muted-foreground">Placa: <span className="text-foreground">{reservation.vehiclePlate || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Modelo/Cor/Tipo: <span className="text-foreground">{reservation.vehicleModel || '-'} · {reservation.vehicleColor || '-'} · {reservation.vehicleType || '-'}</span></p>
+          </div>
+
+          <div className="border border-border rounded-lg p-4 space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Termos e Política</h4>
+            <p className="text-sm text-muted-foreground">Termos aceitos: <span className="text-foreground">{reservation.policiesAccepted ? 'Sim' : 'Não'}</span></p>
+            <p className="text-sm text-muted-foreground">Aceite em: <span className="text-foreground">{formatDateTime(reservation.policiesAcceptedAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Versão da política: <span className="text-foreground">{reservation.policyVersion || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">ID política cancelamento: <span className="text-foreground">{reservation.cancellationPolicyId || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">ID regra de preço: <span className="text-foreground">{reservation.pricingRuleId || '-'}</span></p>
+          </div>
+
+          <div className="border border-border rounded-lg p-4 space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Operacional</h4>
+            <p className="text-sm text-muted-foreground">Cancelada em: <span className="text-foreground">{formatDateTime(reservation.cancelledAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Motivo cancelamento: <span className="text-foreground">{reservation.cancellationReason || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">No-show em: <span className="text-foreground">{formatDateTime(reservation.noShowAt)}</span></p>
+            <p className="text-sm text-muted-foreground">Taxa no-show: <span className="text-foreground">{reservation.noShowFeeAmount != null ? formatCurrency(reservation.noShowFeeAmount) : '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Motivo no-show: <span className="text-foreground">{reservation.noShowReason || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Criado por / Atualizado por: <span className="text-foreground">{reservation.createdById || '-'} / {reservation.updatedById || '-'}</span></p>
+            <p className="text-sm text-muted-foreground">Criada em / Atualizada em: <span className="text-foreground">{formatDateTime(reservation.createdAt)} / {formatDateTime(reservation.updatedAt)}</span></p>
+          </div>
+
+          <div className="border border-border rounded-lg p-4 space-y-2">
             <h4 className="text-sm font-semibold text-foreground">Observações</h4>
-            <p className="text-sm text-muted-foreground">{reservation.notes || '-'}</p>
+            <p className="text-sm text-muted-foreground">Observação da reserva: {reservation.notes || '-'}</p>
+            <p className="text-sm text-muted-foreground">Observação de negociação: {reservation.negotiationNotes || '-'}</p>
+            <p className="text-sm text-muted-foreground">Termo completo: {reservation.policyTerm || '-'}</p>
+          </div>
+
+          <div className="border border-border rounded-lg p-4 space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Vouchers ({reservation.vouchers?.length || 0})</h4>
+            {Array.isArray(reservation.vouchers) && reservation.vouchers.length ? (
+              reservation.vouchers.map((voucher) => (
+                <div key={voucher.id} className="text-sm text-muted-foreground">
+                  <p>• QR Code: <span className="text-foreground">{voucher.qrCode}</span></p>
+                  <p className="ml-3">Gerado em: {formatDateTime(voucher.generatedAt)}</p>
+                  <p className="ml-3">Enviado por e-mail: {voucher.sentByEmail ? 'Sim' : 'Não'}</p>
+                  <p className="ml-3">Instruções: {voucher.arrivalInstructions || '-'}</p>
+                  <p className="ml-3">Contatos: {voucher.complexContacts || '-'}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum voucher gerado.</p>
+            )}
           </div>
         </div>
 

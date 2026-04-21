@@ -1,4 +1,5 @@
 export * from './hosting-image-storage.service';
+export * from './hosting-terms-storage.service';
 export * from './chale.service';
 export * from './reserva.service';
 export * from './bloqueio.service';

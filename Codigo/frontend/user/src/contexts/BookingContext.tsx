@@ -23,6 +23,9 @@ const defaultBooking: BookingData = {
   responsibleGuestIndex: null,
   vehiclePlate: '',
   observations: '',
+  termsAccepted: false,
+  policyVersion: '',
+  policyTerm: '',
 };
 
 const defaultPayment: PaymentData = {

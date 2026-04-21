@@ -52,8 +52,14 @@ const normalizeReservation = (reservation, chaletsById = {}) => {
   const guestName = reservation?.guestName || 'Hóspede';
   const mappedGuests = Array.isArray(reservation?.guests)
     ? reservation.guests.map((guest) => ({
+        id: guest?.id,
         name: guest?.fullName || guestName,
+        email: guest?.email || '-',
+        phone: guest?.phone || '-',
         cpf: guest?.cpf || '-',
+        rg: guest?.rg || '-',
+        birthDate: guest?.birthDate || null,
+        isPrimary: Boolean(guest?.isPrimary),
         checkInAt: reservation?.checkedInAt || null,
       }))
     : [];
@@ -72,6 +78,8 @@ const normalizeReservation = (reservation, chaletsById = {}) => {
     code: reservation?.code,
     chaletId: reservation?.chaletId,
     chaletName: chaletsById[reservation?.chaletId] || 'Chalé',
+    userId: reservation?.userId || null,
+    origin: reservation?.origin || 'ONLINE',
     guest: {
       name: guestName,
       email: reservation?.guestEmail || '-',
@@ -81,13 +89,60 @@ const normalizeReservation = (reservation, chaletsById = {}) => {
     guests,
     checkInAt: reservation?.checkInDate,
     checkOutAt: reservation?.checkOutDate,
+    checkInDate: reservation?.checkInDate,
+    checkOutDate: reservation?.checkOutDate,
     checkInDone:
       Boolean(reservation?.checkedInAt) ||
       reservation?.status === 'OCCUPIED' ||
       reservation?.status === 'COMPLETED',
     checkOutDone: Boolean(reservation?.checkedOutAt) || reservation?.status === 'COMPLETED',
+    checkedInAt: reservation?.checkedInAt || null,
+    checkedOutAt: reservation?.checkedOutAt || null,
+    cancelledAt: reservation?.cancelledAt || null,
+    noShowAt: reservation?.noShowAt || null,
+    noShowReason: reservation?.noShowReason || null,
+    cancellationReason: reservation?.cancellationReason || null,
+    noShowFeeAmount: reservation?.noShowFeeAmount != null ? Number(reservation.noShowFeeAmount) : null,
     status: uiStatus,
+    paymentStatus: reservation?.paymentStatus || null,
+    paymentMethod: reservation?.paymentMethod || null,
+    paymentId: reservation?.paymentId || null,
+    paidAt: reservation?.paidAt || null,
+    baseAmount: Number(reservation?.baseAmount || 0),
+    discountAmount: Number(reservation?.discountAmount || 0),
+    surchargeAmount: Number(reservation?.surchargeAmount || 0),
     notes: reservation?.notes || '',
+    contactChannel: reservation?.contactChannel || null,
+    contactNotes: reservation?.contactNotes || null,
+    adults: Number(reservation?.adults || guests.length || 0),
+    children: Number(reservation?.children || 0),
+    vehiclePlate: reservation?.vehiclePlate || null,
+    vehicleModel: reservation?.vehicleModel || null,
+    vehicleColor: reservation?.vehicleColor || null,
+    vehicleType: reservation?.vehicleType || null,
+    extraBedRequested: Boolean(reservation?.extraBedRequested),
+    extraBedFee: Number(reservation?.extraBedFee || 0),
+    negotiationNotes: reservation?.negotiationNotes || null,
+    policiesAccepted: Boolean(reservation?.policiesAccepted),
+    policiesAcceptedAt: reservation?.policiesAcceptedAt || null,
+    policyVersion: reservation?.policyVersion || null,
+    policyTerm: reservation?.policyTerm || null,
+    cancellationPolicyId: reservation?.cancellationPolicyId || null,
+    pricingRuleId: reservation?.pricingRuleId || null,
+    createdById: reservation?.createdById || null,
+    updatedById: reservation?.updatedById || null,
+    createdAt: reservation?.createdAt || null,
+    updatedAt: reservation?.updatedAt || null,
+    vouchers: Array.isArray(reservation?.vouchers)
+      ? reservation.vouchers.map((voucher) => ({
+          id: voucher?.id,
+          qrCode: voucher?.qrCode || '-',
+          generatedAt: voucher?.generatedAt || null,
+          sentByEmail: Boolean(voucher?.sentByEmail),
+          arrivalInstructions: voucher?.arrivalInstructions || null,
+          complexContacts: voucher?.complexContacts || null,
+        }))
+      : [],
     total: Number(reservation?.totalAmount || 0),
   };
 };

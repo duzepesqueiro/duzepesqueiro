@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Prisma } from '@prisma/client';
+import { PaymentDomain, Prisma } from '@prisma/client';
 import { LogsService } from '../../../../application/logs/services';
 import { IPaymentDomain, IPaymentMethod } from '../../../../application/payment/interfaces';
 import { PayerDto, PaymentItemDto } from '../../../../application/payment/dto/create-payment.dto';
@@ -18,6 +18,7 @@ import {
   HospedeDTO,
   ListReservasFiltersDTO,
   NoShowResponseDTO,
+  PoliticaCancelamentoDTO,
   PriceCalculationDTO,
   ReservaDTO,
   ReservaDetailDTO,
@@ -27,6 +28,7 @@ import {
 } from '../../dto';
 import { BloqueioChaleRepository, HospedeReservaRepository, ReservaRepository } from '../../repositories';
 import { HospedagemNotificationService } from './hospedagem-notification.service';
+import { HostingTermsStorageService } from './hosting-terms-storage.service';
 import { PoliticaCancelamentoService } from './politica-cancelamento.service';
 
 @Injectable()
@@ -39,6 +41,7 @@ export class ReservaService {
     private readonly logsService: LogsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly hospedagemNotificationService: HospedagemNotificationService,
+    private readonly hostingTermsStorageService: HostingTermsStorageService,
     private readonly politicaCancelamentoService: PoliticaCancelamentoService,
     private readonly prisma: PrismaService,
   ) {}
@@ -51,18 +54,94 @@ export class ReservaService {
       throw new BadRequestException('Chalé indisponível para o período informado.');
     }
 
+    const activePolicy = await this.politicaCancelamentoService.obterPoliticaAtiva();
+    const isOnlineFlow = (data.origin ?? 'ONLINE') !== 'ADMIN';
+    const guests = data.guests ?? [];
+    if (guests.length > 0) {
+      this.validateGuestsAndResponsible(guests, data.responsibleGuestIndex, isOnlineFlow);
+    }
+
+    if (isOnlineFlow) {
+      this.validateVehiclePlate(data.vehiclePlate);
+      this.validateTermsAcceptance(data, activePolicy);
+    }
+
+    const responsibleGuest =
+      data.responsibleGuestIndex !== undefined && data.responsibleGuestIndex !== null
+        ? guests[data.responsibleGuestIndex]
+        : guests[0];
+    const guestName = data.guestName?.trim() || responsibleGuest?.fullName?.trim();
+    if (!guestName) {
+      throw new BadRequestException('Nome do hóspede principal é obrigatório.');
+    }
+
+    const guestsCount = guests.length;
+    const normalizedAdults =
+      guestsCount > 0 ? guestsCount : (data.adults ?? 1);
+    const normalizedChildren = guestsCount > 0 ? 0 : (data.children ?? 0);
+
     const created = await this.reservaRepository.create({
       ...data,
       userId: userId ?? data.userId,
+      adults: normalizedAdults,
+      children: normalizedChildren,
+      guestName,
+      guestEmail: data.guestEmail ?? responsibleGuest?.email,
+      guestPhone: data.guestPhone ?? responsibleGuest?.phone,
+      vehiclePlate: data.vehiclePlate ? this.normalizeVehiclePlate(data.vehiclePlate) : undefined,
+      cancellationPolicyId: data.cancellationPolicyId ?? activePolicy.id,
+      policyVersion: data.policyVersion ?? activePolicy.termsVersion,
+      policyTerm: data.policyTerm ?? activePolicy.termsContent,
+      policiesAccepted: true,
+      policiesAcceptedAt: data.policiesAcceptedAt ?? new Date().toISOString(),
     });
+
+    if (guests.length > 0) {
+      await this.hospedeRepository.createMany(
+        created.id,
+        guests.map((guest, index) => ({
+          reservationId: created.id,
+          fullName: guest.fullName.trim(),
+          cpf: guest.cpf ? this.normalizeCpf(guest.cpf) : undefined,
+          email: guest.email,
+          phone: guest.phone,
+          birthDate: guest.birthDate,
+          isPrimary:
+            data.responsibleGuestIndex !== undefined
+              ? index === data.responsibleGuestIndex
+              : index === 0,
+        })),
+      );
+    }
 
     let reservation = created;
     if (created.paymentMethod && created.guestEmail) {
+      void this.logsService.info(
+        'hosting',
+        'HostingReservationPaymentCreationStarted',
+        {
+          reservationId: created.id,
+          paymentMethod: created.paymentMethod,
+          guestEmail: created.guestEmail,
+        },
+        created.id,
+      );
       const payment = await this.tryCreatePayment(created);
+      const linkedPaymentId = await this.resolveLocalPaymentId(created.id, Number(payment.id));
       reservation = await this.reservaRepository.update(created.id, {
-        paymentId: String(payment.id),
+        paymentId: linkedPaymentId,
         paymentStatus: 'PENDING',
       });
+      void this.logsService.info(
+        'hosting',
+        'HostingReservationPaymentLinked',
+        {
+          reservationId: created.id,
+          externalPaymentId: Number(payment.id),
+          localPaymentId: linkedPaymentId,
+        },
+        created.id,
+      );
     }
 
     await this.gerarVoucher(reservation.id);
@@ -70,12 +149,14 @@ export class ReservaService {
       status: reservation.status,
       totalAmount: Number(reservation.totalAmount),
     });
-    this.eventEmitter.emit(HostingEventTypes.HOSTING_BOOKED, {
+    const eventPayload = {
       reservationId: reservation.id,
       userId: userId ?? reservation.userId,
       totalAmount: Number(reservation.totalAmount),
       timestamp: new Date(),
-    });
+    };
+    void this.logsService.info('hosting', 'HostingBookedEventEmitting', eventPayload, reservation.id);
+    this.eventEmitter.emit(HostingEventTypes.HOSTING_BOOKED, eventPayload);
     void this.logsService.info(
       'hosting',
       'HostingReservationCreated',
@@ -86,8 +167,31 @@ export class ReservaService {
     return this.toReservaDTO(reservation);
   }
 
+  async obterPoliticaAtiva(): Promise<PoliticaCancelamentoDTO> {
+    return this.politicaCancelamentoService.obterPoliticaAtiva();
+  }
+
+  async uploadDocumentoTermos(
+    file: Express.Multer.File,
+    adminUserId: string,
+  ): Promise<PoliticaCancelamentoDTO> {
+    const uploaded = await this.hostingTermsStorageService.uploadSingle(file);
+    return this.politicaCancelamentoService.salvarDocumentoTermosAtivo(uploaded.fileUrl, adminUserId);
+  }
+
+  async baixarDocumentoTermosAtivo(): Promise<{ content: Buffer; mimeType: string; fileName: string }> {
+    const activePolicy = await this.politicaCancelamentoService.obterPoliticaAtiva();
+    const downloaded = await this.hostingTermsStorageService.downloadFromPublicUrl(activePolicy.termsContent);
+    const safeVersion = (activePolicy.termsVersion || 'termos').replace(/[^a-zA-Z0-9-_]/g, '_');
+    return {
+      content: downloaded.content,
+      mimeType: downloaded.mimeType || 'application/pdf',
+      fileName: `termos-reserva-${safeVersion}.pdf`,
+    };
+  }
+
   async criarReservaManual(data: CreateManualReservaDTO, operadorId: string): Promise<ReservaDTO> {
-    const created = await this.criarReserva(
+    return this.criarReserva(
       {
         ...data,
         origin: 'ADMIN',
@@ -97,15 +201,6 @@ export class ReservaService {
       },
       data.userId,
     );
-
-    if (data.guests && data.guests.length > 0) {
-      await this.hospedeRepository.createMany(
-        created.id,
-        data.guests.map((guest) => ({ ...guest, reservationId: created.id })),
-      );
-    }
-
-    return created;
   }
 
   async obterReserva(id: string): Promise<ReservaDetailDTO> {
@@ -424,6 +519,118 @@ export class ReservaService {
     return IPaymentMethod.PIX;
   }
 
+  private async resolveLocalPaymentId(reservationId: string, externalPaymentId: number): Promise<string> {
+    const localPayment = await this.prisma.payment.findFirst({
+      where: {
+        domain: PaymentDomain.HOSTING,
+        entityId: reservationId,
+        ...(Number.isFinite(externalPaymentId) ? { externalId: externalPaymentId } : {}),
+      },
+      select: { id: true },
+      orderBy: { dateLastUpdated: 'desc' },
+    });
+
+    if (!localPayment) {
+      throw new BadRequestException(
+        'Pagamento criado, mas não foi possível vincular a referência interna da reserva.',
+      );
+    }
+
+    return localPayment.id;
+  }
+
+  private validateGuestsAndResponsible(
+    guests: NonNullable<CreateReservaDTO['guests']>,
+    responsibleGuestIndex?: number,
+    strictValidation = true,
+  ): void {
+    if (!guests.length) {
+      throw new BadRequestException('Informe pelo menos 1 hóspede para concluir a reserva.');
+    }
+
+    const hospedePrincipal = guests[0];
+    const principalCpf = hospedePrincipal.cpf ? this.normalizeCpf(hospedePrincipal.cpf) : '';
+    const principalName = this.normalizeName(hospedePrincipal.fullName);
+
+    guests.forEach((guest, index) => {
+      if (!guest.fullName?.trim()) {
+        throw new BadRequestException(`Nome completo do hóspede ${index + 1} é obrigatório.`);
+      }
+      if (guest.age !== undefined && guest.age < 0) {
+        throw new BadRequestException(`Idade do hóspede ${index + 1} é inválida.`);
+      }
+      if (strictValidation && !guest.cpf?.trim()) {
+        throw new BadRequestException(`CPF do hóspede ${index + 1} é obrigatório.`);
+      }
+      if (strictValidation && (guest.age === undefined || guest.age === null)) {
+        throw new BadRequestException(`Idade do hóspede ${index + 1} é obrigatória.`);
+      }
+
+      if (index > 0) {
+        if (principalCpf && guest.cpf && this.normalizeCpf(guest.cpf) === principalCpf) {
+          throw new BadRequestException(
+            'O CPF do hóspede 1 não pode ser igual ao dos outros hóspedes.',
+          );
+        }
+        if (this.normalizeName(guest.fullName) === principalName) {
+          throw new BadRequestException(
+            'O nome completo do hóspede 1 não pode ser igual ao dos outros hóspedes.',
+          );
+        }
+      }
+    });
+
+    if (strictValidation) {
+      if (responsibleGuestIndex === undefined || responsibleGuestIndex === null) {
+        throw new BadRequestException('É obrigatório selecionar o hóspede responsável.');
+      }
+      if (responsibleGuestIndex < 0 || responsibleGuestIndex >= guests.length) {
+        throw new BadRequestException('Hóspede responsável inválido.');
+      }
+      if ((guests[responsibleGuestIndex].age ?? 0) < 18) {
+        throw new BadRequestException('O hóspede responsável deve ter 18 anos ou mais.');
+      }
+    }
+  }
+
+  private validateVehiclePlate(plate?: string): void {
+    if (!plate?.trim()) {
+      throw new BadRequestException('Placa do veículo é obrigatória.');
+    }
+    const normalized = this.normalizeVehiclePlate(plate);
+    const oldPattern = /^[A-Z]{3}\d{4}$/;
+    const mercosulPattern = /^[A-Z]{3}\d[A-Z0-9]\d{2}$/;
+    if (!oldPattern.test(normalized) && !mercosulPattern.test(normalized)) {
+      throw new BadRequestException('Placa inválida. Use padrão antigo (ABC1234) ou Mercosul (ABC1D23).');
+    }
+  }
+
+  private validateTermsAcceptance(
+    data: CreateReservaDTO,
+    activePolicy: PoliticaCancelamentoDTO,
+  ): void {
+    if (!data.policiesAccepted) {
+      throw new BadRequestException('É obrigatório aceitar os termos da reserva.');
+    }
+    if (!activePolicy.termsVersion?.trim() || !activePolicy.termsContent?.trim()) {
+      throw new BadRequestException(
+        'Não foi possível validar os termos da reserva. Política ativa incompleta.',
+      );
+    }
+  }
+
+  private normalizeVehiclePlate(value: string): string {
+    return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+  }
+
+  private normalizeCpf(value: string): string {
+    return value.replace(/\D/g, '');
+  }
+
+  private normalizeName(value: string): string {
+    return value.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
   private async createAuditLog(
     action: string,
     reservationId: string,
@@ -448,6 +655,7 @@ export class ReservaService {
     chaletId: string;
     userId: string | null;
     status: any;
+    origin: any;
     guestName: string;
     guestEmail: string | null;
     guestPhone: string | null;
@@ -462,16 +670,32 @@ export class ReservaService {
     paymentStatus: any;
     paymentMethod: string | null;
     paymentId: string | null;
+    paidAt: Date | null;
     checkedInAt: Date | null;
     checkedOutAt: Date | null;
     cancelledAt: Date | null;
     noShowAt: Date | null;
     noShowFeeAmount: Prisma.Decimal | number | string | null;
     noShowReason: string | null;
+    cancellationReason: string | null;
     vehiclePlate: string | null;
+    vehicleModel: string | null;
+    vehicleColor: string | null;
+    vehicleType: string | null;
+    extraBedRequested: boolean;
+    extraBedFee: Prisma.Decimal | number | string;
+    negotiationNotes: string | null;
     contactChannel: any;
     contactNotes: string | null;
+    policiesAccepted: boolean;
+    policiesAcceptedAt: Date | null;
+    policyVersion: string | null;
+    policyTerm: string | null;
+    cancellationPolicyId: string | null;
+    pricingRuleId: string | null;
     notes: string | null;
+    createdById: string | null;
+    updatedById: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): ReservaDTO {
@@ -481,6 +705,7 @@ export class ReservaService {
       chaletId: data.chaletId,
       userId: data.userId,
       status: data.status,
+      origin: data.origin,
       guestName: data.guestName,
       guestEmail: data.guestEmail,
       guestPhone: data.guestPhone,
@@ -495,16 +720,32 @@ export class ReservaService {
       paymentStatus: data.paymentStatus,
       paymentMethod: data.paymentMethod,
       paymentId: data.paymentId,
+      paidAt: data.paidAt,
       checkedInAt: data.checkedInAt,
       checkedOutAt: data.checkedOutAt,
       cancelledAt: data.cancelledAt,
       noShowAt: data.noShowAt,
       noShowFeeAmount: data.noShowFeeAmount !== null ? Number(data.noShowFeeAmount) : null,
       noShowReason: data.noShowReason,
+      cancellationReason: data.cancellationReason,
       vehiclePlate: data.vehiclePlate,
+      vehicleModel: data.vehicleModel,
+      vehicleColor: data.vehicleColor,
+      vehicleType: data.vehicleType,
+      extraBedRequested: data.extraBedRequested,
+      extraBedFee: Number(data.extraBedFee),
+      negotiationNotes: data.negotiationNotes,
       contactChannel: data.contactChannel,
       contactNotes: data.contactNotes,
+      policiesAccepted: data.policiesAccepted,
+      policiesAcceptedAt: data.policiesAcceptedAt,
+      policyVersion: data.policyVersion,
+      policyTerm: data.policyTerm,
+      cancellationPolicyId: data.cancellationPolicyId,
+      pricingRuleId: data.pricingRuleId,
       notes: data.notes,
+      createdById: data.createdById,
+      updatedById: data.updatedById,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };

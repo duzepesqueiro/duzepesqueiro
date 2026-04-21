@@ -5,6 +5,7 @@ import Icon from '../../components/AppIcon';
 import ChaletsTable from './components/ChaletsTable';
 import ChaletFormModal from './components/ChaletFormModal';
 import BlockDatesModal from './components/BlockDatesModal';
+import TermsUploadModal from './components/TermsUploadModal';
 import ConfirmDeleteChaletModal from './components/ConfirmDeleteChaletModal';
 import ChaletSuccessModal from './components/ChaletSuccessModal';
 import {
@@ -16,6 +17,7 @@ import {
   listBlocks,
   listChalets,
   updateChalet,
+  uploadReservationTermsPdf,
   uploadChaletImages,
 } from '../../utils/hostingService';
 
@@ -69,6 +71,8 @@ const ChaletsManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSavingChalet, setIsSavingChalet] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isSavingTerms, setIsSavingTerms] = useState(false);
   const [pendingDeleteChalet, setPendingDeleteChalet] = useState(null);
   const [deletingChaletId, setDeletingChaletId] = useState(null);
   const [successModal, setSuccessModal] = useState({ open: false, mode: 'create' });
@@ -100,6 +104,10 @@ const ChaletsManagementPage = () => {
         <Button type="button" variant="outline" onClick={() => setIsBlockModalOpen(true)}>
           <Icon name="Lock" size={16} className="mr-2" />
           Bloquear Datas
+        </Button>
+        <Button type="button" variant="outline" onClick={() => setIsTermsModalOpen(true)}>
+          <Icon name="FileText" size={16} className="mr-2" />
+          Termos
         </Button>
       </>
     ),
@@ -225,6 +233,20 @@ const ChaletsManagementPage = () => {
     }
   };
 
+  const handleSaveTerms = async (file) => {
+    if (isSavingTerms) return;
+    setIsSavingTerms(true);
+    try {
+      await uploadReservationTermsPdf(file);
+      setIsTermsModalOpen(false);
+      alert('Arquivo de termos salvo com sucesso.');
+    } catch (error) {
+      alert(toErrorMessage(error, 'Não foi possível salvar o arquivo de termos.'));
+    } finally {
+      setIsSavingTerms(false);
+    }
+  };
+
   return (
     <HostingLayout
       title="Gerenciamento de Chalés"
@@ -256,6 +278,16 @@ const ChaletsManagementPage = () => {
         blockedDates={blockedDates}
         onClose={() => setIsBlockModalOpen(false)}
         onSave={handleSaveBlockDates}
+      />
+
+      <TermsUploadModal
+        isOpen={isTermsModalOpen}
+        isSaving={isSavingTerms}
+        onClose={() => {
+          if (isSavingTerms) return;
+          setIsTermsModalOpen(false);
+        }}
+        onSave={handleSaveTerms}
       />
 
       <ConfirmDeleteChaletModal

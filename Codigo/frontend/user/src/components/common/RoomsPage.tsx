@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Room } from '@/types/booking';
 import { api } from '@/lib/api';
 import { mapApiChaletToRoom, resolveEffectiveRoomPrice } from '@/lib/hostingRoomMapper';
+import { formatBRL } from '@/lib/currency';
 
 type ApiChalet = {
   id: string;
@@ -312,7 +313,7 @@ const RoomsPage = () => {
 
                   <div className="sm:col-span-2 lg:col-span-2 xl:col-span-1">
                     <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
-                      Faixa de preço: R${priceRange[0]} - R${priceRange[1]}
+                      Faixa de preço: {formatBRL(priceRange[0])} - {formatBRL(priceRange[1])}
                     </label>
                     <Slider
                       value={priceRange}

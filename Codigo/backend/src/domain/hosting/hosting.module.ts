@@ -39,6 +39,7 @@ import {
   HospedagemMetricsService,
   HospedagemNotificationService,
   HostingImageStorageService,
+  HostingTermsStorageService,
   PoliticaCancelamentoService,
   PrecoService,
   ReservaService,
@@ -75,6 +76,7 @@ import {
     ReservaRepository,
     ReservaService,
     HostingImageStorageService,
+    HostingTermsStorageService,
   ],
   exports: [
     AvaliacaoReservaRepository,
@@ -92,6 +94,7 @@ import {
     ReservaRepository,
     ReservaService,
     HostingImageStorageService,
+    HostingTermsStorageService,
   ],
 })
 export class HostingModule implements NestModule {
