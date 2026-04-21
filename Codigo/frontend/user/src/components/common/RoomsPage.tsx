@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import { Filter } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/common/layout/Header';
+import SectionTitle from '@/components/common/layout/SectionTitle';
 import RoomCard from '@/components/common/booking/RoomCard';
 import { useBooking } from '@/contexts/BookingContext';
 import { Switch } from '@/components/ui/switch';
@@ -36,33 +38,90 @@ type ApiChaletDetail = ApiChalet & {
   images?: Array<{ imageUrl?: string; id?: string }>;
 };
 
-type AvailabilityResponse = {
-  chaletId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  available: boolean;
+type BackendRoomType = 'standard' | 'deluxe' | 'suite';
+
+const ROOM_TYPE_LABELS: Record<BackendRoomType, string> = {
+  standard: 'Standard',
+  deluxe: 'Deluxe',
+  suite: 'Suíte',
+};
+
+const ROOM_TYPE_ORDER: BackendRoomType[] = ['standard', 'deluxe', 'suite'];
+
+const ROOM_TYPE_TO_BACKEND: Record<BackendRoomType, 'STANDARD' | 'DELUXE' | 'SUITE'> = {
+  standard: 'STANDARD',
+  deluxe: 'DELUXE',
+  suite: 'SUITE',
+};
+
+const isBackendRoomType = (value: Room['type']): value is BackendRoomType =>
+  value === 'standard' || value === 'deluxe' || value === 'suite';
+
+const parseQueryDate = (value: string | null): Date | null => {
+  if (!value) return null;
+  const normalized = value.trim();
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const parsed = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const fetchChales = async (params?: Record<string, string | number>) => {
+  const { data } = await api.get('/api/chales', { params });
+  return Array.isArray(data) ? (data as ApiChalet[]) : [];
+};
+
+const enrichChales = async (base: ApiChalet[]) => {
+  return Promise.all(
+    base.map(async (item) => {
+      if (item.imagesCount === 0) {
+        return { ...item, images: [] };
+      }
+
+      try {
+        const { data: detail } = await api.get(`/api/chales/${item.id}`);
+        const images = Array.isArray((detail as ApiChaletDetail)?.images)
+          ? (detail as ApiChaletDetail).images
+          : [];
+
+        return {
+          ...item,
+          images,
+          currentPrice: resolveEffectiveRoomPrice({
+            ...(item as Record<string, unknown>),
+            ...((detail as Record<string, unknown>) || {}),
+          }),
+        };
+      } catch {
+        return { ...item, images: [] };
+      }
+    }),
+  );
 };
 
 const RoomsPage = () => {
   const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const [searchParams] = useSearchParams();
+  const guestsParamRaw = searchParams.get('guests');
+  const guestsParam = guestsParamRaw ? Number(guestsParamRaw) : NaN;
+  const petsParam = searchParams.get('pets');
+  const checkInParamRaw = searchParams.get('checkIn');
+  const checkOutParamRaw = searchParams.get('checkOut');
+  const initialCapacityFilter = !Number.isNaN(guestsParam) && guestsParam > 1 ? guestsParam : 0;
+  const initialPetsOnly = petsParam === '1' || petsParam === 'true' ? true : booking.pets;
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [capacityFilter, setCapacityFilter] = useState<number>(0);
-  const [petsOnly, setPetsOnly] = useState(booking.pets);
+  const [capacityFilter, setCapacityFilter] = useState<number>(initialCapacityFilter);
+  const [petsOnly, setPetsOnly] = useState(initialPetsOnly);
   const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
   const [priceFilterEnabled, setPriceFilterEnabled] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<BackendRoomType | 'all'>('all');
   const [showFilters, setShowFilters] = useState(false);
 
   // Preenche filtros com o que veio da home
   useEffect(() => {
-    const guestsParamRaw = searchParams.get('guests');
-    const guestsParam = guestsParamRaw ? Number(guestsParamRaw) : NaN;
-    const petsParam = searchParams.get('pets');
-    const checkInParam = searchParams.get('checkIn');
-    const checkOutParam = searchParams.get('checkOut');
-
     if (!Number.isNaN(guestsParam) && guestsParam > 1) {
       setCapacityFilter(guestsParam);
     }
@@ -76,95 +135,100 @@ const RoomsPage = () => {
       setBooking((prev) => ({ ...prev, pets: true }));
     }
 
-    if (checkInParam) {
-      const d = new Date(checkInParam);
-      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkIn: d }));
+    if (checkInParamRaw) {
+      const d = parseQueryDate(checkInParamRaw);
+      if (d) setBooking((prev) => ({ ...prev, checkIn: d }));
     }
-    if (checkOutParam) {
-      const d = new Date(checkOutParam);
-      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkOut: d }));
+    if (checkOutParamRaw) {
+      const d = parseQueryDate(checkOutParamRaw);
+      if (d) setBooking((prev) => ({ ...prev, checkOut: d }));
     }
-  }, [booking.guests, searchParams, setBooking]);
+  }, [booking.guests, checkInParamRaw, checkOutParamRaw, guestsParam, petsParam, setBooking]);
 
-  const { data: serverRooms = [], isLoading } = useQuery<ApiChalet[]>({
-    queryKey: ['rooms'],
+  const queryCheckIn = checkInParamRaw ?? (booking.checkIn ? format(booking.checkIn, 'yyyy-MM-dd') : null);
+  const queryCheckOut = checkOutParamRaw ?? (booking.checkOut ? format(booking.checkOut, 'yyyy-MM-dd') : null);
+
+  const roomQueryParams = useMemo(() => {
+    const params: Record<string, string | number> = {};
+
+    if (typeFilter !== 'all') {
+      params.tipo = ROOM_TYPE_TO_BACKEND[typeFilter];
+    }
+
+    if (capacityFilter > 0) {
+      params.capacidadeAdultos = capacityFilter;
+      params.capacidadeCriancas = 0;
+    }
+
+    if (queryCheckIn && queryCheckOut) {
+      params.checkin = queryCheckIn;
+      params.checkout = queryCheckOut;
+    }
+
+    return params;
+  }, [capacityFilter, queryCheckIn, queryCheckOut, typeFilter]);
+
+  const { data: allRoomsData = [] } = useQuery<ApiChalet[]>({
+    queryKey: ['rooms-options'],
+    queryFn: () => fetchChales(),
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: serverRooms = [], isLoading: isLoadingRooms } = useQuery<ApiChalet[]>({
+    queryKey: ['rooms', typeFilter, capacityFilter, queryCheckIn, queryCheckOut],
     queryFn: async (): Promise<ApiChalet[]> => {
-      const { data } = await api.get('/api/chales');
-      if (!Array.isArray(data)) return [];
-      const base = data as ApiChalet[];
-
-      const enriched = await Promise.all(
-        base.map(async (item) => {
-          if (item.imagesCount === 0) {
-            return { ...item, images: [] };
-          }
-          try {
-            const { data: detail } = await api.get(`/api/chales/${item.id}`);
-            const images = Array.isArray((detail as ApiChaletDetail)?.images)
-              ? (detail as ApiChaletDetail).images
-              : [];
-            return {
-              ...item,
-              images,
-              currentPrice: resolveEffectiveRoomPrice({
-                ...(item as Record<string, unknown>),
-                ...((detail as Record<string, unknown>) || {}),
-              }),
-            };
-          } catch {
-            return { ...item, images: [] };
-          }
-        })
-      );
-
-      return enriched;
+      const base = await fetchChales(roomQueryParams);
+      return enrichChales(base);
     },
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    placeholderData: keepPreviousData,
   });
 
-  const roomList: Room[] = serverRooms.length
-    ? serverRooms.map((c) => mapApiChaletToRoom(c))
-    : [];
+  const allRoomList: Room[] = useMemo(
+    () => allRoomsData.map((item) => mapApiChaletToRoom(item)),
+    [allRoomsData],
+  );
 
-  const hasDateFilter = Boolean(booking.checkIn && booking.checkOut);
+  const roomList: Room[] = useMemo(
+    () => serverRooms.map((item) => mapApiChaletToRoom(item)),
+    [serverRooms],
+  );
 
-  const { data: availabilityMap = {}, isLoading: isLoadingAvailability } = useQuery<Record<string, boolean>>({
-    queryKey: [
-      'rooms-availability',
-      roomList.map((room) => room.id).join('|'),
-      booking.checkIn ? booking.checkIn.toISOString() : null,
-      booking.checkOut ? booking.checkOut.toISOString() : null,
-    ],
-    enabled: hasDateFilter && roomList.length > 0,
-    queryFn: async () => {
-      const checkin = booking.checkIn!.toISOString();
-      const checkout = booking.checkOut!.toISOString();
-      const responses = await Promise.all(
-        roomList.map(async (room) => {
-          try {
-            const { data } = await api.get('/api/chales/disponibilidade', {
-              params: { chaleId: room.id, checkin, checkout },
-            });
-            const dto = data as AvailabilityResponse;
-            return [room.id, !dto?.available] as const;
-          } catch {
-            return [room.id, true] as const;
-          }
-        })
-      );
-      return Object.fromEntries(responses);
-    },
-    staleTime: 1000 * 60,
-  });
+  const availableTypeOptions = useMemo(() => {
+    const availableTypes = new Set(
+      allRoomList.map((room) => room.type).filter(isBackendRoomType),
+    );
+    return ROOM_TYPE_ORDER.filter((type) => availableTypes.has(type));
+  }, [allRoomList]);
+
+  const maxCapacity = useMemo(() => {
+    if (!allRoomList.length) return 0;
+    return Math.max(...allRoomList.map((room) => room.capacity || 0));
+  }, [allRoomList]);
+
+  const availableCapacityOptions = useMemo(
+    () => Array.from({ length: Math.max(maxCapacity, capacityFilter) }, (_, index) => index + 1),
+    [capacityFilter, maxCapacity],
+  );
+
+  const hasPetFriendlyRooms = useMemo(
+    () => allRoomList.some((room) => room.petFriendly),
+    [allRoomList],
+  );
+
+  useEffect(() => {
+    if (typeFilter !== 'all' && !availableTypeOptions.includes(typeFilter)) {
+      setTypeFilter('all');
+    }
+  }, [availableTypeOptions, typeFilter]);
 
   const priceSliderMax = useMemo(() => {
-    if (!roomList.length) return 1000;
-    const maxPrice = Math.max(...roomList.map((room) => room.pricePerNight || 0));
+    if (!allRoomList.length) return 1000;
+    const maxPrice = Math.max(...allRoomList.map((room) => room.pricePerNight || 0));
     return Math.max(1000, Math.ceil(maxPrice / 100) * 100);
-  }, [roomList]);
+  }, [allRoomList]);
 
   useEffect(() => {
     if (!priceFilterEnabled) {
@@ -177,31 +241,34 @@ const RoomsPage = () => {
   const filteredRooms = useMemo(() => {
     return roomList
       .filter((room) => {
-        if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
-        if (petsOnly && !room.petFriendly) return false;
+        if (petsOnly && hasPetFriendlyRooms && !room.petFriendly) return false;
         if (priceFilterEnabled && (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1])) return false;
-        if (typeFilter !== 'all' && room.type !== typeFilter) return false;
         return true;
       })
-      .map((room) => ({
-        room,
-        unavailable: hasDateFilter ? Boolean(availabilityMap[room.id]) : false,
-      }));
-  }, [roomList, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
+      .map((room) => ({ room }));
+  }, [
+    roomList,
+    petsOnly,
+    hasPetFriendlyRooms,
+    priceRange,
+    priceFilterEnabled,
+  ]);
 
   const summaryChips = [
     booking.checkIn && booking.checkOut
       ? `Período: ${booking.checkIn.toLocaleDateString()} - ${booking.checkOut.toLocaleDateString()}`
       : null,
     searchParams.has('guests') || booking.guests > 1 ? `${booking.guests} hóspede(s)` : null,
-    petsOnly || booking.pets ? 'Somente pet friendly' : null,
+    typeFilter !== 'all' ? ROOM_TYPE_LABELS[typeFilter] : null,
+    capacityFilter > 0 ? `${capacityFilter}+ pessoas` : null,
+    hasPetFriendlyRooms && petsOnly ? 'Somente pet friendly' : null,
   ].filter((chip): chip is string => Boolean(chip));
 
   const handleSelectRoom = (room: Room) => {
     setBooking((prev) => ({ ...prev, roomId: room.id }));
     const params = new URLSearchParams();
-    if (booking.checkIn) params.set('checkIn', booking.checkIn.toISOString());
-    if (booking.checkOut) params.set('checkOut', booking.checkOut.toISOString());
+    if (queryCheckIn) params.set('checkIn', queryCheckIn);
+    if (queryCheckOut) params.set('checkOut', queryCheckOut);
     const query = params.toString();
     navigate(
       query ? `/hospedagem/rooms/${room.id}?${query}` : `/hospedagem/rooms/${room.id}`,
@@ -227,9 +294,13 @@ const RoomsPage = () => {
                   Busca de hospedagem
                 </span>
                 <div>
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-[#024059] md:text-4xl lg:text-5xl">
+                  <SectionTitle
+                    as="h1"
+                    logoClassName="h-10 w-10"
+                    className="font-display text-3xl font-bold tracking-tight text-[#024059] md:text-4xl lg:text-5xl"
+                  >
                     Nossos Quartos
-                  </h1>
+                  </SectionTitle>
                   <p className="mt-2 max-w-2xl text-sm text-[#284003]/85 md:text-base">
                     Encontre o quarto perfeito para sua estadia em Du Zé.
                   </p>
@@ -270,7 +341,13 @@ const RoomsPage = () => {
                 style={{ boxShadow: '0 18px 42px -18px rgba(0,0,0,0.18)' }}
               >
                 <div className="mb-4">
-                  <h2 className="font-display text-lg font-semibold text-[#024059]">Filtros</h2>
+                  <SectionTitle
+                    as="h2"
+                    logoClassName="h-7 w-7"
+                    className="font-display text-lg font-semibold text-[#024059]"
+                  >
+                    Filtros
+                  </SectionTitle>
                   <p className="text-xs text-[#284003]/75">Refine resultados por tipo, capacidade, preço e pets.</p>
                 </div>
 
@@ -279,16 +356,17 @@ const RoomsPage = () => {
                     <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
                       Tipo
                     </label>
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as BackendRoomType | 'all')}>
                       <SelectTrigger className="w-full border-[#024059]/35 bg-[#F2F2F2] text-[#024059]">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="deluxe">Deluxe</SelectItem>
-                        <SelectItem value="suite">Suíte</SelectItem>
-                        <SelectItem value="cabin">Chalé</SelectItem>
+                        {availableTypeOptions.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {ROOM_TYPE_LABELS[type]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -303,10 +381,11 @@ const RoomsPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="0">Todos</SelectItem>
-                        <SelectItem value="2">2+ pessoas</SelectItem>
-                        <SelectItem value="3">3+ pessoas</SelectItem>
-                        <SelectItem value="4">4+ pessoas</SelectItem>
-                        <SelectItem value="5">5+ pessoas</SelectItem>
+                        {availableCapacityOptions.map((capacity) => (
+                          <SelectItem key={capacity} value={String(capacity)}>
+                            {capacity}+ pessoas
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -331,14 +410,19 @@ const RoomsPage = () => {
                     <label className="text-xs font-semibold uppercase tracking-wider text-[#024059]">
                       Aceita pets
                     </label>
-                    <Switch checked={petsOnly} onCheckedChange={setPetsOnly} />
+                    <Switch checked={petsOnly} onCheckedChange={setPetsOnly} disabled={!hasPetFriendlyRooms} />
                   </div>
                 </div>
               </div>
             </motion.aside>
 
+            <div
+              aria-hidden="true"
+              className="hidden xl:block w-px self-stretch rounded-full bg-[#024059]/12"
+            />
+
             <div className="flex-1">
-              {isLoading || (hasDateFilter && isLoadingAvailability) ? (
+              {isLoadingRooms ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2" aria-label="Carregando quartos">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <div
@@ -376,8 +460,8 @@ const RoomsPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {filteredRooms.map(({ room, unavailable }, i) => (
-                    <RoomCard key={room.id} room={room} index={i} unavailable={unavailable} onSelect={handleSelectRoom} />
+                  {filteredRooms.map(({ room }, i) => (
+                    <RoomCard key={room.id} room={room} index={i} onSelect={handleSelectRoom} />
                   ))}
                 </div>
               )}

@@ -17,6 +17,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { formatBRL } from '@/lib/currency';
+import SectionTitle from '@/components/common/layout/SectionTitle';
 
 type RoomLocationState = {
   room?: Room;
@@ -198,8 +199,8 @@ const RoomDetailPage = () => {
       const { data } = await api.get('/api/chales/disponibilidade', {
         params: {
           chaleId: room.id,
-          checkin: checkIn.toISOString(),
-          checkout: checkOut.toISOString(),
+          checkin: toDateKey(checkIn),
+          checkout: toDateKey(checkOut),
         },
       });
       if (!data?.available) {
@@ -320,7 +321,13 @@ const RoomDetailPage = () => {
                     <span className="inline-flex items-center rounded-full border border-[#284003]/35 bg-[#F2BF27]/25 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#284003]">
                       {ROOM_TYPE_LABEL[room.type]}
                     </span>
-                    <h1 className="font-display text-3xl font-bold text-[#024059]">{room.name}</h1>
+                    <SectionTitle
+                      as="h1"
+                      logoClassName="h-10 w-10"
+                      className="font-display text-3xl font-bold text-[#024059]"
+                    >
+                      {room.name}
+                    </SectionTitle>
                     {room.petFriendly && (
                       <Badge className="gap-1 bg-[#F2AB27] text-[#024059]">
                         <PawPrint className="h-3 w-3" /> Pet friendly
@@ -356,7 +363,13 @@ const RoomDetailPage = () => {
                     </div>
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Comodidades</h3>
+                  <SectionTitle
+                    as="h3"
+                    logoClassName="h-6 w-6"
+                    className="mb-4 font-display text-xl font-semibold text-[#024059]"
+                  >
+                    Comodidades
+                  </SectionTitle>
                   <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                     {room.amenities.map((amenity) => (
                       <div
@@ -368,7 +381,13 @@ const RoomDetailPage = () => {
                     ))}
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Inclusos</h3>
+                  <SectionTitle
+                    as="h3"
+                    logoClassName="h-6 w-6"
+                    className="mb-4 font-display text-xl font-semibold text-[#024059]"
+                  >
+                    Inclusos
+                  </SectionTitle>
                   <div className="mb-8 flex flex-wrap gap-2">
                     {room.extras.map((extra) => (
                       <Badge key={extra} className="border border-[#F2AB27]/70 bg-[#F2BF27]/22 text-[#284003]">
@@ -377,7 +396,13 @@ const RoomDetailPage = () => {
                     ))}
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Regras</h3>
+                  <SectionTitle
+                    as="h3"
+                    logoClassName="h-6 w-6"
+                    className="mb-4 font-display text-xl font-semibold text-[#024059]"
+                  >
+                    Regras
+                  </SectionTitle>
                   <ul className="mb-8 space-y-2 rounded-xl border border-[#024059]/20 bg-[#F2F2F2] p-4">
                     {room.rules.map((rule) => (
                       <li key={rule} className="text-sm text-[#284003]/88">
@@ -396,7 +421,13 @@ const RoomDetailPage = () => {
                   className="rounded-2xl border-2 border-[#F2AB27]/70 bg-[#024059] p-8 text-[#F2F2F2]"
                 >
                   <div className="mb-5">
-                    <span className="text-sm uppercase tracking-[0.14em] text-[#F2F2F2]/80">A partir de</span>
+                    <SectionTitle
+                      as="p"
+                      logoClassName="h-6 w-6 ring-white/15"
+                      className="text-sm uppercase tracking-[0.14em] text-[#F2F2F2]/80"
+                    >
+                      A partir de
+                    </SectionTitle>
                     <div className="flex items-baseline gap-1">
                       <AnimatePresence mode="wait">
                         <motion.span
