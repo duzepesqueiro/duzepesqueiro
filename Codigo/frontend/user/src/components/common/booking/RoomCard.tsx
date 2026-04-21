@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Room } from '@/types/booking';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { formatBRL } from '@/lib/currency';
 
 const MAX_IMAGES = 10;
 
@@ -163,7 +164,7 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
 
         <div className="flex items-end justify-between border-t border-[#F2BF27]/45 pt-3">
           <div>
-            <span className="text-2xl font-bold text-[#024059]">R$ {room.pricePerNight}</span>
+            <span className="text-2xl font-bold text-[#024059]">{formatBRL(room.pricePerNight)}</span>
             <span className="text-sm text-[#284003]/75"> /noite</span>
           </div>
           <button

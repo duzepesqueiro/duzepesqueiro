@@ -5,6 +5,7 @@ import Icon from '../../components/AppIcon';
 import PriceSimulator from './components/PriceSimulator';
 import PriceRuleFormModal from './components/PriceRuleFormModal';
 import PriceRulesList from './components/PriceRulesList';
+import ConfirmPriceRuleActionModal from './components/ConfirmPriceRuleActionModal';
 import {
   createPricingRule,
   deletePricingRule,
@@ -120,6 +121,8 @@ const PricingManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSavingRule, setIsSavingRule] = useState(false);
   const [rowActionByRuleId, setRowActionByRuleId] = useState({});
+  const [rulePendingDelete, setRulePendingDelete] = useState(null);
+  const [rulePendingEdit, setRulePendingEdit] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -172,6 +175,7 @@ const PricingManagementPage = () => {
           percent: 0,
           delta: 0,
           sign: 'none',
+          ruleName: '',
         };
       }
 
@@ -189,6 +193,7 @@ const PricingManagementPage = () => {
         percent: activeRule.modifierPercent,
         delta,
         sign: activeRule.modifierDirection,
+        ruleName: activeRule.name,
       };
     });
   }, [rules, chalets]);
@@ -248,6 +253,15 @@ const PricingManagementPage = () => {
     if (rowActionByRuleId[rule.id]) {
       return;
     }
+    setRulePendingEdit(rule);
+  };
+
+  const handleConfirmEditRule = () => {
+    if (!rulePendingEdit) {
+      return;
+    }
+    const rule = rulePendingEdit;
+    setRulePendingEdit(null);
     setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: 'edit' }));
     setEditingRule(rule);
     setIsModalOpen(true);
@@ -257,17 +271,22 @@ const PricingManagementPage = () => {
   };
 
   const handleDeleteRule = async (rule) => {
-    if (rowActionByRuleId[rule.id]) {
+    setRulePendingDelete(rule);
+  };
+
+  const handleConfirmDeleteRule = async () => {
+    const rule = rulePendingDelete;
+    if (!rule) {
       return;
     }
-    const shouldDelete = window.confirm(`Deseja excluir a regra '${rule.name}'?`);
-    if (!shouldDelete) {
+    if (rowActionByRuleId[rule.id]) {
       return;
     }
     setRowActionByRuleId((prev) => ({ ...prev, [rule.id]: 'delete' }));
     try {
       await deletePricingRule(rule.id);
       setRules((prev) => prev.filter((item) => item.id !== rule.id));
+      setRulePendingDelete(null);
     } catch (error) {
       alert(toErrorMessage(error, 'Não foi possível excluir a regra.'));
     } finally {
@@ -289,7 +308,7 @@ const PricingManagementPage = () => {
         active: true,
       });
       if (conflict) {
-        window.alert(`Este chalé já possui a regra aplicada. ${conflict}`);
+        alert(`Este chalé já possui a regra aplicada. ${conflict}`);
         return;
       }
     }
@@ -338,6 +357,33 @@ const PricingManagementPage = () => {
         }}
         onSave={handleSaveRule}
         validateConflict={validateConflict}
+      />
+      <ConfirmPriceRuleActionModal
+        isOpen={Boolean(rulePendingDelete)}
+        title="Excluir Regra de Preço"
+        description={
+          rulePendingDelete
+            ? `Tem certeza que deseja excluir a regra '${rulePendingDelete.name}'? Esta ação remove a regra do sistema.`
+            : ''
+        }
+        confirmLabel="Confirmar Exclusão"
+        confirmVariant="destructive"
+        isLoading={Boolean(rulePendingDelete && rowActionByRuleId[rulePendingDelete.id] === 'delete')}
+        onConfirm={handleConfirmDeleteRule}
+        onClose={() => setRulePendingDelete(null)}
+      />
+      <ConfirmPriceRuleActionModal
+        isOpen={Boolean(rulePendingEdit)}
+        title="Editar Regra de Preço"
+        description={
+          rulePendingEdit
+            ? `Deseja editar a regra '${rulePendingEdit.name}'?`
+            : ''
+        }
+        confirmLabel="Continuar Edição"
+        isLoading={false}
+        onConfirm={handleConfirmEditRule}
+        onClose={() => setRulePendingEdit(null)}
       />
       {loading ? (
         <div className="mt-4 text-sm text-muted-foreground">Carregando regras e chalés...</div>

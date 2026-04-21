@@ -4,6 +4,7 @@ import { CheckCircle2, Copy } from 'lucide-react';
 import Header from '@/components/common/layout/Header';
 import { useBooking } from '@/contexts/BookingContext';
 import { toast } from '@/hooks/use-toast';
+import { formatBRL } from '@/lib/currency';
 
 const ConfirmationPage = () => {
   const navigate = useNavigate();
@@ -68,7 +69,7 @@ const ConfirmationPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground">R$ {latest.totalPrice}</span>
+                <span className="text-lg font-bold text-foreground">{formatBRL(latest.totalPrice)}</span>
               </div>
             </div>
 

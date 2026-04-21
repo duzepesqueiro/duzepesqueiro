@@ -11,12 +11,17 @@ import {
   Post,
   Put,
   Query,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ReservationStatus, UserRole } from '@prisma/client';
+import { Response } from 'express';
 import { CurrentUser } from '../../../../application/auth/decorators/current-user.decorator';
 import { Roles } from '../../../../application/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../../application/auth/guards/jwt-auth.guard';
@@ -35,6 +40,7 @@ import {
   HospedeDTO,
   ListReservasQueryDTO,
   NoShowResponseDTO,
+  PoliticaCancelamentoDTO,
   PriceCalculationDTO,
   ReservaDTO,
   ReservaDetailDTO,
@@ -127,6 +133,48 @@ export class ReservaController {
     return reserva;
   }
 
+  @Get('politica-ativa')
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Obter política ativa para aceite de termos' })
+  @ApiResponse({ status: 200, type: PoliticaCancelamentoDTO })
+  async obterPoliticaAtiva(): Promise<PoliticaCancelamentoDTO> {
+    return this.reservaService.obterPoliticaAtiva();
+  }
+
+  @Get('politica-ativa/arquivo')
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Baixar arquivo PDF da política ativa' })
+  @ApiResponse({ status: 200, description: 'Arquivo PDF de termos' })
+  async baixarArquivoPoliticaAtiva(@Res() res: Response): Promise<void> {
+    const file = await this.reservaService.baixarDocumentoTermosAtivo();
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader('Content-Length', String(file.content.length));
+    res.send(file.content);
+  }
+
+  @Post('termos/upload')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOperation({ summary: 'Upload do arquivo PDF de termos da reserva' })
+  @ApiResponse({ status: 201, type: PoliticaCancelamentoDTO })
+  async uploadTermos(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: AuthUser,
+  ): Promise<PoliticaCancelamentoDTO> {
+    return this.reservaService.uploadDocumentoTermos(file, user.id);
+  }
+
   @Get(':id')
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE)
   @ApiOperation({ summary: 'Obter detalhes de uma reserva' })
@@ -141,7 +189,7 @@ export class ReservaController {
   }
 
   @Post()
-  @Roles(UserRole.CUSTOMER)
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE)
   @ApiOperation({ summary: 'Criar nova reserva (Turista)' })
   @ApiResponse({ status: 201, type: ReservaDTO })
   async criar(

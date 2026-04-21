@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import type { BookingData, Guest, Room } from '@/types/booking';
+import { formatBRL } from '@/lib/currency';
 
 const steps = ['Reserva', 'Hospedes', 'Responsavel', 'Revisao'];
 
@@ -41,6 +42,26 @@ type ApiChaletDetail = {
   rooms?: string[];
   notes?: string;
 };
+
+type ActivePolicyDTO = {
+  id: string;
+  termsVersion: string;
+  termsContent: string;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+};
+
+const WhatsAppIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
+  </svg>
+);
 
 const createEmptyGuest = (): Guest => ({
   name: '',
@@ -131,7 +152,7 @@ const formatDateValue = (value: Date | null, pattern: string) =>
 const BookingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking, setBooking, addReservation } = useBooking();
+  const { booking, setBooking } = useBooking();
   const [step, setStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<BookingErrors>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -152,6 +173,14 @@ const BookingPage = () => {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+  const { data: activePolicy } = useQuery<ActivePolicyDTO>({
+    queryKey: ['booking-active-policy'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/reservas/politica-ativa');
+      return data as ActivePolicyDTO;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
   const room = locationRoom ?? (apiRoomData ? mapApiChaletToRoom(apiRoomData) : null);
   const checkInDate = isValidDateValue(booking.checkIn) ? startOfDay(booking.checkIn) : null;
   const checkOutDate = isValidDateValue(booking.checkOut) ? startOfDay(booking.checkOut) : null;
@@ -166,6 +195,10 @@ const BookingPage = () => {
   const selectedResponsibleAddress = selectedResponsibleGuest
     ? `${selectedResponsibleGuest.address.street}, ${selectedResponsibleGuest.address.number} - ${selectedResponsibleGuest.address.city}/${selectedResponsibleGuest.address.state} · CEP ${selectedResponsibleGuest.address.zip}`
     : '';
+  const hasTermsDocument = Boolean(activePolicy?.termsContent?.trim());
+  const termsFileName = `termos-reserva-${booking.policyVersion || 'atual'}.pdf`;
+  const whatsappMessage = 'Precisa de mais espaço? Podemos combinar o número de hospedes!';
+  const whatsappPhone = (import.meta as any)?.env?.VITE_STORE_WHATSAPP_PHONE || '';
 
   useEffect(() => {
     if (!room) return;
@@ -200,6 +233,15 @@ const BookingPage = () => {
       }));
     }
   }, [booking.guestDetails.length, booking.responsibleGuestIndex, setBooking]);
+
+  useEffect(() => {
+    if (!activePolicy) return;
+    setBooking((prev) => ({
+      ...prev,
+      policyVersion: activePolicy.termsVersion ?? '',
+      policyTerm: activePolicy.termsContent ?? '',
+    }));
+  }, [activePolicy, setBooking]);
 
   if (!room) {
     return (
@@ -396,6 +438,28 @@ const BookingPage = () => {
           errors[`${index}-document`] = 'CPF invalido.';
         }
       });
+
+      const firstGuest = booking.guestDetails[0];
+      if (firstGuest) {
+        const firstName = firstGuest.name.trim().toLowerCase().replace(/\s+/g, ' ');
+        const firstCpf = normalizeDigits(firstGuest.document);
+        booking.guestDetails.slice(1).forEach((guest, index) => {
+          const guestIndex = index + 1;
+          const sameName =
+            firstName.length > 0 &&
+            guest.name.trim().toLowerCase().replace(/\s+/g, ' ') === firstName;
+          const sameCpf =
+            firstCpf.length > 0 && normalizeDigits(guest.document) === firstCpf;
+          if (sameName) {
+            errors[`${guestIndex}-name`] =
+              'O nome completo do hospede 1 nao pode ser igual ao dos outros hospedes.';
+          }
+          if (sameCpf) {
+            errors[`${guestIndex}-document`] =
+              'O CPF do hospede 1 nao pode ser igual ao dos outros hospedes.';
+          }
+        });
+      }
     }
 
     if (targetStep === 2) {
@@ -403,12 +467,25 @@ const BookingPage = () => {
         errors['responsible-guest'] = 'Selecione o hospede responsavel.';
       } else if (!booking.guestDetails[booking.responsibleGuestIndex]) {
         errors['responsible-guest'] = 'Selecione um hospede valido.';
+      } else if (booking.guestDetails[booking.responsibleGuestIndex].age < 18) {
+        errors['responsible-guest'] = 'O hospede responsavel deve ter 18 anos ou mais.';
       }
 
       if (!booking.vehiclePlate.trim()) {
         errors['vehiclePlate'] = 'Informe a placa do veiculo.';
       } else if (!isPlateValid(booking.vehiclePlate)) {
         errors['vehiclePlate'] = 'Placa invalida. Use ABC1234 ou ABC1D23.';
+      }
+    }
+
+    if (targetStep === 3) {
+      if (!booking.termsAccepted) {
+        errors['termsAccepted'] = 'Voce precisa aceitar os termos para concluir a reserva.';
+      }
+      if (!activePolicy) {
+        errors['termsPolicy'] = 'Nao foi possivel carregar os termos da reserva.';
+      } else if (!activePolicy.termsContent?.trim()) {
+        errors['termsPolicy'] = 'A politica ativa nao possui termo cadastrado.';
       }
     }
 
@@ -419,6 +496,7 @@ const BookingPage = () => {
     ...validateStep(0),
     ...validateStep(1),
     ...validateStep(2),
+    ...validateStep(3),
   });
 
   const getFirstInvalidStep = (errors: BookingErrors) => {
@@ -432,10 +510,13 @@ const BookingPage = () => {
     if (keys.some((key) => key.startsWith('responsible-') || key === 'vehiclePlate')) {
       return 2;
     }
+    if (keys.some((key) => ['termsAccepted', 'termsPolicy'].includes(key))) {
+      return 3;
+    }
     return 3;
   };
 
-  const next = () => {
+  const next = async () => {
     const errors = step === 3 ? validateAll() : validateStep(step);
 
     if (Object.keys(errors).length > 0) {
@@ -458,15 +539,7 @@ const BookingPage = () => {
       return;
     }
 
-    addReservation({
-      id: `RES-${Date.now().toString(36).toUpperCase()}`,
-      bookingData: booking,
-      paymentData: { method: 'card', status: 'success' },
-      status: 'confirmed',
-      createdAt: new Date(),
-      totalPrice,
-    });
-    navigate('/hospedagem/confirmation');
+    navigate('/hospedagem/payment', { state: { room, totalPrice } });
   };
 
   const back = () => {
@@ -504,6 +577,38 @@ const BookingPage = () => {
 
   const formTextareaClass = (key: string) =>
     `min-h-28 border-slate-300 bg-white text-base md:text-lg ${fieldClass(key)}`.trim();
+
+  const downloadTermsPdf = async () => {
+    try {
+      const response = await api.get('/api/reservas/politica-ativa/arquivo', {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const contentDisposition = String(response.headers?.['content-disposition'] || '');
+      const dispositionMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = dispositionMatch?.[1] || termsFileName;
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: 'Erro ao baixar termos',
+        description: 'Nao foi possivel baixar o PDF de termos agora.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const redirectToWhatsApp = () => {
+    const base = whatsappPhone ? `https://wa.me/${whatsappPhone}?text=` : 'https://wa.me/?text=';
+    const url = `${base}${encodeURIComponent(whatsappMessage)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
 
   return (
@@ -978,13 +1083,51 @@ const BookingPage = () => {
                       )}
                     </div>
 
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        Termos da Reserva
+                      </h3>
+                      <div className="space-y-3">
+                        {hasTermsDocument ? (
+                          <a
+                            href="#"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              void downloadTermsPdf();
+                            }}
+                            className="inline-flex text-sm font-medium text-[#024059] underline underline-offset-2 hover:text-[#012f42]"
+                          >
+                            {termsFileName}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Nao ha arquivo PDF de termos disponivel na politica ativa.
+                          </p>
+                        )}
+                        <label className="flex items-start gap-2 text-sm text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={booking.termsAccepted}
+                            onChange={(e) => {
+                              setBooking((prev) => ({ ...prev, termsAccepted: e.target.checked }));
+                              clearError('termsAccepted');
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-slate-300"
+                          />
+                          <span>Li e aceito os termos da reserva.</span>
+                        </label>
+                        {fieldError('termsAccepted')}
+                        {fieldError('termsPolicy')}
+                      </div>
+                    </div>
+
                     <div className="rounded-xl border border-[#024059]/20 bg-[#024059] p-6">
                       <div className="flex items-end justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#F2F2F2]/80">Total da reserva</p>
-                          <p className="mt-1 text-xs text-[#F2F2F2]/75">{Math.max(nights, 1)} noite(s) x R$ {room.pricePerNight}</p>
+                          <p className="mt-1 text-xs text-[#F2F2F2]/75">{Math.max(nights, 1)} noite(s) x {formatBRL(room.pricePerNight)}</p>
                         </div>
-                        <span className="text-4xl font-extrabold leading-none text-[#F2BF27] md:text-5xl">R$ {totalPrice}</span>
+                        <span className="text-4xl font-extrabold leading-none text-[#F2BF27] md:text-5xl">{formatBRL(totalPrice)}</span>
                       </div>
                     </div>
                   </div>
@@ -1006,7 +1149,9 @@ const BookingPage = () => {
                   onClick={next}
                   className="btn-gold flex items-center gap-1 text-base"
                 >
-                  {step === 3 ? 'Realizar reserva' : 'Proximo'} <ChevronRight className="h-4 w-4" />
+                  {step === 3
+                    ? 'Ir para pagamento'
+                    : 'Proximo'} <ChevronRight className="h-4 w-4" />
                 </motion.button>
               </div>
             </motion.div>
@@ -1014,6 +1159,21 @@ const BookingPage = () => {
         </div>
         </div>
       </main>
+      {step === 0 ? (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-end gap-3">
+          <div className="max-w-[250px] rounded-2xl border border-[#25D366]/30 bg-white px-4 py-3 text-sm text-foreground shadow-lg">
+            Precisa de mais espaço? Podemos combinar o número de hospedes!
+          </div>
+          <button
+            type="button"
+            onClick={redirectToWhatsApp}
+            aria-label="Falar no WhatsApp"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-105"
+          >
+            <WhatsAppIcon className="h-7 w-7" />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };

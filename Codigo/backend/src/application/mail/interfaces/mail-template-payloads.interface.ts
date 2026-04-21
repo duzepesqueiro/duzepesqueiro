@@ -40,11 +40,22 @@ export interface EventBookingConfirmationMailPayload {
 export interface HostingBookedMailPayload {
   email: string;
   customerName: string;
+  codigoReserva: string;
   accommodationName: string;
   checkIn: string;
   checkOut: string;
   guests: number;
+  guestList: string[];
+  valorDiaria: string | number;
   total: string | number;
+  valorPagoApp: string | number;
+  valorRestanteCheckin: string | number;
+  politicaNoShow: string;
+  politicaCancelamentoAte7: string;
+  politicaCancelamento7a14: string;
+  contactPhone: string;
+  contactWhatsApp: string;
+  contactEmail: string;
 }
 
 export interface ProductPurchaseConfirmationMailPayload {
@@ -85,6 +96,8 @@ export interface HostingPaymentConfirmedMailPayload {
   customerName: string;
   codigoReserva: string;
   valorTotal: string | number;
+  quantidadeDiarias?: number;
+  valorDiaria?: string | number;
   metodoPagamento?: string;
 }
 
@@ -119,6 +132,8 @@ export interface HostingCompletedMailPayload {
   customerName: string;
   codigoReserva: string;
   valorTotal: string | number;
+  quantidadeDiarias?: number;
+  valorDiaria?: string | number;
 }
 
 export interface HostingCancellationMailPayload {
@@ -143,6 +158,8 @@ export interface HostingPaymentReminderMailPayload {
   customerName: string;
   codigoReserva: string;
   valorTotal: string | number;
+  quantidadeDiarias?: number;
+  valorDiaria?: string | number;
   checkIn: string;
   checkOut: string;
 }
