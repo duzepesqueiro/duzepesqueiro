@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import {
   HostingNotificationChannel,
   HostingNotificationStatus,
@@ -18,6 +18,7 @@ type BookingEventPayload = {
 
 @Injectable()
 export class ReservationNotificationJob implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ReservationNotificationJob.name);
   private midnightTimeout?: NodeJS.Timeout;
   private dailyInterval?: NodeJS.Timeout;
 
@@ -44,12 +45,19 @@ export class ReservationNotificationJob implements OnModuleInit, OnModuleDestroy
   async handleReservationCreated(event: BookingEventPayload): Promise<void> {
     const reservationId = event.reservationId ?? event.bookingId ?? event.hostingId;
     if (!reservationId) {
+      this.logger.warn('Evento HOSTING_BOOKED recebido sem reservationId.');
       return;
     }
+    this.logger.log(`Processando envio de e-mail da reserva ${reservationId}.`);
 
     try {
+      this.logger.log(`Enviando confirmação de reserva para ${reservationId}.`);
       await this.notificationService.enviarConfirmacaoReserva(reservationId);
+      this.logger.log(`Confirmação de reserva enviada para ${reservationId}.`);
     } catch (error) {
+      this.logger.error(
+        `Falha ao enviar confirmação da reserva ${reservationId}: ${this.toErrorMessage(error)}`,
+      );
       await this.persistFailure(
         reservationId,
         HostingNotificationChannel.EMAIL,
@@ -59,9 +67,14 @@ export class ReservationNotificationJob implements OnModuleInit, OnModuleDestroy
     }
 
     try {
+      this.logger.log(`Agendando lembretes da reserva ${reservationId}.`);
       await this.notificationService.agendarNotificacoesReserva(reservationId);
       await this.scheduleWhatsAppReminder(reservationId);
+      this.logger.log(`Lembretes da reserva ${reservationId} agendados.`);
     } catch (error) {
+      this.logger.error(
+        `Falha ao agendar lembretes da reserva ${reservationId}: ${this.toErrorMessage(error)}`,
+      );
       await this.persistFailure(
         reservationId,
         HostingNotificationChannel.EMAIL,

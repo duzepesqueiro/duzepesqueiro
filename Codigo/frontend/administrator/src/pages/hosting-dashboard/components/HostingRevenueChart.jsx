@@ -1,40 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { Bar, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const periodOptions = [
-  { label: 'Semana', value: 'week' },
-  { label: 'Mês', value: 'month' },
-  { label: 'Ano', value: 'year' },
-];
-
-const chartDataByPeriod = {
-  week: [
-    { chalet: 'Chalé 1', revenue: 3200, stays: 12 },
-    { chalet: 'Chalé 2', revenue: 4100, stays: 15 },
-    { chalet: 'Chalé 3', revenue: 2750, stays: 10 },
-    { chalet: 'Chalé 4', revenue: 5100, stays: 18 },
-    { chalet: 'Chalé 5', revenue: 3600, stays: 13 },
-  ],
-  month: [
-    { chalet: 'Chalé 1', revenue: 12400, stays: 43 },
-    { chalet: 'Chalé 2', revenue: 15100, stays: 52 },
-    { chalet: 'Chalé 3', revenue: 9800, stays: 35 },
-    { chalet: 'Chalé 4', revenue: 17300, stays: 59 },
-    { chalet: 'Chalé 5', revenue: 13700, stays: 47 },
-  ],
-  year: [
-    { chalet: 'Chalé 1', revenue: 137000, stays: 475 },
-    { chalet: 'Chalé 2', revenue: 159000, stays: 542 },
-    { chalet: 'Chalé 3', revenue: 112000, stays: 398 },
-    { chalet: 'Chalé 4', revenue: 188000, stays: 608 },
-    { chalet: 'Chalé 5', revenue: 145000, stays: 521 },
-  ],
-};
-
-const HostingRevenueChart = () => {
-  const [activePeriod, setActivePeriod] = useState('month');
-
-  const data = useMemo(() => chartDataByPeriod[activePeriod] || [], [activePeriod]);
+const HostingRevenueChart = ({ data = [], periodLabel = '', isLoading = false, error = '' }) => {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) {
@@ -63,27 +30,27 @@ const HostingRevenueChart = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h3 className="text-lg font-heading font-semibold text-foreground">Receita por Chalé</h3>
-          <p className="text-sm text-muted-foreground">Comparativo por período selecionado</p>
-        </div>
-        <div className="flex bg-muted rounded-lg p-1">
-          {periodOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setActivePeriod(option.value)}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-smooth ${
-                activePeriod === option.value
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+          <p className="text-sm text-muted-foreground">
+            {periodLabel ? `Comparativo do período: ${periodLabel}` : 'Comparativo por período selecionado'}
+          </p>
         </div>
       </div>
 
       <div className="h-80">
+        {isLoading ? (
+          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            Carregando receita e diárias...
+          </div>
+        ) : null}
+        {!isLoading && error ? (
+          <div className="h-full flex items-center justify-center text-sm text-red-600">{error}</div>
+        ) : null}
+        {!isLoading && !error && data.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            Sem dados de receita para o período selecionado.
+          </div>
+        ) : null}
+        {!isLoading && !error && data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -124,6 +91,7 @@ const HostingRevenueChart = () => {
             />
           </ComposedChart>
         </ResponsiveContainer>
+        ) : null}
       </div>
     </div>
   );

@@ -54,6 +54,68 @@ export class PoliticaCancelamentoService {
     return policies.map((policy) => this.toPoliticaDTO(policy));
   }
 
+  async obterPoliticaAtiva(): Promise<PoliticaCancelamentoDTO> {
+    const today = new Date();
+    const policy = await this.prisma.hostingCancellationPolicy.findFirst({
+      where: {
+        isActive: true,
+        effectiveFrom: { lte: today },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }],
+      },
+      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    if (!policy) {
+      throw new NotFoundException('Nenhuma política de cancelamento ativa foi encontrada.');
+    }
+
+    return this.toPoliticaDTO(policy);
+  }
+
+  async salvarDocumentoTermosAtivo(documentUrl: string, adminUserId: string): Promise<PoliticaCancelamentoDTO> {
+    const now = new Date();
+    const generatedVersion = `TERMS-${now.getTime()}`;
+    const activePolicy = await this.prisma.hostingCancellationPolicy.findFirst({
+      where: {
+        isActive: true,
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    if (!activePolicy) {
+      const created = await this.prisma.hostingCancellationPolicy.create({
+        data: {
+          name: 'Política de Cancelamento - Termos Digitais',
+          termsVersion: generatedVersion,
+          termsContent: documentUrl,
+          effectiveFrom: now,
+          effectiveTo: null,
+          isActive: true,
+          freeCancellationDays: PoliticaCancelamentoService.FREE_CANCELLATION_DAYS,
+          partialPenaltyFromDay: PoliticaCancelamentoService.PARTIAL_MIN_DAYS,
+          partialPenaltyToDay: PoliticaCancelamentoService.PARTIAL_MAX_DAYS,
+          partialPenaltyPercent: PoliticaCancelamentoService.PARTIAL_PENALTY_PERCENT,
+          fullPenaltyPercent: PoliticaCancelamentoService.FULL_PENALTY_PERCENT,
+          createdById: adminUserId,
+        },
+      });
+      return this.toPoliticaDTO(created);
+    }
+
+    const updated = await this.prisma.hostingCancellationPolicy.update({
+      where: { id: activePolicy.id },
+      data: {
+        termsContent: documentUrl,
+        termsVersion: generatedVersion,
+        createdById: adminUserId,
+      },
+    });
+
+    return this.toPoliticaDTO(updated);
+  }
+
   async criarPolitica(data: CreatePoliticaDTO): Promise<PoliticaCancelamentoDTO> {
     const created = await this.prisma.hostingCancellationPolicy.create({
       data: {

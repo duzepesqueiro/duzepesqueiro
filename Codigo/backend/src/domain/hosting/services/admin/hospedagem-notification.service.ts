@@ -1,11 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HostingNotificationStatus, Prisma } from '@prisma/client';
 import { LogsService } from '../../../../application/logs/services';
+import { HostingBookedMailPayload } from '../../../../application/mail/interfaces/mail-template-payloads.interface';
 import { MailService } from '../../../../application/mail/services/mail.service';
 import { PrismaService } from '../../../../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
 export class HospedagemNotificationService {
+  private readonly logger = new Logger(HospedagemNotificationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
@@ -13,21 +16,30 @@ export class HospedagemNotificationService {
   ) {}
 
   async enviarConfirmacaoReserva(reservaId: string): Promise<void> {
+    this.logger.log(`Preparando e-mail de confirmação para reserva ${reservaId}.`);
     const reserva = await this.getReservaForNotification(reservaId);
-    const email = this.resolveReservationEmail(reserva);
+    const customerEmail = this.resolveReservationEmail(reserva);
+    const payload = this.buildHostingBookedPayload(reserva, customerEmail);
+    this.logger.log(`Destinatário principal da reserva ${reservaId}: ${customerEmail}.`);
 
-    await this.mailService.sendHostingBookedEmail({
-      email,
-      customerName: reserva.guestName,
-      accommodationName: reserva.chalet.name,
-      checkIn: this.toDateTimeString(reserva.checkInDate),
-      checkOut: this.toDateTimeString(reserva.checkOutDate),
-      guests: reserva.adults + reserva.children,
-      total: Number(reserva.totalAmount).toFixed(2),
-    });
-    await this.logNotification(reservaId, reserva.userId, 'BOOKING_CONFIRMED', email, 'SENT', {
+    await this.mailService.sendHostingBookedEmail(payload);
+    await this.logNotification(reservaId, reserva.userId, 'BOOKING_CONFIRMED', customerEmail, 'SENT', {
       code: reserva.code,
+      target: 'customer',
     });
+
+    const systemEmail = this.resolveSystemEmail();
+    if (systemEmail && systemEmail !== customerEmail) {
+      this.logger.log(`Enviando cópia sistêmica da reserva ${reservaId} para ${systemEmail}.`);
+      await this.mailService.sendHostingBookedEmail({
+        ...payload,
+        email: systemEmail,
+      });
+      await this.logNotification(reservaId, reserva.userId, 'BOOKING_CONFIRMED', systemEmail, 'SENT', {
+        code: reserva.code,
+        target: 'system',
+      });
+    }
 
     await this.enviarDetalhesVoucher(reservaId);
   }
@@ -53,12 +65,15 @@ export class HospedagemNotificationService {
   async enviarConfirmacaoPagamento(reservaId: string): Promise<void> {
     const reserva = await this.getReservaForNotification(reservaId);
     const email = this.resolveReservationEmail(reserva);
+    const financialSummary = this.buildFinancialSummary(reserva);
 
     await this.mailService.sendHostingPaymentConfirmedEmail({
       email,
       customerName: reserva.guestName,
       codigoReserva: reserva.code,
-      valorTotal: Number(reserva.totalAmount).toFixed(2),
+      valorTotal: financialSummary.totalAmount.toFixed(2),
+      quantidadeDiarias: financialSummary.nights,
+      valorDiaria: financialSummary.dailyAmount.toFixed(2),
       metodoPagamento: reserva.paymentMethod ?? undefined,
     });
     await this.logNotification(reservaId, reserva.userId, 'PAYMENT_CONFIRMED', email, 'SENT', {
@@ -111,12 +126,15 @@ export class HospedagemNotificationService {
   async enviarLembretePagamento(reservaId: string): Promise<void> {
     const reserva = await this.getReservaForNotification(reservaId);
     const email = this.resolveReservationEmail(reserva);
+    const financialSummary = this.buildFinancialSummary(reserva);
 
     await this.mailService.sendHostingPaymentReminderEmail({
       email,
       customerName: reserva.guestName,
       codigoReserva: reserva.code,
-      valorTotal: Number(reserva.totalAmount).toFixed(2),
+      valorTotal: financialSummary.totalAmount.toFixed(2),
+      quantidadeDiarias: financialSummary.nights,
+      valorDiaria: financialSummary.dailyAmount.toFixed(2),
       checkIn: this.toDateTimeString(reserva.checkInDate),
       checkOut: this.toDateTimeString(reserva.checkOutDate),
     });
@@ -159,6 +177,7 @@ export class HospedagemNotificationService {
   async enviarNotificacaoCheckoutEConclusao(reservaId: string): Promise<void> {
     const reserva = await this.getReservaForNotification(reservaId);
     const email = this.resolveReservationEmail(reserva);
+    const financialSummary = this.buildFinancialSummary(reserva);
 
     await this.mailService.sendHostingCheckoutEmail({
       email,
@@ -174,7 +193,9 @@ export class HospedagemNotificationService {
       email,
       customerName: reserva.guestName,
       codigoReserva: reserva.code,
-      valorTotal: Number(reserva.totalAmount).toFixed(2),
+      valorTotal: financialSummary.totalAmount.toFixed(2),
+      quantidadeDiarias: financialSummary.nights,
+      valorDiaria: financialSummary.dailyAmount.toFixed(2),
     });
     await this.logNotification(reservaId, reserva.userId, 'RESERVATION_COMPLETED', email, 'SENT', {
       totalAmount: Number(reserva.totalAmount),
@@ -182,9 +203,11 @@ export class HospedagemNotificationService {
   }
 
   async enviarDetalhesVoucher(reservaId: string): Promise<void> {
+    this.logger.log(`Preparando envio de voucher da reserva ${reservaId}.`);
     const reserva = await this.getReservaForNotification(reservaId);
     const email = this.resolveReservationEmail(reserva);
     const voucher = await this.getOrCreateVoucher(reservaId, reserva.code);
+    this.logger.log(`Destinatário do voucher da reserva ${reservaId}: ${email}.`);
 
     await this.mailService.sendHostingVoucherEmail({
       email,
@@ -225,6 +248,11 @@ export class HospedagemNotificationService {
                 isVerified: true,
               },
             },
+          },
+        },
+        guests: {
+          select: {
+            fullName: true,
           },
         },
       },
@@ -281,6 +309,100 @@ export class HospedagemNotificationService {
         complexContacts: 'Recepção: +55 (31) 99999-0000',
       },
     });
+  }
+
+  private buildHostingBookedPayload(reserva: any, email: string): HostingBookedMailPayload {
+    const financialSummary = this.buildFinancialSummary(reserva);
+    const halfAmount = financialSummary.totalAmount / 2;
+    const guestList =
+      Array.isArray(reserva.guests) && reserva.guests.length > 0
+        ? reserva.guests.map((guest: { fullName: string }) => guest.fullName).filter(Boolean)
+        : [reserva.guestName].filter(Boolean);
+
+    return {
+      email,
+      customerName: reserva.guestName,
+      codigoReserva: reserva.code,
+      accommodationName: reserva.chalet.name,
+      checkIn: this.toDateWithExpectedTime(reserva.checkInDate, this.getCheckinTime()),
+      checkOut: this.toDateWithExpectedTime(reserva.checkOutDate, this.getCheckoutTime()),
+      guests: reserva.adults + reserva.children,
+      guestList,
+      valorDiaria: financialSummary.dailyAmount.toFixed(2),
+      total: financialSummary.totalAmount.toFixed(2),
+      valorPagoApp: halfAmount.toFixed(2),
+      valorRestanteCheckin: halfAmount.toFixed(2),
+      politicaNoShow:
+        'Não compareceu (no-show): não há devolução dos 50% pagos no ato da reserva.',
+      politicaCancelamentoAte7:
+        'Cancelou reserva antes de 7 dias: devolução de 50% sobre os 50% pagos no ato da reserva.',
+      politicaCancelamento7a14:
+        'Cancelou entre 7 e 14 dias: devolução de 25% sobre os 50% pagos no ato da reserva.',
+      contactPhone: process.env.HOSTING_CONTACT_PHONE ?? '+55 (31) 99999-0000',
+      contactWhatsApp: process.env.HOSTING_CONTACT_WHATSAPP ?? '+55 (31) 99999-0000',
+      contactEmail: process.env.HOSTING_CONTACT_EMAIL ?? 'contato@duzepesqueiro.com',
+    };
+  }
+
+  private resolveSystemEmail(): string | null {
+    const from = process.env.MAIL_FROM?.trim();
+    if (!from) {
+      return null;
+    }
+    const angleBracketMatch = from.match(/<([^>]+)>/);
+    if (angleBracketMatch?.[1]) {
+      return angleBracketMatch[1].trim();
+    }
+    const sanitized = from.replace(/^"|"$/g, '').trim();
+    return sanitized.includes('@') ? sanitized : null;
+  }
+
+  private getCheckinTime(): string {
+    return process.env.HOSTING_CHECKIN_TIME?.trim() || '14:00';
+  }
+
+  private getCheckoutTime(): string {
+    return process.env.HOSTING_CHECKOUT_TIME?.trim() || '12:00';
+  }
+
+  private toDateWithExpectedTime(date: Date, expectedTime: string): string {
+    return `${this.toDateString(date)} às ${expectedTime}`;
+  }
+
+  private toDateString(date: Date): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+    }).format(date);
+  }
+
+  private calculateNights(checkInDate: Date, checkOutDate: Date): number {
+    const msPerNight = 24 * 60 * 60 * 1000;
+    const diff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / msPerNight);
+    return Math.max(diff, 1);
+  }
+
+  private buildFinancialSummary(reserva: {
+    checkInDate: Date;
+    checkOutDate: Date;
+    baseAmount?: Prisma.Decimal | number | string | null;
+    totalAmount?: Prisma.Decimal | number | string | null;
+  }): {
+    nights: number;
+    dailyAmount: number;
+    baseAmount: number;
+    totalAmount: number;
+  } {
+    const nights = this.calculateNights(reserva.checkInDate, reserva.checkOutDate);
+    const totalAmount = Number(reserva.totalAmount ?? 0);
+    const baseAmountRaw = Number(reserva.baseAmount ?? totalAmount);
+    const baseAmount = Number.isFinite(baseAmountRaw) ? baseAmountRaw : totalAmount;
+    const dailyAmount = nights > 0 ? baseAmount / nights : baseAmount;
+    return {
+      nights,
+      dailyAmount,
+      baseAmount,
+      totalAmount,
+    };
   }
 
   private async logNotification(

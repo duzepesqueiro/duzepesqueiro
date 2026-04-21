@@ -15,6 +15,7 @@ import EditGuestsDialog from '@/components/common/reservation/EditGuestsDialog';
 import CancelReservationDialog from '@/components/common/reservation/CancelReservationDialog';
 import type { Reservation, Guest } from '@/types/booking';
 import type { Room } from '@/types/booking';
+import { formatBRL } from '@/lib/currency';
 
 type ApiChaletDetail = {
   id: string;
@@ -140,7 +141,7 @@ const MyReservationsPage = () => {
                           {res.bookingData.checkOut ? format(new Date(res.bookingData.checkOut), 'dd MMM', { locale: ptBR }) : '—'}
                         </span>
                         <span>{res.bookingData.guests} hóspede(s)</span>
-                        <span className="font-semibold text-foreground">R$ {res.totalPrice}</span>
+                        <span className="font-semibold text-foreground">{formatBRL(res.totalPrice)}</span>
                       </div>
 
                       {/* Action buttons */}

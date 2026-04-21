@@ -1,5 +1,11 @@
 <h2>Reserva finalizada</h2>
 <p>Olá, {{customerName}}.</p>
 <p>Sua reserva <strong>{{codigoReserva}}</strong> foi concluída com sucesso.</p>
+{{#if quantidadeDiarias}}
+<p>Diárias: <strong>{{quantidadeDiarias}}</strong></p>
+{{/if}}
+{{#if valorDiaria}}
+<p>Valor da diária: <strong>R$ {{valorDiaria}}</strong></p>
+{{/if}}
 <p>Valor total da estadia: <strong>R$ {{valorTotal}}</strong></p>
 <p>Esperamos você novamente no DuZé Pesqueiro.</p>

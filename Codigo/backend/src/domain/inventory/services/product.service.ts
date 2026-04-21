@@ -584,31 +584,65 @@ export class ProductService {
       },
     });
 
-    await Promise.all(
-      admins
-        .map((admin) => ({
-          email: admin.emails[0]?.email,
-          name: admin.profile?.fullName ?? admin.username,
-        }))
-        .filter((admin) => Boolean(admin.email))
-        .map((admin) =>
-          this.mailService.sendProductLifecycleNotification({
-            email: admin.email as string,
-            adminName: admin.name,
-            action,
-            productName: product.name,
-            sku: product.sku,
-            productStatus: product.status,
-            category: product.category,
-            stockQuantity: Number(product.stockQuantity),
-            salePrice: Number(product.salePrice),
-            costPrice: Number(product.costPrice),
-            actorName: actor.name,
-            actorEmail: actor.email,
-            occurredAt: new Date().toISOString(),
-          }),
-        ),
+    const recipients = admins
+      .map((admin) => ({
+        email: admin.emails[0]?.email,
+        name: admin.profile?.fullName ?? admin.username,
+      }))
+      .filter((admin) => Boolean(admin.email));
+
+    await this.logsService.info('inventory', 'ProductLifecycleEmailDispatchStarted', {
+      action,
+      productId: product.id,
+      sku: product.sku,
+      recipients: recipients.map((recipient) => recipient.email),
+      recipientsCount: recipients.length,
+    });
+
+    const results = await Promise.allSettled(
+      recipients.map((admin) =>
+        this.mailService.sendProductLifecycleNotification({
+          email: admin.email as string,
+          adminName: admin.name,
+          action,
+          productName: product.name,
+          sku: product.sku,
+          productStatus: product.status,
+          category: product.category,
+          stockQuantity: Number(product.stockQuantity),
+          salePrice: Number(product.salePrice),
+          costPrice: Number(product.costPrice),
+          actorName: actor.name,
+          actorEmail: actor.email,
+          occurredAt: new Date().toISOString(),
+        }),
+      ),
     );
+
+    const failed = results.filter((result) => result.status === 'rejected');
+    if (failed.length > 0) {
+      await this.logsService.error('inventory', 'ProductLifecycleEmailDispatchFailed', {
+        action,
+        productId: product.id,
+        sku: product.sku,
+        failedCount: failed.length,
+        errors: failed.map((result) =>
+          result.status === 'rejected'
+            ? result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason)
+            : null,
+        ),
+      });
+    }
+
+    await this.logsService.info('inventory', 'ProductLifecycleEmailDispatchCompleted', {
+      action,
+      productId: product.id,
+      sku: product.sku,
+      sentCount: results.length - failed.length,
+      failedCount: failed.length,
+    });
   }
 
   private async resolveAuditAuthor(user: CurrentUser): Promise<AuditAuthor> {

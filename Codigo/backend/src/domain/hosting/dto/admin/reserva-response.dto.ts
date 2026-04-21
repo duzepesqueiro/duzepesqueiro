@@ -1,4 +1,4 @@
-import { HostingContactChannel, PaymentStatus, ReservationStatus } from '@prisma/client';
+import { HostingContactChannel, HostingReservationOrigin, PaymentStatus, ReservationStatus } from '@prisma/client';
 
 export class HospedeDTO {
   id: string;
@@ -28,6 +28,7 @@ export class ReservaDTO {
   chaletId: string;
   userId?: string | null;
   status: ReservationStatus;
+  origin: HostingReservationOrigin;
   guestName: string;
   guestEmail?: string | null;
   guestPhone?: string | null;
@@ -42,16 +43,32 @@ export class ReservaDTO {
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null;
   paymentId?: string | null;
+  paidAt?: Date | null;
   checkedInAt?: Date | null;
   checkedOutAt?: Date | null;
   cancelledAt?: Date | null;
   noShowAt?: Date | null;
   noShowFeeAmount?: number | null;
   noShowReason?: string | null;
+  cancellationReason?: string | null;
   vehiclePlate?: string | null;
+  vehicleModel?: string | null;
+  vehicleColor?: string | null;
+  vehicleType?: string | null;
+  extraBedRequested: boolean;
+  extraBedFee: number;
+  negotiationNotes?: string | null;
   contactChannel?: HostingContactChannel | null;
   contactNotes?: string | null;
+  policiesAccepted: boolean;
+  policiesAcceptedAt?: Date | null;
+  policyVersion?: string | null;
+  policyTerm?: string | null;
+  cancellationPolicyId?: string | null;
+  pricingRuleId?: string | null;
   notes?: string | null;
+  createdById?: string | null;
+  updatedById?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

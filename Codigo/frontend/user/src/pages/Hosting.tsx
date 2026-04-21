@@ -11,6 +11,7 @@ const Index = lazy(() => import("../components/common/Index"));
 const RoomsPage = lazy(() => import("../components/common/RoomsPage"));
 const RoomDetailPage = lazy(() => import("../components/common/RoomDetailPage"));
 const BookingPage = lazy(() => import("../components/common/BookingPage"));
+const PaymentPage = lazy(() => import("../components/common/PaymentPage"));
 const ConfirmationPage = lazy(() => import("../components/common/ConfirmationPage"));
 const MyReservationsPage = lazy(() => import("../components/common/MyReservationsPage"));
 const NotFound = lazy(() => import("../components/common/NotFound"));
@@ -38,6 +39,7 @@ const Hosting = () => (
                   <Route path="rooms" element={<RoomsPage />} />
                   <Route path="rooms/:id" element={<RoomDetailPage />} />
                   <Route path="booking" element={<BookingPage />} />
+                  <Route path="payment" element={<PaymentPage />} />
                   <Route path="confirmation" element={<ConfirmationPage />} />
                   <Route path="my-reservations" element={<MyReservationsPage />} />
                   <Route path="*" element={<NotFound />} />

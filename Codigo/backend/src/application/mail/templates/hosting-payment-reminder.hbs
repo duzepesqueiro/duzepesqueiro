@@ -3,5 +3,11 @@
 <p>Sua reserva <strong>{{codigoReserva}}</strong> ainda está com pagamento pendente.</p>
 <p>Check-in: {{checkIn}}</p>
 <p>Check-out: {{checkOut}}</p>
+{{#if quantidadeDiarias}}
+<p>Diárias: <strong>{{quantidadeDiarias}}</strong></p>
+{{/if}}
+{{#if valorDiaria}}
+<p>Valor da diária: <strong>R$ {{valorDiaria}}</strong></p>
+{{/if}}
 <p>Valor total: <strong>R$ {{valorTotal}}</strong></p>
 <p>Conclua o pagamento para garantir sua hospedagem.</p>

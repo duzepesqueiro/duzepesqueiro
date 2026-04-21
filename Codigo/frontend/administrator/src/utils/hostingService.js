@@ -116,6 +116,38 @@ export const getHostingOccupancyMap = async ({ chaletId, referenceDate }) => {
   return response?.data || null;
 };
 
+export const getHostingDashboardKpis = async ({ periodo, dataReferencia, chaleId } = {}) => {
+  const params = {};
+  if (periodo) {
+    params.periodo = periodo;
+  }
+  if (dataReferencia) {
+    params.dataReferencia =
+      dataReferencia instanceof Date ? dataReferencia.toISOString() : dataReferencia;
+  }
+  if (chaleId) {
+    params.chaleId = chaleId;
+  }
+  const response = await api.get("/api/dashboard/hospedagem/kpis", { params });
+  return response?.data || null;
+};
+
+export const getHostingDashboardRevenue = async ({ periodo, dataReferencia, chaleId } = {}) => {
+  const params = {};
+  if (periodo) {
+    params.periodo = periodo;
+  }
+  if (dataReferencia) {
+    params.dataReferencia =
+      dataReferencia instanceof Date ? dataReferencia.toISOString() : dataReferencia;
+  }
+  if (chaleId) {
+    params.chaleId = chaleId;
+  }
+  const response = await api.get("/api/dashboard/hospedagem/receita", { params });
+  return response?.data || null;
+};
+
 export const createBlock = async (block) => {
   const response = await api.post(BLOCKS_BASE_PATH, toBlockPayload(block));
   return response.data;
@@ -134,6 +166,15 @@ export const getReservationById = async (reservationId) => {
 export const createManualReservation = async (reservation) => {
   const response = await api.post(`${RESERVATIONS_BASE_PATH}/manual`, toManualReservationPayload(reservation));
   return response.data;
+};
+
+export const uploadReservationTermsPdf = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await api.post(`${RESERVATIONS_BASE_PATH}/termos/upload`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response?.data || null;
 };
 
 export const processReservationCheckIn = async (reservationId) => {

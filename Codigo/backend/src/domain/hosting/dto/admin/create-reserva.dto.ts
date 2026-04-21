@@ -1,16 +1,29 @@
 import { HostingContactChannel, HostingReservationOrigin, PaymentStatus, ReservationStatus } from '@prisma/client';
 import {
+  IsArray,
   IsBoolean,
   IsEmail,
   IsEnum,
   IsISO8601,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateHospedeDTO } from './create-hospede.dto';
+
+export class CreateReservaGuestDTO extends CreateHospedeDTO {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  age?: number;
+}
 
 export class CreateReservaDTO {
   @IsUUID('4')
@@ -104,6 +117,16 @@ export class CreateReservaDTO {
   @IsOptional()
   @IsString()
   notes?: string;
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateReservaGuestDTO)
+  guests?: CreateReservaGuestDTO[];
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  responsibleGuestIndex?: number;
   @IsOptional()
   @IsUUID('4')
   createdById?: string;
