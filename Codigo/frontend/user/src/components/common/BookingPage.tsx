@@ -18,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import type { BookingData, Guest, Room } from '@/types/booking';
 import { formatBRL } from '@/lib/currency';
-import SectionTitle from '@/components/common/layout/SectionTitle';
 
 const steps = ['Reserva', 'Hospedes', 'Responsavel', 'Revisao'];
 
@@ -650,13 +649,7 @@ const BookingPage = () => {
             <div className="mb-8 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md p-5 md:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <SectionTitle
-                    as="h2"
-                    logoClassName="h-8 w-8"
-                    className="font-display text-2xl font-bold text-foreground"
-                  >
-                    {room.name}
-                  </SectionTitle>
+                  <h2 className="font-display text-2xl font-bold text-foreground">{room.name}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">{room.description}</p>
                 </div>
 
@@ -702,13 +695,9 @@ const BookingPage = () => {
               {/* STEP 0: Booking details */}
               {step === 0 && (
                 <div className="space-y-6">
-                  <SectionTitle
-                    as="h2"
-                    logoClassName="h-7 w-7"
-                    className="font-display text-3xl font-bold text-foreground md:text-[2rem]"
-                  >
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Dados da Reserva
-                  </SectionTitle>
+                  </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-base text-muted-foreground md:text-lg">Check-in</Label>
@@ -790,13 +779,9 @@ const BookingPage = () => {
               {/* STEP 1: Guest details */}
               {step === 1 && (
                 <div className="space-y-6">
-                  <SectionTitle
-                    as="h2"
-                    logoClassName="h-7 w-7"
-                    className="font-display text-3xl font-bold text-foreground md:text-[2rem]"
-                  >
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Dados dos Hospedes
-                  </SectionTitle>
+                  </h2>
                   {fieldError('guest-count')}
                   {booking.guestDetails.map((guest, i) => (
                     <motion.div
@@ -923,13 +908,9 @@ const BookingPage = () => {
               {/* STEP 2: Responsible */}
               {step === 2 && (
                 <div className="space-y-6">
-                  <SectionTitle
-                    as="h2"
-                    logoClassName="h-7 w-7"
-                    className="font-display text-3xl font-bold text-foreground md:text-[2rem]"
-                  >
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Responsavel pela Reserva e veiculo
-                  </SectionTitle>
+                  </h2>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <Label className="text-base text-muted-foreground md:text-lg">Selecione o hospede responsavel *</Label>
@@ -977,13 +958,7 @@ const BookingPage = () => {
                   <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div>
-                        <SectionTitle
-                          as="h3"
-                          logoClassName="h-5 w-5"
-                          className="font-semibold text-foreground"
-                        >
-                          Dados carregados do hospede escolhido
-                        </SectionTitle>
+                        <h3 className="font-semibold text-foreground">Dados carregados do hospede escolhido</h3>
                         <p className="text-sm text-muted-foreground">
                           Essas informacoes sao puxadas automaticamente do hospede selecionado.
                         </p>
@@ -1040,36 +1015,24 @@ const BookingPage = () => {
               {/* STEP 3: Review */}
               {step === 3 && (
                 <div className="space-y-6">
-                  <SectionTitle
-                    as="h2"
-                    logoClassName="h-7 w-7"
-                    className="font-display text-3xl font-bold text-foreground md:text-[2rem]"
-                  >
+                  <h2 className="font-display text-3xl font-bold text-foreground md:text-[2rem]">
                     Revisao da Reserva
-                  </SectionTitle>
+                  </h2>
 
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                        <SectionTitle
-                          as="h3"
-                          logoClassName="h-5 w-5"
-                          className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-                        >
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                           Quarto
-                        </SectionTitle>
+                        </h3>
                         <p className="text-lg font-semibold text-foreground">{room.name}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{room.type}</p>
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                        <SectionTitle
-                          as="h3"
-                          logoClassName="h-5 w-5"
-                          className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-                        >
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                           Datas
-                        </SectionTitle>
+                        </h3>
                         <p className="text-base font-medium text-foreground">
                           {formatDateValue(booking.checkIn, 'dd MMM yyyy') || '-'}{' '}
                           -{' '}
@@ -1080,13 +1043,9 @@ const BookingPage = () => {
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                      <SectionTitle
-                        as="h3"
-                        logoClassName="h-5 w-5"
-                        className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-                      >
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                         Hospedes ({booking.guestDetails.length})
-                      </SectionTitle>
+                      </h3>
                       <div className="space-y-2">
                         {booking.guestDetails.map((g, i) => (
                           <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
@@ -1101,13 +1060,9 @@ const BookingPage = () => {
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                      <SectionTitle
-                        as="h3"
-                        logoClassName="h-5 w-5"
-                        className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-                      >
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                         Responsavel
-                      </SectionTitle>
+                      </h3>
                       {selectedResponsibleGuest ? (
                         <div className="space-y-1 text-sm">
                           <p className="text-base font-semibold text-foreground">

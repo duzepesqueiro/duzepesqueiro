@@ -4,7 +4,6 @@ import { Users, PawPrint, Wifi, Snowflake, Tv, Coffee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Room } from '@/types/booking';
 import { Badge } from '@/components/ui/badge';
-import SectionTitle from '@/components/common/layout/SectionTitle';
 import { cn } from '@/lib/utils';
 import { formatBRL } from '@/lib/currency';
 
@@ -143,13 +142,7 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
 
       <div className="p-5">
         <div className="flex justify-between items-start mb-2">
-          <SectionTitle
-            as="h3"
-            logoClassName="h-6 w-6"
-            className="font-display text-lg font-semibold text-[#024059]"
-          >
-            {room.name}
-          </SectionTitle>
+          <h3 className="font-display text-lg font-semibold text-[#024059]">{room.name}</h3>
           <div className="flex items-center gap-1 text-[#284003]/80">
             <Users className="h-4 w-4" />
             <span className="text-sm">até {room.capacity}</span>

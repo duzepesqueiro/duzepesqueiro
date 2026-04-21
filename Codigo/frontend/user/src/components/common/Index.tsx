@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import SearchBox from '@/components/common/booking/SearchBox';
-import Header from '@/components/common/layout/Header';
+import Sidebar from '@/components/common/layout/Header';
 import { api } from '@/lib/api';
 import heroImg from '@/assets/duzepesqueiro3.jpeg';
 import roomSuite from '@/assets/duzepesqueiro4.jpeg';
@@ -35,6 +35,8 @@ type BlockedDate = {
 };
 
 const Index = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const { data: blockedDates = [], isLoading: loadingBlocked } = useQuery<BlockedDate[]>({
     queryKey: ['hosting-blocked-dates'],
     queryFn: async (): Promise<BlockedDate[]> => {
@@ -86,9 +88,10 @@ const Index = () => {
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: '#E9F2F1' }}>
       <div className={styles.pageBackdrop} aria-hidden="true" />
-      <Header transparent />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="relative z-10">
+      {/* Main content with margin to accommodate sidebar */}
+      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <section className="relative h-[90vh] min-h-[620px] flex items-center justify-center overflow-hidden">
           <img
             src={heroImg}
