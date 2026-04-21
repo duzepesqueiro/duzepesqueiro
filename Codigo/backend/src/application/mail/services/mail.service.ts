@@ -34,6 +34,67 @@ export class MailService {
     private readonly logsService: LogsService,
   ) {}
 
+  private toErrorMetadata(error: unknown): { message: string; stack?: string } {
+    if (error instanceof Error) {
+      return { message: error.message, stack: error.stack };
+    }
+    return { message: String(error) };
+  }
+
+  private async sendTemplatedEmail(
+    params: {
+      to: string;
+      subject: string;
+      template: string;
+      context: Record<string, unknown>;
+      event: string;
+      metadata?: Record<string, unknown>;
+    },
+    rethrow = false,
+  ): Promise<void> {
+    const { to, subject, template, context, event, metadata } = params;
+    this.logger.log(`[${event}] Iniciando envio de e-mail para ${to}`);
+    void this.logsService.info('mail', `${event}Started`, {
+      to,
+      subject,
+      template,
+      ...(metadata ?? {}),
+    });
+
+    try {
+      await this.mailerService.sendMail({
+        to,
+        subject,
+        template,
+        context,
+      });
+      this.logger.log(`[${event}] E-mail enviado para ${to}`);
+      void this.logsService.info('mail', `${event}Sent`, {
+        to,
+        subject,
+        template,
+        ...(metadata ?? {}),
+      });
+    } catch (error) {
+      const errorMeta = this.toErrorMetadata(error);
+      this.logger.error(
+        `[${event}] Falha ao enviar e-mail para ${to}: ${errorMeta.message}`,
+        errorMeta.stack,
+      );
+      void this.logsService.error('mail', `${event}Failed`, {
+        to,
+        subject,
+        template,
+        ...(metadata ?? {}),
+        error: errorMeta.message,
+        stack: errorMeta.stack,
+      });
+      if (rethrow) {
+        throw error;
+      }
+    }
+  }
+
   @OnEvent(EventTypes.USER_REGISTERED)
   async handleUserRegistered(payload: UserRegisteredPayload) {
     if (payload.requiresEmailConfirmation) {
@@ -249,8 +310,8 @@ export class MailService {
   }
 
   async sendHostingBookedEmail(payload: HostingBookedMailPayload) {
-    try {
-      await this.mailerService.sendMail({
+    await this.sendTemplatedEmail(
+      {
         to: payload.email,
         subject: `Hospedagem Reservada - ${payload.accommodationName}`,
         template: 'hosting-booked',
@@ -258,14 +319,14 @@ export class MailService {
           ...payload,
           year: new Date().getFullYear(),
         },
-      });
-      this.logger.log(`Hosting booked email sent to ${payload.email}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to send hosting booked email to ${payload.email}`,
-        error,
-      );
-    }
+        event: 'HostingBookedEmail',
+        metadata: {
+          codigoReserva: payload.codigoReserva,
+          accommodationName: payload.accommodationName,
+        },
+      },
+      true,
+    );
   }
 
   async sendProductPurchaseConfirmation(
@@ -333,8 +394,8 @@ export class MailService {
   }
 
   async sendHostingVoucherEmail(payload: HostingVoucherMailPayload) {
-    try {
-      await this.mailerService.sendMail({
+    await this.sendTemplatedEmail(
+      {
         to: payload.email,
         subject: `Voucher da reserva ${payload.codigoReserva}`,
         template: 'hosting-voucher-details',
@@ -342,14 +403,13 @@ export class MailService {
           ...payload,
           year: new Date().getFullYear(),
         },
-      });
-      this.logger.log(`Hosting voucher email sent to ${payload.email}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to send hosting voucher email to ${payload.email}`,
-        error,
-      );
-    }
+        event: 'HostingVoucherEmail',
+        metadata: {
+          codigoReserva: payload.codigoReserva,
+        },
+      },
+      true,
+    );
   }
 
   async sendHostingCheckinEmail(payload: HostingCheckinMailPayload) {
@@ -485,8 +545,8 @@ export class MailService {
       DELETION: 'Exclusão',
     };
 
-    try {
-      await this.mailerService.sendMail({
+    await this.sendTemplatedEmail(
+      {
         to: payload.email,
         subject: `[Estoque] ${actionLabelByType[payload.action]} de Produto - ${payload.sku}`,
         template: 'product-lifecycle-notification',
@@ -495,24 +555,14 @@ export class MailService {
           actionLabel: actionLabelByType[payload.action],
           year: new Date().getFullYear(),
         },
-      });
-      this.logger.log(`Product lifecycle notification sent to ${payload.email}`);
-      void this.logsService.info('mail', 'ProductLifecycleNotificationSent', {
-        email: payload.email,
-        sku: payload.sku,
-        action: payload.action,
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to send product lifecycle notification to ${payload.email}`,
-        error,
-      );
-      void this.logsService.error('mail', 'ProductLifecycleNotificationFailed', {
-        email: payload.email,
-        sku: payload.sku,
-        action: payload.action,
-        error: error instanceof Error ? error.message : 'unknown',
-      });
-    }
+        event: 'ProductLifecycleNotification',
+        metadata: {
+          email: payload.email,
+          sku: payload.sku,
+          action: payload.action,
+        },
+      },
+      true,
+    );
   }
 }

@@ -9,10 +9,33 @@
     <h1 style="color: #2c5530;">Hospedagem Reservada</h1>
     <p>Olá {{customerName}},</p>
     <p>Sua hospedagem em <strong>{{accommodationName}}</strong> foi reservada com sucesso.</p>
-    <p>Check-in: <strong>{{checkIn}}</strong></p>
-    <p>Check-out: <strong>{{checkOut}}</strong></p>
-    <p>Hóspedes: <strong>{{guests}}</strong></p>
-    <p>Valor total: <strong>R$ {{total}}</strong></p>
+    <p>Código da reserva: <strong>{{codigoReserva}}</strong></p>
+    <p>Check-in previsto: <strong>{{checkIn}}</strong></p>
+    <p>Check-out previsto: <strong>{{checkOut}}</strong></p>
+    <p>Quantidade de hóspedes: <strong>{{guests}}</strong></p>
+    {{#if guestList.length}}
+    <p>Hóspedes informados:</p>
+    <ul>
+      {{#each guestList}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+    {{/if}}
+    <p>Valor da diária: <strong>R$ {{valorDiaria}}</strong></p>
+    <p>Valor total da reserva: <strong>R$ {{total}}</strong></p>
+    <p>Pagamento no app (50%): <strong>R$ {{valorPagoApp}}</strong></p>
+    <p>Pagamento no check-in (50%): <strong>R$ {{valorRestanteCheckin}}</strong></p>
+
+    <h3 style="margin-top: 20px;">Política de turismo aplicada</h3>
+    <p>{{politicaNoShow}}</p>
+    <p>{{politicaCancelamentoAte7}}</p>
+    <p>{{politicaCancelamento7a14}}</p>
+
+    <h3 style="margin-top: 20px;">Canais de contato</h3>
+    <p>Telefone: <strong>{{contactPhone}}</strong></p>
+    <p>WhatsApp: <strong>{{contactWhatsApp}}</strong></p>
+    <p>E-mail: <strong>{{contactEmail}}</strong></p>
+
     <p>Estamos preparando tudo para sua chegada.</p>
     <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
     <p style="font-size: 12px; color: #999;">© {{year}} DuZePesqueiro. Todos os direitos reservados.</p>

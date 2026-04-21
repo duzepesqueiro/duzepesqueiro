@@ -1,6 +1,12 @@
 <h2>Pagamento confirmado</h2>
 <p>Olá, {{customerName}}.</p>
 <p>O pagamento da sua reserva <strong>{{codigoReserva}}</strong> foi confirmado.</p>
+{{#if quantidadeDiarias}}
+<p>Diárias: <strong>{{quantidadeDiarias}}</strong></p>
+{{/if}}
+{{#if valorDiaria}}
+<p>Valor da diária: <strong>R$ {{valorDiaria}}</strong></p>
+{{/if}}
 <p>Valor total: <strong>R$ {{valorTotal}}</strong></p>
 {{#if metodoPagamento}}
 <p>Método de pagamento: {{metodoPagamento}}</p>

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ChaleStatus, Prisma, ReservationStatus } from '@prisma/client';
+import { ChaleStatus, PriceRuleType, Prisma, ReservationStatus } from '@prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { CreateReservaDTO, ReservaFiltersDTO, UpdateReservaDTO } from '../dto';
 
@@ -481,8 +481,89 @@ export class ReservaRepository {
         where: { id: chaleId },
         select: { basePrice: true },
       });
-      return Number(chale?.basePrice ?? 0);
+      const basePrice = Number(chale?.basePrice ?? 0);
+      if (basePrice <= 0) {
+        return 0;
+      }
+
+      const activeRules = await tx.hostingPricingRule.findMany({
+        where: {
+          deletedAt: null,
+          isActive: true,
+          startDate: { lte: checkOutDate },
+          endDate: { gte: checkInDate },
+          OR: [
+            { appliesToAll: true },
+            { chalets: { some: { chaletId: chaleId } } },
+          ],
+        },
+        include: {
+          chalets: {
+            where: { chaletId: chaleId },
+            select: { id: true },
+          },
+        },
+        orderBy: [{ appliesToAll: 'asc' }, { createdAt: 'desc' }],
+      });
+
+      let total = 0;
+      let cursor = this.toDateOnly(checkInDate);
+      const checkoutDateOnly = this.toDateOnly(checkOutDate);
+      while (cursor < checkoutDateOnly) {
+        let dailyRate = basePrice;
+        const applicableRule = activeRules.find((rule) =>
+          this.isRuleApplicableToDate(rule, cursor),
+        );
+        if (applicableRule) {
+          dailyRate = this.applyPercentageRule(
+            basePrice,
+            Number(applicableRule.percentage),
+            applicableRule.ruleType,
+          );
+        }
+        total += Math.max(dailyRate, 0);
+        cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      return Number(total.toFixed(2));
     }
+  }
+
+  private isRuleApplicableToDate(
+    rule: {
+      appliesToAll: boolean;
+      ruleType: PriceRuleType;
+      startDate: Date;
+      endDate: Date;
+      chalets: Array<{ id: string }>;
+    },
+    date: Date,
+  ): boolean {
+    const ruleStart = this.toDateOnly(rule.startDate);
+    const ruleEnd = this.toDateOnly(rule.endDate);
+    const target = this.toDateOnly(date);
+    if (target < ruleStart || target > ruleEnd) {
+      return false;
+    }
+    if (!rule.appliesToAll && rule.chalets.length === 0) {
+      return false;
+    }
+    if (rule.ruleType === PriceRuleType.WEEKEND) {
+      const day = target.getDay();
+      return day === 0 || day === 6;
+    }
+    return true;
+  }
+
+  private applyPercentageRule(basePrice: number, percentage: number, ruleType: PriceRuleType): number {
+    if (ruleType === PriceRuleType.DISCOUNT) {
+      return basePrice - (basePrice * percentage) / 100;
+    }
+    return basePrice + (basePrice * percentage) / 100;
+  }
+
+  private toDateOnly(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
 
   private calculateTotal(baseAmount: number, discountAmount: number, surchargeAmount: number, extraBedFee: number): number {

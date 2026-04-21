@@ -1,47 +1,142 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../components/AppIcon';
 import HostingLayout from './components/HostingLayout';
 import HostingKPICard from './components/HostingKPICard';
 import HostingRevenueChart from './components/HostingRevenueChart';
 import OccupationMap from './components/OccupationMap';
+import { getHostingDashboardKpis, getHostingDashboardRevenue } from '../../utils/hostingService';
 
 const periodOptions = [
-  { label: 'Hoje', value: 'today' },
-  { label: '7 dias', value: 'week' },
-  { label: '30 dias', value: 'month' },
+  { label: 'Semana', value: 'semana' },
+  { label: 'Mês', value: 'mes' },
+  { label: 'Ano', value: 'ano' },
 ];
 
-const kpiDataByPeriod = {
-  today: [
-    { title: 'Total de Chalés', value: 12, icon: 'Home', color: 'var(--color-primary)' },
-    { title: 'Ocupados Hoje', value: 8, icon: 'BedDouble', color: 'var(--color-warning)', trend: { value: 6, isPositive: true } },
-    { title: 'Taxa de Ocupação Hoje', value: '67%', icon: 'Percent', color: 'var(--color-success)', trend: { value: 4, isPositive: true } },
-    { title: 'Reservas Ativas', value: 15, icon: 'CalendarCheck2', color: 'var(--color-accent)', trend: { value: 2, isPositive: true } },
-    { title: 'Cancelamentos', value: 3, icon: 'CalendarX2', color: 'var(--color-error)', trend: { value: 1, isPositive: false } },
-    { title: 'Receita Total', value: 'R$ 12,5k', icon: 'Wallet', color: 'var(--color-success)', trend: { value: 8, isPositive: true } },
-  ],
-  week: [
-    { title: 'Total de Chalés', value: 12, icon: 'Home', color: 'var(--color-primary)' },
-    { title: 'Ocupados Hoje', value: 9, icon: 'BedDouble', color: 'var(--color-warning)', trend: { value: 3, isPositive: true } },
-    { title: 'Taxa de Ocupação Hoje', value: '75%', icon: 'Percent', color: 'var(--color-success)', trend: { value: 5, isPositive: true } },
-    { title: 'Reservas Ativas', value: 18, icon: 'CalendarCheck2', color: 'var(--color-accent)', trend: { value: 7, isPositive: true } },
-    { title: 'Cancelamentos', value: 4, icon: 'CalendarX2', color: 'var(--color-error)', trend: { value: 2, isPositive: false } },
-    { title: 'Receita Total', value: 'R$ 21,3k', icon: 'Wallet', color: 'var(--color-success)', trend: { value: 11, isPositive: true } },
-  ],
-  month: [
-    { title: 'Total de Chalés', value: 12, icon: 'Home', color: 'var(--color-primary)' },
-    { title: 'Ocupados Hoje', value: 10, icon: 'BedDouble', color: 'var(--color-warning)', trend: { value: 9, isPositive: true } },
-    { title: 'Taxa de Ocupação Hoje', value: '82%', icon: 'Percent', color: 'var(--color-success)', trend: { value: 12, isPositive: true } },
-    { title: 'Reservas Ativas', value: 24, icon: 'CalendarCheck2', color: 'var(--color-accent)', trend: { value: 14, isPositive: true } },
-    { title: 'Cancelamentos', value: 6, icon: 'CalendarX2', color: 'var(--color-error)', trend: { value: 3, isPositive: false } },
-    { title: 'Receita Total', value: 'R$ 58,9k', icon: 'Wallet', color: 'var(--color-success)', trend: { value: 18, isPositive: true } },
-  ],
-};
-
 const HostingDashboard = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [selectedPeriod, setSelectedPeriod] = useState('mes');
+  const [kpiResponse, setKpiResponse] = useState(null);
+  const [revenueResponse, setRevenueResponse] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const cards = useMemo(() => kpiDataByPeriod[selectedPeriod] || [], [selectedPeriod]);
+  const toErrorMessage = (apiError, fallback) => {
+    const message = apiError?.response?.data?.message;
+    if (Array.isArray(message) && message.length) {
+      return message.join(', ');
+    }
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+    return fallback;
+  };
+
+  const formatCurrency = (value) =>
+    Number(value || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0,
+    });
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDashboardData = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const [kpis, revenue] = await Promise.all([
+          getHostingDashboardKpis({ periodo: selectedPeriod }),
+          getHostingDashboardRevenue({ periodo: selectedPeriod }),
+        ]);
+        if (!isMounted) {
+          return;
+        }
+        setKpiResponse(kpis);
+        setRevenueResponse(revenue);
+      } catch (apiError) {
+        if (isMounted) {
+          setError(toErrorMessage(apiError, 'Não foi possível carregar os dados da dashboard de hospedagem.'));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    loadDashboardData();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedPeriod]);
+
+  const cards = useMemo(() => {
+    const kpis = kpiResponse?.kpis || {};
+    const occupancyRate = Number(
+      kpiResponse?.taxaOcupacao ?? kpis?.taxaOcupacao ?? 0,
+    );
+    return [
+      {
+        title: 'Total de Chalés',
+        value: Number(kpis?.totalChales || 0).toLocaleString('pt-BR'),
+        icon: 'Home',
+        color: 'var(--color-primary)',
+      },
+      {
+        title: 'Ocupados Hoje',
+        value: Number(kpis?.chalesOcupados || 0).toLocaleString('pt-BR'),
+        icon: 'BedDouble',
+        color: 'var(--color-warning)',
+      },
+      {
+        title: 'Taxa de Ocupação',
+        value: `${occupancyRate.toFixed(2)}%`,
+        icon: 'Percent',
+        color: 'var(--color-success)',
+      },
+      {
+        title: 'Reservas Ativas',
+        value: Number(kpis?.reservasAtivas || 0).toLocaleString('pt-BR'),
+        icon: 'CalendarCheck2',
+        color: 'var(--color-accent)',
+      },
+      {
+        title: 'Cancelamentos',
+        value: Number(kpis?.reservasCanceladas || 0).toLocaleString('pt-BR'),
+        icon: 'CalendarX2',
+        color: 'var(--color-error)',
+      },
+      {
+        title: 'Receita Total',
+        value: formatCurrency(
+          revenueResponse?.receitaTotal ?? kpis?.receitaTotal ?? 0,
+        ),
+        icon: 'Wallet',
+        color: 'var(--color-success)',
+      },
+    ];
+  }, [kpiResponse, revenueResponse]);
+
+  const chartData = useMemo(() => {
+    const labels = Array.isArray(revenueResponse?.graficoBarras?.labels)
+      ? revenueResponse.graficoBarras.labels
+      : [];
+    const receitas = Array.isArray(revenueResponse?.graficoBarras?.receitas)
+      ? revenueResponse.graficoBarras.receitas
+      : [];
+    const reservas = Array.isArray(revenueResponse?.graficoBarras?.reservas)
+      ? revenueResponse.graficoBarras.reservas
+      : [];
+
+    return labels.map((label, index) => ({
+      chalet: label,
+      revenue: Number(receitas[index] || 0),
+      stays: Number(reservas[index] || 0),
+    }));
+  }, [revenueResponse]);
+
+  const selectedPeriodLabel = useMemo(
+    () => periodOptions.find((option) => option.value === selectedPeriod)?.label || '',
+    [selectedPeriod],
+  );
 
   return (
     <HostingLayout
@@ -92,7 +187,13 @@ const HostingDashboard = () => {
         ))}
       </div>
 
-      <HostingRevenueChart />
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      <HostingRevenueChart
+        data={chartData}
+        periodLabel={selectedPeriodLabel}
+        isLoading={isLoading}
+        error={error}
+      />
       <OccupationMap />
     </HostingLayout>
   );

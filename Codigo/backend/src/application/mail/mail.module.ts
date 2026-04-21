@@ -16,7 +16,7 @@ import { MailService } from './services/mail.service';
         const mailPort = Number.parseInt(config.get<string>('MAIL_PORT') ?? '587', 10);
         const mailUser = config.get<string>('MAIL_USER') || config.get<string>('MAIL_USERNAME');
         const mailPassword = config.get<string>('MAIL_PASSWORD');
-        const useJsonTransport = !mailHost || !mailUser || !mailPassword;
+        const mailFrom = config.get<string>('MAIL_FROM');
         const srcTemplatesDir = join(process.cwd(), 'src', 'application', 'mail', 'templates');
         const distTemplatesDir = join(
           process.cwd(),
@@ -29,26 +29,31 @@ import { MailService } from './services/mail.service';
           ? distTemplatesDir
           : srcTemplatesDir;
 
-        if (useJsonTransport) {
-          logger.warn(
-            'SMTP incompleto. E-mails serão simulados com jsonTransport e não serão entregues.',
-          );
+        const missingConfig: string[] = [];
+        if (!mailHost) missingConfig.push('MAIL_HOST');
+        if (!Number.isFinite(mailPort) || mailPort <= 0) missingConfig.push('MAIL_PORT');
+        if (!mailUser) missingConfig.push('MAIL_USER/MAIL_USERNAME');
+        if (!mailPassword) missingConfig.push('MAIL_PASSWORD');
+        if (!mailFrom) missingConfig.push('MAIL_FROM');
+
+        if (missingConfig.length > 0) {
+          const message = `Configuração SMTP inválida. Variáveis ausentes/inválidas: ${missingConfig.join(', ')}`;
+          logger.error(message);
+          throw new Error(message);
         }
 
         return {
-          transport: useJsonTransport
-            ? { jsonTransport: true }
-            : {
-                host: mailHost,
-                port: mailPort,
-                secure: false,
-                auth: {
-                  user: mailUser,
-                  pass: mailPassword,
-                },
-              },
+          transport: {
+            host: mailHost,
+            port: mailPort,
+            secure: false,
+            auth: {
+              user: mailUser,
+              pass: mailPassword,
+            },
+          },
           defaults: {
-            from: config.get('MAIL_FROM') || '"DuZePesqueiro" <no-reply@duzepesqueiro.local>',
+            from: mailFrom,
           },
           template: {
             dir: templateDir,

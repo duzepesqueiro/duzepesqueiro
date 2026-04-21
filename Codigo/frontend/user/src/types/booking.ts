@@ -38,6 +38,9 @@ export interface BookingData {
   responsibleGuestIndex: number | null;
   vehiclePlate: string;
   observations: string;
+  termsAccepted: boolean;
+  policyVersion: string;
+  policyTerm: string;
 }
 
 export interface PaymentData {

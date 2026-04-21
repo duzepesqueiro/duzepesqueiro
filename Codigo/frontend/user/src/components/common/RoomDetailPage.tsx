@@ -16,6 +16,7 @@ import { api } from '@/lib/api';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
+import { formatBRL } from '@/lib/currency';
 
 type RoomLocationState = {
   room?: Room;
@@ -57,7 +58,6 @@ const toDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
 const isRangeInvalid = (
   range: DateRange | undefined,
-  reservedDates: Set<string>,
   unavailableDates: Set<string>
 ) => {
   if (!range?.from || !range?.to) return false;
@@ -67,7 +67,7 @@ const isRangeInvalid = (
   const cursor = new Date(from);
   while (cursor <= to) {
     const key = toDateKey(cursor);
-    if (reservedDates.has(key) || unavailableDates.has(key)) return true;
+    if (unavailableDates.has(key)) return true;
     cursor.setDate(cursor.getDate() + 1);
   }
   return false;
@@ -113,13 +113,12 @@ const RoomDetailPage = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const reservedDateSet = useMemo(
-    () => new Set((calendarData?.reservedDates || []).filter(Boolean)),
-    [calendarData?.reservedDates]
-  );
   const unavailableDateSet = useMemo(
-    () => new Set((calendarData?.unavailableDates || []).filter(Boolean)),
-    [calendarData?.unavailableDates]
+    () =>
+      new Set(
+        [...(calendarData?.reservedDates || []), ...(calendarData?.unavailableDates || [])].filter(Boolean)
+      ),
+    [calendarData?.reservedDates, calendarData?.unavailableDates]
   );
 
   const carouselSlides = useMemo<Array<string | null>>(() => {
@@ -186,8 +185,8 @@ const RoomDetailPage = () => {
       setCalendarError('Selecione check-in e check-out para continuar.');
       return;
     }
-    if (isRangeInvalid(selectedRange, reservedDateSet, unavailableDateSet)) {
-      setCalendarError('O período selecionado contém datas reservadas ou indisponíveis.');
+    if (isRangeInvalid(selectedRange, unavailableDateSet)) {
+      setCalendarError('O período selecionado contém datas indisponíveis.');
       return;
     }
 
@@ -407,7 +406,7 @@ const RoomDetailPage = () => {
                           exit={{ opacity: 0, y: 10 }}
                           className="text-5xl font-bold leading-none text-[#F2BF27]"
                         >
-                        R$ {totalPrice}
+                          {formatBRL(totalPrice)}
                         </motion.span>
                       </AnimatePresence>
                       <span className="text-sm text-[#F2F2F2]/80">
@@ -462,7 +461,7 @@ const RoomDetailPage = () => {
                               }
                               if (!range?.to) {
                                 const fromKey = toDateKey(startOfDay(range.from));
-                                if (reservedDateSet.has(fromKey) || unavailableDateSet.has(fromKey)) {
+                                if (unavailableDateSet.has(fromKey)) {
                                   setCalendarError('Selecione uma data inicial que esteja disponível.');
                                   return;
                                 }
@@ -475,8 +474,8 @@ const RoomDetailPage = () => {
                                 from: startOfDay(range.from),
                                 to: startOfDay(range.to),
                               };
-                              if (isRangeInvalid(normalizedRange, reservedDateSet, unavailableDateSet)) {
-                                setCalendarError('As datas selecionadas incluem períodos reservados ou indisponíveis.');
+                              if (isRangeInvalid(normalizedRange, unavailableDateSet)) {
+                                setCalendarError('As datas selecionadas incluem períodos indisponíveis.');
                                 return;
                               }
                               setSelectedRange(normalizedRange);
@@ -491,24 +490,17 @@ const RoomDetailPage = () => {
                               const day = toDateKey(startOfDay(date));
                               return (
                                 startOfDay(date) < startOfDay(new Date()) ||
-                                reservedDateSet.has(day) ||
                                 unavailableDateSet.has(day)
                               );
                             }}
                             modifiers={{
-                              reserved: (date) => reservedDateSet.has(toDateKey(startOfDay(date))),
                               unavailable: (date) => unavailableDateSet.has(toDateKey(startOfDay(date))),
                             }}
                             modifiersStyles={{
-                              reserved: {
-                                backgroundColor: '#F2BF27',
-                                color: '#024059',
-                                fontWeight: 700,
-                              },
                               unavailable: {
                                 backgroundColor: '#9CA3AF',
-                                color: '#374151',
-                                textDecoration: 'line-through',
+                                color: '#1F2937',
+                                fontWeight: 700,
                               },
                             }}
                             classNames={{
@@ -519,10 +511,6 @@ const RoomDetailPage = () => {
                         </PopoverContent>
                       </Popover>
                       <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                        <span className="inline-flex items-center gap-2 text-[#F2F2F2]/90">
-                          <span className="h-3 w-3 rounded-sm bg-[#F2BF27]" />
-                          Reservada
-                        </span>
                         <span className="inline-flex items-center gap-2 text-[#F2F2F2]/90">
                           <span className="h-3 w-3 rounded-sm bg-gray-400" />
                           Indisponível
