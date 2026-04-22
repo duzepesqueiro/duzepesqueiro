@@ -700,7 +700,7 @@ const BookingPage = () => {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-base text-muted-foreground md:text-lg">Check-in</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Check-in <span className="text-red-500">*</span></Label>
                       <Input
                         type="date"
                         value={formatDateValue(booking.checkIn, 'yyyy-MM-dd')}
@@ -716,7 +716,7 @@ const BookingPage = () => {
                       {fieldError('checkIn')}
                     </div>
                     <div>
-                      <Label className="text-base text-muted-foreground md:text-lg">Check-out</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Check-out <span className="text-red-500">*</span></Label>
                       <Input
                         type="date"
                         value={formatDateValue(booking.checkOut, 'yyyy-MM-dd')}
@@ -737,7 +737,7 @@ const BookingPage = () => {
                     Check-in não pode ser antes de hoje e a estadia tem limite de 15 dias.
                   </p>
                   <div>
-                    <Label className="text-base text-muted-foreground md:text-lg">Numero de hospedes</Label>
+                    <Label className="text-base text-muted-foreground md:text-lg">Numero de hospedes <span className="text-red-500">*</span></Label>
                     <Input
                       type="number"
                       min={1}
@@ -803,7 +803,7 @@ const BookingPage = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="md:col-span-2">
-                          <Label className="text-base text-muted-foreground md:text-lg">Nome completo</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Nome completo <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.name}
                             onChange={(e) => updateGuest(i, 'name', e.target.value)}
@@ -813,7 +813,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-name`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">Idade</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Idade <span className="text-red-500">*</span></Label>
                           <Input
                             type="number"
                             min={0}
@@ -824,7 +824,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-age`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">CPF</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">CPF <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.document || ''}
                             onChange={(e) => updateGuest(i, 'document', formatCpf(e.target.value))}
@@ -837,7 +837,7 @@ const BookingPage = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="md:col-span-2">
-                          <Label className="text-base text-muted-foreground md:text-lg">Rua</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Rua <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.address.street}
                             onChange={(e) => updateGuest(i, 'address.street', e.target.value)}
@@ -847,7 +847,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-address.street`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">Numero</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Numero <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.address.number}
                             onChange={(e) => updateGuest(i, 'address.number', e.target.value)}
@@ -856,7 +856,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-address.number`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">Cidade</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Cidade <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.address.city}
                             onChange={(e) => updateGuest(i, 'address.city', e.target.value)}
@@ -865,7 +865,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-address.city`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">Estado</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">Estado <span className="text-red-500">*</span></Label>
                           <Select value={guest.address.state} onValueChange={(value) => updateGuest(i, 'address.state', value)}>
                             <SelectTrigger className={formControlClass(`${i}-address.state`)}>
                               <SelectValue placeholder="Selecione" />
@@ -881,7 +881,7 @@ const BookingPage = () => {
                           {fieldError(`${i}-address.state`)}
                         </div>
                         <div>
-                          <Label className="text-base text-muted-foreground md:text-lg">CEP</Label>
+                          <Label className="text-base text-muted-foreground md:text-lg">CEP <span className="text-red-500">*</span></Label>
                           <Input
                             value={guest.address.zip}
                             onChange={(e) =>
@@ -913,7 +913,7 @@ const BookingPage = () => {
                   </h2>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <Label className="text-base text-muted-foreground md:text-lg">Selecione o hospede responsavel *</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Selecione o hospede responsavel <span className="text-red-500">*</span></Label>
                       <span className="text-sm text-muted-foreground">Clique em um card para carregar os dados</span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -996,7 +996,7 @@ const BookingPage = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <Label className="text-base text-muted-foreground md:text-lg">Placa do veiculo *</Label>
+                      <Label className="text-base text-muted-foreground md:text-lg">Placa do veiculo <span className="text-red-500">*</span></Label>
                       <Input
                         value={booking.vehiclePlate}
                         onChange={(e) => updateVehiclePlate(e.target.value)}
@@ -1114,7 +1114,7 @@ const BookingPage = () => {
                             }}
                             className="mt-1 h-4 w-4 rounded border-slate-300"
                           />
-                          <span>Li e aceito os termos da reserva.</span>
+                          <span>Li e aceito os termos da reserva. <span className="text-red-500">*</span></span>
                         </label>
                         {fieldError('termsAccepted')}
                         {fieldError('termsPolicy')}
