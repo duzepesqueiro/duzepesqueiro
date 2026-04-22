@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,6 +26,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPhoneBR, unmaskPhone } from "@/lib/phone";
+
+// Importando as funções da sua API e de Autenticação (Ajuste o caminho se necessário)
+import { getUserProfile } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 
 const formSchema = z.object({
   fullName: z.string().min(2, {
@@ -61,6 +65,33 @@ export const RegistrationForm = () => {
     },
   });
 
+  // --- NOVA LÓGICA: Pré-preencher os dados do usuário ---
+  useEffect(() => {
+    let mounted = true;
+    const fetchUserData = async () => {
+      if (isAuthenticated()) {
+        try {
+          const profile = await getUserProfile();
+          if (mounted && profile) {
+            // Atualizamos os campos do react-hook-form dinamicamente
+            if (profile.nome) {
+              form.setValue("fullName", profile.nome);
+            }
+            if (profile.telefone) {
+              form.setValue("phoneNumber", formatPhoneBR(profile.telefone)); 
+            }
+          }
+        } catch (error) {
+          console.warn("Não foi possível carregar os dados do usuário para o formulário de evento.", error);
+        }
+      }
+    };
+
+    fetchUserData();
+    return () => { mounted = false; };
+  }, [form]);
+  // ------------------------------------------------------
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     
@@ -70,7 +101,14 @@ export const RegistrationForm = () => {
       toast.success("Inscrição realizada com sucesso!", {
         description: `Você foi inscrito no evento em ${format(values.eventDate, "PPP")}`,
       });
-      form.reset();
+      // Importante: Ao resetar o form após o sucesso, os dados do usuário sumiriam. 
+      // Se quiser manter o nome/telefone na tela após o sucesso, você pode passar os valores atuais no reset:
+      form.reset({
+        ...form.getValues(), // Mantém Nome, Telefone e Idade
+        eventDate: undefined, // Limpa apenas a data
+      });
+      // Ou deixe apenas form.reset(); se quiser limpar tudo.
+      
       setIsSubmitting(false);
     }, 1000);
   }
@@ -166,7 +204,15 @@ export const RegistrationForm = () => {
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input placeholder="+55 (11) 91234-5678" {...field} />
+                    {/* Alterei o onChange aqui para que ele aplique a sua máscara unmaskPhone -> formatPhoneBR enquanto o usuário digita */}
+                    <Input 
+                        placeholder="+55 (11) 91234-5678" 
+                        {...field} 
+                        onChange={(e) => {
+                            const unmasked = unmaskPhone(e.target.value);
+                            field.onChange(formatPhoneBR(unmasked));
+                        }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
