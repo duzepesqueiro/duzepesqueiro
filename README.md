@@ -1,6 +1,6 @@
 # Pesque e Pague
 
-O **DuZé Pesqueiro** é uma solução completa de gestão para complexos de lazer. O sistema integra o controlo de entrada e saída de clientes, o inventário para **aluguer de varas e equipamentos de pesca**, e um módulo robusto de **hospedagem em chalés**. A plataforma permite a gestão de reservas, check-ins e faturação unificada, oferecendo aos administradores dashboards com KPIs em tempo real para otimizar a operação do pesqueiro e da pousada.
+O **DuZé Pesqueiro** é uma solução completa de gestão para complexos de lazer. O sistema integra o controle de entrada e saída de clientes, o inventário para **aluguel de varas e equipamentos de pesca**, e um módulo robusto de **hospedagem em chalés**. A plataforma permite a gestão de reservas, check-ins e faturação unificada, oferecendo aos administradores dashboards com KPIs em tempo real para otimizar a operação do pesqueiro e da pousada.
 
 
 ## Alunos integrantes da equipe
