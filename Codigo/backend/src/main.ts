@@ -13,20 +13,4 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  setupEventsDocumentation(app);
-  const parsedPort = Number.parseInt(process.env.PORT ?? '3000', 10);
-  const port = Number.isNaN(parsedPort) ? 3000 : parsedPort;
 
-  try {
-    await app.listen(port);
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err.code !== 'EADDRINUSE') {
-      throw error;
-    }
-    await app.listen(0);
-  }
-
-  logger.log(`API running at ${await app.getUrl()}`);
-}
-bootstrap();
