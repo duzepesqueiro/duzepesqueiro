@@ -103,7 +103,7 @@ const PaymentPage = () => {
   const pixKey = useMemo(
     () =>
       `duze-${booking.roomId || 'room'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    [booking.roomId],
+    [booking.roomId]
   );
   const pixPayload = useMemo(
     () => `Pagamento Reserva Du Ze | Valor: ${formatBRL(appPaymentAmount)} | Chave: ${pixKey}`,
