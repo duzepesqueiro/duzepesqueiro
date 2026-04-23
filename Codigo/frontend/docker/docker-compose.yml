@@ -1,3 +1,4 @@
+# Development-only compose file. Do not use in production/ECS.
 services:
   auth:
     build:
