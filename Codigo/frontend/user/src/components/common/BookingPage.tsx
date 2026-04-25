@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
@@ -49,6 +49,29 @@ type ActivePolicyDTO = {
   termsContent: string;
   effectiveFrom: string;
   effectiveTo?: string | null;
+};
+
+type ApiLoggedUserProfile = {
+  id?: string;
+  email?: string;
+  nome?: string;
+  name?: string;
+  telefone?: string;
+  phone?: string;
+};
+
+type ApiReservationResponse = {
+  id: string;
+  code?: string;
+  totalAmount?: number;
+  guestName?: string;
+  guestEmail?: string;
+};
+
+type CheckoutPreferenceResponse = {
+  id: string;
+  preferenceId: string;
+  initPoint: string;
 };
 
 const WhatsAppIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
@@ -161,6 +184,7 @@ const BookingPage = () => {
   const locationRoom = locationState?.room;
   const bookingSeed = locationState?.booking;
   const roomId = locationRoom?.id || booking.roomId;
+  const authEmail = typeof window === 'undefined' ? '' : window.localStorage.getItem('auth_email') || '';
 
   const { data: apiRoomData } = useQuery<ApiChaletDetail>({
     queryKey: ['booking-room-detail', roomId],
@@ -180,6 +204,16 @@ const BookingPage = () => {
       return data as ActivePolicyDTO;
     },
     staleTime: 1000 * 60 * 5,
+  });
+  const { data: loggedUserProfile } = useQuery<ApiLoggedUserProfile>({
+    queryKey: ['booking-user-profile', authEmail],
+    queryFn: async () => {
+      const { data } = await api.get('/user/usuarios/me', {
+        params: { email: authEmail },
+      });
+      return data as ApiLoggedUserProfile;
+    },
+    enabled: Boolean(authEmail),
   });
   const room = locationRoom ?? (apiRoomData ? mapApiChaletToRoom(apiRoomData) : null);
   const checkInDate = isValidDateValue(booking.checkIn) ? startOfDay(booking.checkIn) : null;
@@ -242,6 +276,102 @@ const BookingPage = () => {
       policyTerm: activePolicy.termsContent ?? '',
     }));
   }, [activePolicy, setBooking]);
+
+  const finalizeReservationMutation = useMutation({
+    mutationFn: async () => {
+      if (!room) {
+        throw new Error('Quarto não encontrado.');
+      }
+      if (!booking.checkIn || !booking.checkOut) {
+        throw new Error('Check-in e check-out são obrigatórios.');
+      }
+      if (booking.responsibleGuestIndex === null || !booking.guestDetails[booking.responsibleGuestIndex]) {
+        throw new Error('Selecione um hóspede responsável válido.');
+      }
+
+      const responsibleGuest = booking.guestDetails[booking.responsibleGuestIndex];
+      const reservationEmail = (loggedUserProfile?.email || authEmail || '').trim();
+      if (!reservationEmail) {
+        throw new Error('Não foi possível identificar o e-mail da conta logada.');
+      }
+      const userId = (loggedUserProfile?.id || '').trim();
+      if (!userId) {
+        throw new Error('Não foi possível identificar o usuário logado para criar o pagamento.');
+      }
+
+      const reservationPayload = {
+        chaletId: room.id,
+        checkInDate: booking.checkIn.toISOString(),
+        checkOutDate: booking.checkOut.toISOString(),
+        adults: booking.guestDetails.length,
+        children: 0,
+        guestName: responsibleGuest.name.trim(),
+        guestEmail: reservationEmail,
+        guestPhone: (loggedUserProfile?.telefone || '').trim() || undefined,
+        vehiclePlate: booking.vehiclePlate,
+        notes: booking.observations.trim() || undefined,
+        paymentMethod: 'PIX',
+        policiesAccepted: booking.termsAccepted,
+        policiesAcceptedAt: new Date().toISOString(),
+        policyVersion: booking.policyVersion,
+        policyTerm: booking.policyTerm,
+        guests: booking.guestDetails.map((guest) => ({
+          fullName: guest.name.trim(),
+          cpf: guest.document.trim(),
+          age: guest.age,
+        })),
+        responsibleGuestIndex: booking.responsibleGuestIndex,
+      };
+
+      const { data: reservationData } = await api.post('/api/reservas', reservationPayload);
+      const reservation = reservationData as ApiReservationResponse;
+      const reservationTotal = Number(reservation.totalAmount ?? totalPrice);
+      const reservationGuestName = (reservation.guestName || responsibleGuest.name).trim();
+      const [firstName, ...lastNameParts] = reservationGuestName.split(' ').filter(Boolean);
+      const appBaseUrl = window.location.origin;
+
+      const preferencePayload = {
+        domain: 'hosting',
+        entityId: reservation.id,
+        userId,
+        payer: {
+          email: reservation.guestEmail || reservationEmail,
+          firstName: firstName || 'Hospede',
+          lastName: lastNameParts.join(' ') || undefined,
+          identification: {
+            type: 'CPF',
+            number: responsibleGuest.document.replace(/\D/g, ''),
+          },
+        },
+        items: [
+          {
+            id: reservation.id,
+            title: `Reserva ${reservation.code || reservation.id}`,
+            description: `Pagamento da hospedagem (${Math.max(nights, 1)} noite(s))`,
+            quantity: 1,
+            unitPrice: reservationTotal,
+          },
+        ],
+        successUrl: `${appBaseUrl}/hospedagem/pagamento/sucesso`,
+        pendingUrl: `${appBaseUrl}/hospedagem/pagamento/pendente`,
+        failureUrl: `${appBaseUrl}/hospedagem/pagamento/falha`,
+      };
+
+      const { data: preferenceData } = await api.post('/payments/checkout-pro/preference', preferencePayload);
+      const preference = preferenceData as CheckoutPreferenceResponse;
+      if (!preference.preferenceId && !preference.id) {
+        throw new Error('Não foi possível obter o identificador da preferência.');
+      }
+      const checkoutPreferenceId = preference.preferenceId || preference.id;
+      const checkoutParams = new URLSearchParams({
+        preferenceId: checkoutPreferenceId,
+      });
+      if (preference.initPoint) {
+        checkoutParams.set('initPoint', preference.initPoint);
+      }
+      navigate(`/hospedagem/checkout-pro?${checkoutParams.toString()}`);
+    },
+  });
 
   if (!room) {
     return (
@@ -538,8 +668,20 @@ const BookingPage = () => {
       setStep((prev) => prev + 1);
       return;
     }
-
-    navigate('/hospedagem/payment', { state: { room, totalPrice } });
+    try {
+      await finalizeReservationMutation.mutateAsync();
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message ?? error?.message ?? 'Não foi possível iniciar o pagamento.';
+      const description = Array.isArray(backendMessage)
+        ? backendMessage[0]
+        : backendMessage;
+      toast({
+        title: 'Erro ao redirecionar para pagamento',
+        description,
+        variant: 'destructive',
+      });
+    }
   };
 
   const back = () => {
@@ -1147,10 +1289,11 @@ const BookingPage = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={next}
+                  disabled={finalizeReservationMutation.isPending}
                   className="btn-gold flex items-center gap-1 text-base"
                 >
                   {step === 3
-                    ? 'Ir para pagamento'
+                    ? (finalizeReservationMutation.isPending ? 'Redirecionando...' : 'Ir para pagamento')
                     : 'Proximo'} <ChevronRight className="h-4 w-4" />
                 </motion.button>
               </div>

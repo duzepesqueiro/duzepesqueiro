@@ -4,7 +4,7 @@ const configuredBaseURL =
   typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL
     ? (import.meta as any).env.VITE_API_BASE_URL
     : "";
-const baseURL = configuredBaseURL || "http://localhost:8080/api";
+const baseURL = configuredBaseURL || "http://localhost:3000";
 
 export const api = axios.create({
   baseURL,
