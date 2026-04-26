@@ -67,4 +67,5 @@ volumes:
 
 networks:
   duzepesqueiro-network:
+    name: duzepesqueiro-network
     driver: bridge

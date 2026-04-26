@@ -310,7 +310,6 @@ const BookingPage = () => {
         guestPhone: (loggedUserProfile?.telefone || '').trim() || undefined,
         vehiclePlate: booking.vehiclePlate,
         notes: booking.observations.trim() || undefined,
-        paymentMethod: 'PIX',
         policiesAccepted: booking.termsAccepted,
         policiesAcceptedAt: new Date().toISOString(),
         policyVersion: booking.policyVersion,
@@ -328,8 +327,6 @@ const BookingPage = () => {
       const reservationTotal = Number(reservation.totalAmount ?? totalPrice);
       const reservationGuestName = (reservation.guestName || responsibleGuest.name).trim();
       const [firstName, ...lastNameParts] = reservationGuestName.split(' ').filter(Boolean);
-      const appBaseUrl = window.location.origin;
-
       const preferencePayload = {
         domain: 'hosting',
         entityId: reservation.id,
@@ -352,12 +349,9 @@ const BookingPage = () => {
             unitPrice: reservationTotal,
           },
         ],
-        successUrl: `${appBaseUrl}/hospedagem/pagamento/sucesso`,
-        pendingUrl: `${appBaseUrl}/hospedagem/pagamento/pendente`,
-        failureUrl: `${appBaseUrl}/hospedagem/pagamento/falha`,
       };
 
-      const { data: preferenceData } = await api.post('/payments/checkout-pro/preference', preferencePayload);
+      const { data: preferenceData } = await api.post('/api/payments/checkout-pro/preference', preferencePayload);
       const preference = preferenceData as CheckoutPreferenceResponse;
       if (!preference.preferenceId && !preference.id) {
         throw new Error('Não foi possível obter o identificador da preferência.');

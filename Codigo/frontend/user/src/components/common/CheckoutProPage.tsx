@@ -16,10 +16,27 @@ const CheckoutProPage = () => {
     initMercadoPago(publicKey);
   }, [publicKey]);
 
+  useEffect(() => {
+    if (!initPoint) return;
+
+    // Redireciona automaticamente para o checkout hospedado quando disponível.
+    const timeoutId = window.setTimeout(() => {
+      window.location.replace(initPoint);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [initPoint]);
+
   const hasWalletData = useMemo(
     () => Boolean(publicKey && preferenceId),
     [publicKey, preferenceId],
   );
+  const missingFields = useMemo(() => {
+    const fields: string[] = [];
+    if (!publicKey) fields.push('VITE_MERCADOPAGO_PUBLIC_KEY');
+    if (!preferenceId) fields.push('preferenceId');
+    return fields;
+  }, [publicKey, preferenceId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,7 +62,7 @@ const CheckoutProPage = () => {
                   <div>
                     <p className="text-sm font-semibold">Não foi possível inicializar o checkout</p>
                     <p className="mt-1 text-sm">
-                      Verifique se `VITE_MERCADOPAGO_PUBLIC_KEY` e `preferenceId` estão configurados.
+                      Campo(s) ausente(s): {missingFields.join(', ') || 'indefinido'}.
                     </p>
                   </div>
                 </div>

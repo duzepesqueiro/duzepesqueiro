@@ -10,10 +10,13 @@ import {
   PaymentMethod,
   PaymentStatus,
   Prisma,
+  ReservationStatus,
 } from '@prisma/client';
-import { Preference } from 'mercadopago';
+import { Payment as MercadoPagoPayment, Preference } from 'mercadopago';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
+import { EventTypes } from '../../../shared/events/event-types';
 import {
   IPaymentDomain,
   IPaymentMethod,
@@ -22,6 +25,7 @@ import {
 import { MERCADO_PAGO_SDK_CLIENT } from '../providers/mercadopago';
 import {
   CheckoutPreferenceResponseDto,
+  MercadoPagoWebhookDto,
   PayerDto,
   PaymentItemDto,
 } from '../dto';
@@ -45,6 +49,7 @@ export class PaymentService {
     @Inject(MERCADO_PAGO_SDK_CLIENT)
     private readonly mercadoPagoClient: ConstructorParameters<typeof Preference>[0],
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createCheckoutPreference(
@@ -187,6 +192,85 @@ export class PaymentService {
     };
   }
 
+  async processMercadoPagoWebhook(payload: MercadoPagoWebhookDto): Promise<void> {
+    if (payload.type !== 'payment' || !payload.data?.id) {
+      return;
+    }
+
+    const paymentClient = new MercadoPagoPayment(this.mercadoPagoClient);
+    const gatewayResponse = await paymentClient.get({ id: payload.data.id });
+    const gatewayPayment = (gatewayResponse as any)?.response ?? gatewayResponse ?? {};
+    const externalReference = String(
+      gatewayPayment.external_reference ?? '',
+    ).trim();
+    if (!externalReference) {
+      return;
+    }
+
+    const localPayment = await this.prisma.payment.findUnique({
+      where: { externalReference },
+      select: { id: true, entityId: true, domain: true, externalId: true, dateApproved: true },
+    });
+    if (!localPayment) {
+      return;
+    }
+
+    const mappedStatus = this.mapGatewayStatus(gatewayPayment.status);
+    const approvedAt = this.toOptionalDate(gatewayPayment.date_approved);
+    const parsedExternalId = Number.parseInt(String(gatewayPayment.id ?? ''), 10);
+    const externalId = Number.isNaN(parsedExternalId)
+      ? localPayment.externalId ?? undefined
+      : parsedExternalId;
+
+    await this.prisma.payment.update({
+      where: { id: localPayment.id },
+      data: {
+        externalId,
+        status: mappedStatus,
+        statusDetail: gatewayPayment.status_detail ?? undefined,
+        dateApproved:
+          mappedStatus === PaymentStatus.APPROVED
+            ? approvedAt ?? localPayment.dateApproved ?? new Date()
+            : localPayment.dateApproved,
+      },
+    });
+
+    if (localPayment.domain !== PaymentDomain.HOSTING) {
+      return;
+    }
+
+    if (mappedStatus === PaymentStatus.APPROVED) {
+      const updatedReservation = await this.prisma.hostingReservation.update({
+        where: { id: localPayment.entityId },
+        data: {
+          status: ReservationStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.APPROVED,
+          paidAt: approvedAt ?? new Date(),
+        },
+        select: { id: true },
+      });
+
+      this.eventEmitter.emit(EventTypes.HOSTING_PAID, {
+        bookingId: updatedReservation.id,
+        paymentId: localPayment.id,
+      });
+      return;
+    }
+
+    if (
+      mappedStatus === PaymentStatus.REJECTED ||
+      mappedStatus === PaymentStatus.CANCELLED ||
+      mappedStatus === PaymentStatus.FAILED
+    ) {
+      await this.prisma.hostingReservation.update({
+        where: { id: localPayment.entityId },
+        data: {
+          paymentStatus: mappedStatus,
+        },
+      });
+    }
+  }
+
   async refundByDomainEntity(
     domain: IPaymentDomain,
     entityId: string,
@@ -291,6 +375,17 @@ export class PaymentService {
     return PaymentMethod.PIX;
   }
 
+  private mapGatewayStatus(status?: string): PaymentStatus {
+    const normalized = String(status ?? '').toLowerCase();
+    if (normalized === 'approved') return PaymentStatus.APPROVED;
+    if (normalized === 'pending' || normalized === 'in_process') return PaymentStatus.PENDING;
+    if (normalized === 'cancelled') return PaymentStatus.CANCELLED;
+    if (normalized === 'refunded') return PaymentStatus.REFUNDED;
+    if (normalized === 'charged_back') return PaymentStatus.CHARGED_BACK;
+    if (normalized === 'authorized') return PaymentStatus.AUTHORIZED;
+    return PaymentStatus.REJECTED;
+  }
+
   private async resolveUserId(
     userId: string | undefined,
     payerEmail: string,
@@ -381,5 +476,11 @@ export class PaymentService {
     } catch {
       return false;
     }
+  }
+
+  private toOptionalDate(value: unknown): Date | undefined {
+    if (!value) return undefined;
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 }

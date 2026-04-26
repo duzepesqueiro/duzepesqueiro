@@ -79,7 +79,7 @@ export class ReservaRepository {
       where: {
         chaletId: chaleId,
         deletedAt: null,
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED, ReservationStatus.OCCUPIED] },
+        status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.OCCUPIED] },
         id: excludeId ? { not: excludeId } : undefined,
         checkInDate: { lt: checkout },
         checkOutDate: { gt: checkin },
@@ -92,7 +92,7 @@ export class ReservaRepository {
     return this.prisma.hostingReservation.findMany({
       where: {
         deletedAt: null,
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED, ReservationStatus.OCCUPIED] },
+        status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.OCCUPIED] },
       },
       orderBy: { checkInDate: 'asc' },
     });
