@@ -36,6 +36,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
   const [renterName, setRenterName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Deriva objeto Date da string para o Calendar sem deslocamento de fuso (local midday)
   const startDateObj = startDate
@@ -69,8 +70,18 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
     return () => { mounted = false; };
   }, [open]);
 
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [item?.id, open]);
+
   // Evita renderização do modal quando não há item selecionado
   if (!item) return null;
+
+  const images = (item.images?.length ? item.images : [item.image]).filter(
+    (src): src is string => typeof src === "string" && src.trim().length > 0
+  );
+  const gallery = images.length ? images : ["https://placehold.co/900x600?text=Aluguel"];
+  const activeImage = gallery[activeImageIndex] ?? gallery[0];
 
   const totalPrice = (item.hourlyPrice * (hours > 0 ? hours : 0) * (quantity > 0 ? quantity : 0)).toFixed(2);
 
@@ -170,8 +181,27 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
         <div className="grid md:grid-cols-2 gap-6">
           {/* Coluna Esquerda - Imagem e Descrição */}
           <div className="space-y-4">
-            <div className="rounded-lg overflow-hidden">
-              <img src={item.image} alt={item.name} className="w-full h-64 object-cover" />
+            <div className="space-y-3">
+              <div className="rounded-lg overflow-hidden bg-muted">
+                <img src={activeImage} alt={item.name} className="w-full h-64 object-contain" />
+              </div>
+              {gallery.length > 1 && (
+                <div className="grid grid-cols-5 gap-2">
+                  {gallery.slice(0, 10).map((src, index) => (
+                    <button
+                      key={`${src}-${index}`}
+                      type="button"
+                      aria-label={`Ver imagem ${index + 1}`}
+                      onClick={() => setActiveImageIndex(index)}
+                      className={`aspect-square overflow-hidden rounded-md border bg-muted transition ${
+                        index === activeImageIndex ? "border-primary ring-2 ring-primary/30" : "border-border"
+                      }`}
+                    >
+                      <img src={src} alt={`${item.name} ${index + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <h3 className="font-semibold mb-2">Descrição</h3>

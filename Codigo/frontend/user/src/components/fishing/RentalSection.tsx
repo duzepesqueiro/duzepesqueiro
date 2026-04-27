@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RentalCard } from "./RentalCard";
 import { RentalModal } from "./RentalModal";
 import { RentalItem } from "@/pages/FishingGear";
-import { api } from "@/lib/api";
+import { getRentalCatalog } from "@/lib/rentalCatalog";
 import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -30,18 +30,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get("/user/alugueis");
-        const data = Array.isArray(res.data) ? res.data : [];
-        const mapped: RentalItem[] = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          hourlyPrice: Number(d.hourlyPrice ?? 0),
-          available: Number(d.available ?? 0),
-          image: d.image,
-          fullDescription: d.fullDescription ?? d.description ?? "",
-          unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-        }));
+        const mapped: RentalItem[] = await getRentalCatalog();
         // Default: ordenar por disponibilidade (sem disponibilidade por último)
         const sorted = mapped.sort((a, b) => {
           if (b.available !== a.available) return b.available - a.available;
@@ -74,7 +63,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
   // Abre modal automaticamente se houver parâmetro inicial
   useEffect(() => {
     if (!initialRentalId) return;
-    const target = items.find((i) => i.id === initialRentalId);
+    const target = items.find((i) => String(i.id) === String(initialRentalId));
     if (target) {
       // if (!isAuthenticated()) {
       //   redirectToLogin(`rent_item:${target.id}`);

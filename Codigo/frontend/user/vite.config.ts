@@ -13,6 +13,16 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8081,
       strictPort: true,
+      proxy: {
+        "/api": {
+          target: env.VITE_API_PROXY_TARGET || "http://api:3000",
+          changeOrigin: true,
+        },
+        "/user/products": {
+          target: env.VITE_API_PROXY_TARGET || "http://api:3000",
+          changeOrigin: true,
+        },
+      },
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {

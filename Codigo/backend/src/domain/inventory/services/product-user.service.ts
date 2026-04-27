@@ -29,7 +29,13 @@ export class ProductUserService {
         sku: item.sku,
         name: item.name,
         description: (item as any).description ?? undefined,
-        image: (item as any).image ?? undefined,
+        image:
+          (item as any).image ??
+          (item as any).productImages?.[0]?.imageUrl ??
+          undefined,
+        images: ((item as any).productImages ?? [])
+          .map((image: any) => image.imageUrl)
+          .filter((imageUrl: unknown): imageUrl is string => typeof imageUrl === 'string'),
         status: item.status as any,
         category: item.category as any,
         unitMeasure: item.unitMeasure as any,

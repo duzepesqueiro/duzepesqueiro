@@ -34,6 +34,7 @@ import { useTheme } from "next-themes";
 import logo from "@/assets/logo.jpg";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { getRentalCatalog } from "@/lib/rentalCatalog";
 import {
   Sheet,
   SheetContent,
@@ -119,7 +120,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
   // ===== Busca em tempo real =====
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Array<{ id: number; name: string; image?: string; type: "event" | "rental" | "product" }>>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string | number; name: string; image?: string; type: "event" | "rental" | "product" }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -165,11 +166,10 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
   const fetchRentalSuggestions = async (q: string) => {
     try {
-      const { data } = await api.get("/user/alugueis");
-      const arr = Array.isArray(data) ? data : [];
+      const arr = await getRentalCatalog();
       const filtered = arr.filter((i: any) => String(i.name ?? "").toLowerCase().includes(q.toLowerCase()));
       return filtered.slice(0, 8).map((i: any) => ({
-        id: Number(i.id),
+        id: i.id,
         name: String(i.name ?? "Aluguel"),
         image: i.image || "https://placehold.co/64x64?text=A",
         type: "rental" as const,
@@ -266,7 +266,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, inferredScope, location.search]);
 
-  const handleSuggestionClick = (s: { id: number; type: "event" | "rental" | "product" }) => {
+  const handleSuggestionClick = (s: { id: string | number; type: "event" | "rental" | "product" }) => {
     // Navega com parâmetros para abrir modal correspondente
     if (s.type === "event") {
       navigate(`/events?eventId=${s.id}`);

@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import { RentalHistory, RentalDTO } from "@/components/fishing/RentalHistory";
 import { OrderHistory } from "@/components/fishing/OrderHistory";
 import { getUserRentals, cancelRental, api, submitUserRating, getPendingRequests } from "@/lib/api";
+import { getRentalCatalog } from "@/lib/rentalCatalog";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -21,12 +22,13 @@ import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { toast } from "sonner";
 
 export interface RentalItem {
-  id: number;
+  id: string | number;
   name: string;
   description: string;
   hourlyPrice: number;
   available: number;
   image: string;
+  images: string[];
   fullDescription: string;
   unavailableDates: Date[];
 }
@@ -60,20 +62,10 @@ const FishingGear = () => {
   const refreshUserRentals = async (name?: string, phone?: string) => {
     try {
       const rentals: RentalDTO[] = await getUserRentals(name, phone);
-      const itemsRes = await api.get("/user/alugueis");
-      const items: RentalItem[] = (Array.isArray(itemsRes.data) ? itemsRes.data : []).map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        hourlyPrice: Number(d.hourlyPrice ?? 0),
-        available: Number(d.available ?? 0),
-        image: d.image,
-        fullDescription: d.fullDescription ?? d.description ?? "",
-        unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-      }));
-      const nameMap = new Map<number, string>(items.map((it) => [it.id, it.name]));
+      const items: RentalItem[] = await getRentalCatalog();
+      const nameMap = new Map<string, string>(items.map((it) => [String(it.id), it.name]));
       setRentalOrders(
-        rentals.map((dto) => ({ dto, itemName: nameMap.get(dto.rentalItemId) || "Item" }))
+        rentals.map((dto) => ({ dto, itemName: nameMap.get(String(dto.rentalItemId)) || "Item" }))
       );
     } catch (err) {
       console.error("Falha ao buscar seus aluguéis", err);
