@@ -348,9 +348,10 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
     setModalType(type);
     setProductImageFiles([]);
     if (product) {
+      const isRental = product?.source === 'RENTAL';
       const categoryPt = (() => {
         if (product?.category) return CATEGORY_MAP.enumToPt[product.category] || product.category;
-        return product?.source === 'RENTAL' ? 'Equipamentos para Aluguel' : 'Equipamentos de Pesca';
+        return isRental ? 'Equipamentos para Aluguel' : 'Equipamentos de Pesca';
       })();
       const matchedSupplier = suppliers.find(
         (item) =>
@@ -361,17 +362,17 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
         ...product,
         product: product?.product ?? product?.name ?? '',
         category: categoryPt,
-        registrationType: product?.source === 'RENTAL' ? 'Aluguel' : 'Venda',
+        registrationType: isRental ? 'Aluguel' : 'Venda',
         currentStock: product?.stock ?? product?.currentStock ?? 0,
         minThreshold: Number(product?.minThreshold ?? 0),
         suggestedQuantity: Number(product?.suggestedQuantity ?? product?.minThreshold ?? 0),
         supplierId: matchedSupplier?.id ?? product?.supplierId ?? '',
         supplier: matchedSupplier?.name ?? product?.supplier ?? '',
         description: product?.description || '',
-        hourlyPrice: '',
-        available: '',
+        hourlyPrice: isRental ? Number(product?.sellingPrice ?? product?.salePrice ?? product?.unitCost ?? 0) : '',
+        available: isRental ? Number(product?.stock ?? product?.currentStock ?? product?.available ?? 0) : '',
         image: product.image || '',
-        fullDescription: ''
+        fullDescription: isRental ? (product?.description || '') : ''
       });
       const existingImages = Array.isArray(product?.images) && product.images.length
         ? product.images
@@ -472,20 +473,36 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
           throw new Error('Fornecedor é obrigatório.');
         }
         const selectedSupplier = suppliers.find((item) => item.id === modalProduct.supplierId);
-        const payload = {
-          product: modalProduct.product,
-          category: CATEGORY_MAP.ptToEnum[modalProduct.category] || modalProduct.category,
-          location: modalProduct.location,
-          description: modalProduct.description || undefined,
-          currentStock: Number(modalProduct.currentStock) || 0,
-          minThreshold: Number(modalProduct.minThreshold) || 0,
-          suggestedQuantity: Number(modalProduct.suggestedQuantity) || 0,
-          unitCost: Number(modalProduct.unitCost) || 0,
-          sellingPrice: Number(modalProduct.sellingPrice) || 0,
-          supplierId: modalProduct.supplierId || undefined,
-          supplier: selectedSupplier?.name || modalProduct.supplier || undefined,
-          lastRestocked: modalProduct.lastRestocked || null,
-        };
+        const isRentalEdit = modalProduct.registrationType === 'Aluguel';
+        const payload = isRentalEdit
+          ? {
+              product: modalProduct.product,
+              category: 'RENTAL_EQUIPMENT',
+              location: modalProduct.location,
+              description: modalProduct.fullDescription || modalProduct.description || undefined,
+              currentStock: Number(modalProduct.available) || 0,
+              minThreshold: 0,
+              suggestedQuantity: 0,
+              unitCost: Number(modalProduct.hourlyPrice) || 0,
+              sellingPrice: Number(modalProduct.hourlyPrice) || 0,
+              supplierId: modalProduct.supplierId || undefined,
+              supplier: selectedSupplier?.name || modalProduct.supplier || undefined,
+              lastRestocked: modalProduct.lastRestocked || null,
+            }
+          : {
+              product: modalProduct.product,
+              category: CATEGORY_MAP.ptToEnum[modalProduct.category] || modalProduct.category,
+              location: modalProduct.location,
+              description: modalProduct.description || undefined,
+              currentStock: Number(modalProduct.currentStock) || 0,
+              minThreshold: Number(modalProduct.minThreshold) || 0,
+              suggestedQuantity: Number(modalProduct.suggestedQuantity) || 0,
+              unitCost: Number(modalProduct.unitCost) || 0,
+              sellingPrice: Number(modalProduct.sellingPrice) || 0,
+              supplierId: modalProduct.supplierId || undefined,
+              supplier: selectedSupplier?.name || modalProduct.supplier || undefined,
+              lastRestocked: modalProduct.lastRestocked || null,
+            };
         console.debug('update payload', payload);
         await updateSaleItem(modalProduct.id, payload);
         savedProductId = modalProduct.id;
@@ -511,7 +528,8 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
   };
 
   const handleDelete = async (product) => {
-    if (!window.confirm(`Deseja realmente deletar o produto "${product.product}"?`)) {
+    const productName = product?.product ?? product?.name ?? 'item';
+    if (!window.confirm(`Deseja realmente deletar o produto "${productName}"?`)) {
       return;
     }
     try {
@@ -646,9 +664,7 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
                   <td className="p-4 flex space-x-2">
                     <Button variant="ghost" size="sm" iconName="Edit" onClick={() => openModal('edit', product)} />
                     <Button variant="ghost" size="sm" iconName="Eye" onClick={() => openModal('view', product)} />
-                    {product?.source !== 'RENTAL' ? (
-                      <Button variant="ghost" size="sm" iconName="Trash2" onClick={() => handleDelete(product)} />
-                    ) : null}
+                    <Button variant="ghost" size="sm" iconName="Trash2" onClick={() => handleDelete(product)} />
                   </td>
                 </tr>
               );
