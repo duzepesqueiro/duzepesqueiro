@@ -29,6 +29,11 @@ export const ShopCard = ({ item, onAddToCart, onSelect }: ShopCardProps) => {
           alt={item.name}
           className="w-full h-full object-contain p-4 transition-transform duration-500 hover:scale-105"
         />
+        {item.images.length > 1 && (
+          <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded-full text-[10px] font-semibold tracking-wide text-foreground shadow-sm">
+            {item.images.length} imagens
+          </div>
+        )}
         {item.stock <= 0 && (
            <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-[1px]">
               <Badge variant="destructive" className="text-sm font-bold">Esgotado</Badge>

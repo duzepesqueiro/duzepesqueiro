@@ -34,12 +34,14 @@ export interface RentalItem {
 }
 
 export interface ShopItem {
-  id: number;
+  id: string | number;
   name: string;
   description: string;
   price: number;
   stock: number;
   image: string;
+  images: string[];
+  fullDescription?: string;
 }
 
 export interface CartItem extends ShopItem {
@@ -396,8 +398,7 @@ const FishingGear = () => {
                 onUpdateQuantity={updateCartQuantity}
                 initialProductId={(() => {
                   const params = new URLSearchParams(location.search);
-                  const pid = params.get("productId");
-                  return pid ? Number(pid) : undefined;
+                  return params.get("productId") || undefined;
                 })()}
               />
             </TabsContent>

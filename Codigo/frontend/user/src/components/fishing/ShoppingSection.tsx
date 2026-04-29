@@ -13,8 +13,65 @@ interface ShoppingSectionProps {
   cartItems: CartItem[];
   onAddToCart: (item: ShopItem) => void;
   onUpdateQuantity: (id: number, quantity: number) => void;
-  initialProductId?: number;
+  initialProductId?: string | number;
 }
+
+const FALLBACK_PRODUCT_IMAGE = "https://placehold.co/500x500?text=Fishing+Product";
+
+const compactImages = (value: unknown, fallback?: unknown) => {
+  const list = Array.isArray(value) ? value : [];
+  const images = list
+    .map((item: any) => {
+      if (typeof item === "string") return item;
+      if (item?.imageUrl) return item.imageUrl;
+      if (item?.url) return item.url;
+      return undefined;
+    })
+    .filter((src: unknown): src is string => typeof src === "string" && src.trim().length > 0);
+
+  if (typeof fallback === "string" && fallback.trim() && !images.includes(fallback)) {
+    images.unshift(fallback);
+  }
+
+  return images.length ? images.slice(0, 10) : [FALLBACK_PRODUCT_IMAGE];
+};
+
+const normalizeSaleItem = (item: any): ShopItem => {
+  const images = compactImages(item?.images ?? item?.productImages ?? item?.image ? [item.image] : [], item?.image ?? item?.imageUrl);
+  return {
+    id: item?.id,
+    name: item?.name || item?.product || item?.sku || "Produto",
+    description: item?.description || item?.category || item?.location || "",
+    price: Number(item?.sellingPrice ?? item?.salePrice ?? item?.price ?? item?.unitCost ?? 0),
+    stock: Number(item?.stock ?? item?.currentStock ?? item?.stockQuantity ?? 0),
+    image: images[0] || FALLBACK_PRODUCT_IMAGE,
+    images,
+    fullDescription: item?.description || item?.fullDescription || item?.category || undefined,
+  };
+};
+
+const readItems = (data: any) => (Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : []);
+
+const canReadAdminInventory = () => {
+  if (typeof window === "undefined") return false;
+  const token = window.localStorage.getItem("auth_token") || window.localStorage.getItem("auth_access_token");
+  const role = (window.localStorage.getItem("auth_role") || "").trim().toUpperCase();
+  return Boolean(token && ["ADMIN", "MANAGER", "EMPLOYEE"].includes(role));
+};
+
+const getAdminSaleItems = async (): Promise<ShopItem[]> => {
+  if (!canReadAdminInventory()) return [];
+
+  try {
+    const res = await api.get("/admin/inventory/items");
+    const items = readItems(res.data);
+    const saleItems = items.filter((item: any) => String(item?.source ?? "").toUpperCase() === "SALE");
+    return saleItems.map(normalizeSaleItem);
+  } catch (err) {
+    console.warn("Falha ao carregar itens de venda do painel admin", err);
+    return [];
+  }
+};
 
 import { ProductDetailModal } from "./ProductDetailModal";
 
@@ -36,16 +93,23 @@ export const ShoppingSection = ({
     const fetchItems = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/user/loja");
-        const data: ShopItem[] = (res.data || []).map((i: any) => ({
-          id: i.id,
-          name: i.name,
-          description: i.description,
-          price: i.price,
-          stock: i.stock,
-          image: i.image || "https://placehold.co/500x500?text=Fishing+Item",
-        }));
-        // Default: ordenar por estoque (itens sem estoque por último)
+        let data: ShopItem[] = [];
+
+        const adminItems = await getAdminSaleItems();
+        if (adminItems.length) {
+          data = adminItems;
+        } else {
+          const res = await api.get("/user/loja");
+          const backendItems = readItems(res.data).map(normalizeSaleItem);
+
+          if (backendItems.length) {
+            data = backendItems;
+          } else {
+            const fallbackRes = await api.get("/user/products/sale", { params: { limit: 100 } });
+            data = readItems(fallbackRes.data).map(normalizeSaleItem);
+          }
+        }
+
         const sorted = [...data].sort((a, b) => {
           if (b.stock !== a.stock) return b.stock - a.stock;
           return a.name.localeCompare(b.name);
@@ -58,6 +122,7 @@ export const ShoppingSection = ({
         setLoading(false);
       }
     };
+
     fetchItems();
   }, []);
 
@@ -74,8 +139,8 @@ export const ShoppingSection = ({
 
   // Abrir modal automaticamente se houver produto inicial
   useEffect(() => {
-    if (!initialProductId) return;
-    const target = items.find((i) => i.id === initialProductId);
+    if (initialProductId === undefined || initialProductId === null) return;
+    const target = items.find((i) => String(i.id) === String(initialProductId));
     if (target) setSelectedItem(target);
   }, [initialProductId, items]);
 

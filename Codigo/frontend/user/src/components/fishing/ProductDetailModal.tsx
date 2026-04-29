@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { ShopItem } from "@/pages/FishingGear";
 
 interface ProductDetailModalProps {
@@ -18,6 +19,8 @@ export const ProductDetailModal = ({ item, open, onOpenChange, onAddToCart }: Pr
       </Dialog>
     );
   }
+  const images = item.images?.length ? item.images : [item.image];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
@@ -26,11 +29,29 @@ export const ProductDetailModal = ({ item, open, onOpenChange, onAddToCart }: Pr
           <DialogDescription>Detalhes do produto</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-md overflow-hidden border border-border/40">
-            <img src={item.image} alt={item.name} className="w-full h-48 object-cover" />
+          <div className="rounded-md overflow-hidden border border-border/40 relative">
+            <Carousel className="relative">
+              <CarouselContent className="h-72">
+                {images.map((src, index) => (
+                  <CarouselItem key={`${src}-${index}`}>
+                    <img
+                      src={src}
+                      alt={`${item.name} - imagem ${index + 1}`}
+                      className="w-full h-72 object-cover"
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              {images.length > 1 && (
+                <>
+                  <CarouselPrevious className="!bg-background/90" />
+                  <CarouselNext className="!bg-background/90" />
+                </>
+              )}
+            </Carousel>
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{item.description}</p>
+            <p className="text-sm text-muted-foreground">{item.description || item.fullDescription}</p>
             <Separator />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Estoque:</span>
