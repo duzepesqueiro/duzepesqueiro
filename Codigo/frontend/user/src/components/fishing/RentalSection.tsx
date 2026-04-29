@@ -202,6 +202,14 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
         onOpenChange={(open) => !open && setSelectedItem(null)}
         onBooked={({ dto, renterName, customerPhone }) => {
           if (selectedItem) {
+            const bookedQuantity = Number(dto?.quantity ?? 0);
+            setItems((current) =>
+              current.map((item) =>
+                String(item.id) === String(selectedItem.id)
+                  ? { ...item, available: Math.max(0, Number(item.available ?? 0) - bookedQuantity) }
+                  : item
+              )
+            );
             onBooked({ dto, itemName: selectedItem.name, renterName, customerPhone });
           }
         }}

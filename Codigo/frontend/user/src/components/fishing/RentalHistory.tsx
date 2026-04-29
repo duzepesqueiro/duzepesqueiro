@@ -15,7 +15,10 @@ export interface RentalDTO {
   quantity: number;
   startDate: string; // yyyy-MM-dd
   endDate: string;   // yyyy-MM-dd
+  startTime?: string;
+  endTime?: string;
   totalPrice: number;
+  status?: string;
   createdAt: string; // ISO datetime
   // Novo campo opcional: hora de devolução
   returnTime?: string; // yyyy-MM-dd HH:mm
@@ -63,16 +66,15 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const activeUpcoming = orders.filter(({ dto }) => !dto.returnTime && (toDate(dto.endDate)?.getTime() ?? 0) >= today.getTime());
-  const overdue = orders.filter(({ dto }) => !dto.returnTime && (toDate(dto.endDate)?.getTime() ?? 0) < today.getTime());
-  const past = orders.filter(({ dto }) => !!dto.returnTime);
+  const isClosed = (dto: RentalDTO) => ["RETURNED", "CANCELLED"].includes(String(dto.status || "").toUpperCase()) || !!dto.returnTime;
+  const activeUpcoming = orders.filter(({ dto }) => !isClosed(dto) && (toDate(dto.endDate)?.getTime() ?? 0) >= today.getTime());
+  const overdue = orders.filter(({ dto }) => !isClosed(dto) && (toDate(dto.endDate)?.getTime() ?? 0) < today.getTime());
+  const past = orders.filter(({ dto }) => isClosed(dto));
 
   // Inline edit state
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editDate, setEditDate] = useState<string>(""); // yyyy-MM-dd
-  const [editTime, setEditTime] = useState<string>("06:00"); // HH:mm
-  const [editHours, setEditHours] = useState<number>(1);
-  const [editQty, setEditQty] = useState<number>(1);
+  const [editEndDate, setEditEndDate] = useState<string>(""); // yyyy-MM-dd
+  const [editEndTime, setEditEndTime] = useState<string>("06:00"); // HH:mm
 
   // Paginação por seção
   const [pageActive, setPageActive] = useState<number>(1);
@@ -116,30 +118,32 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
 
   const startEdit = (dto: RentalDTO) => {
     setEditingId(dto.id);
-    setEditDate(dto.startDate || "");
-    setEditTime("06:00");
-    setEditHours(1);
-    setEditQty(dto.quantity || 1);
+    setEditEndDate(dto.endDate || "");
+    const currentEnd = dto.endTime ? new Date(dto.endTime) : undefined;
+    if (currentEnd && !Number.isNaN(currentEnd.getTime())) {
+      const h = String(currentEnd.getHours()).padStart(2, "0");
+      const m = String(currentEnd.getMinutes()).padStart(2, "0");
+      setEditEndTime(`${h}:${m}`);
+    } else {
+      setEditEndTime("06:00");
+    }
   };
 
   const submitEdit = async (id: number) => {
     try {
-      const [h, min] = (editTime || "06:00").split(":").map(Number);
-      const [y, m, d] = (editDate || "").split("-").map(Number);
+      const [h, min] = (editEndTime || "06:00").split(":").map(Number);
+      const [y, m, d] = (editEndDate || "").split("-").map(Number);
       if (!y || !m || !d) {
-        toast.error("Selecione uma data válida para o início");
+        toast.error("Selecione uma data válida para a devolução");
         return;
       }
-      const startLocal = new Date(y, (m || 1) - 1, d || 1, h || 6, min || 0, 0, 0);
+      const endLocal = new Date(y, (m || 1) - 1, d || 1, h || 6, min || 0, 0, 0);
       const pad = (n: number) => String(n).padStart(2, "0");
-      const startTime = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())} ${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}`;
+      const newEndDate = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:00`;
       await updateRental(id, {
-        quantity: editQty,
-        startDate: editDate,
-        startTime,
-        durationHours: editHours,
+        newEndDate,
       });
-      toast.success("Aluguel atualizado com sucesso!");
+      toast.success("Devolução estendida com sucesso!");
       setEditingId(null);
       await onUpdated?.();
     } catch (err: any) {
@@ -193,7 +197,7 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
                   <Badge variant="secondary">Qtd: {dto.quantity}</Badge>
                   <span className="text-lg font-bold">R${Number(dto.totalPrice).toFixed(2)}</span>
                   <Button variant="outline" size="sm" onClick={() => startEdit(dto)} className="flex items-center gap-1">
-                    <Pencil className="h-4 w-4" /> Editar
+                    <Pencil className="h-4 w-4" /> Estender
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onCancel?.(dto.id)} className="flex items-center gap-1 text-destructive border-destructive hover:bg-destructive/10">
                     <XCircle className="h-4 w-4" /> Cancelar
@@ -203,25 +207,17 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
                   <div className="mt-2 p-3 rounded-lg border bg-muted/30 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label>Data</Label>
-                        <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                        <Label>Nova data de devolução</Label>
+                        <Input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
                       </div>
                       <div>
-                        <Label>Hora</Label>
-                        <Input type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
-                      </div>
-                      <div>
-                        <Label>Horas</Label>
-                        <Input type="number" min={1} value={editHours} onChange={(e) => setEditHours(Number(e.target.value))} />
-                      </div>
-                      <div>
-                        <Label>Quantidade</Label>
-                        <Input type="number" min={1} value={editQty} onChange={(e) => setEditQty(Number(e.target.value))} />
+                        <Label>Nova hora</Label>
+                        <Input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} />
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2">
                       <Button variant="ghost" onClick={() => setEditingId(null)}>Cancelar</Button>
-                      <Button variant="secondary" onClick={() => submitEdit(dto.id)}>Salvar alterações</Button>
+                      <Button variant="secondary" onClick={() => submitEdit(dto.id)}>Salvar extensão</Button>
                     </div>
                   </div>
                 )}

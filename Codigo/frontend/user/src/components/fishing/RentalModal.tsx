@@ -92,13 +92,23 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
     return `${datePart} ${timePart || "00:00"}`;
   };
 
+  const formatDateTimeIsoLocal = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  };
+
+  const formatDateOnly = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  };
+
   const handleConfirmRental = async () => {
     try {
       // Require authentication on action
-      // if (!isAuthenticated()) {
-      //   redirectToLogin(`rent_item:${item.id}`);
-      //   return;
-      // }
+      if (!isAuthenticated()) {
+        redirectToLogin(`rent_item:${item.id}`);
+        return;
+      }
 
       if (!startDate) {
         toast.error("Selecione a data.");
@@ -138,17 +148,39 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
       setSubmitting(true);
 
       const startLocal = `${startDate}T${startTime}`;
+      const [year, month, day] = startDate.split("-").map(Number);
+      const [hour, minute] = startTime.split(":").map(Number);
+      const startDateTime = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, 0, 0);
+      const returnDateTime = new Date(startDateTime.getTime() + hours * 60 * 60 * 1000);
       const payload: any = {
-        rentalItemId: item.id,
+        productId: String(item.id),
+        rentalDate: formatDateTimeIsoLocal(startDateTime),
+        returnDate: formatDateTimeIsoLocal(returnDateTime),
         quantity,
-        renterName,
-        startTime: formatDateTimeForBackend(startLocal),
-        durationHours: hours,
-        customerPhone: customerPhone?.trim() || undefined,
+        unitPrice: Number(item.hourlyPrice) * hours,
+        periodType: "DAILY",
+        periodValue: 1,
+        notes: [
+          renterName ? `Locatario: ${renterName}` : null,
+          customerPhone?.trim() ? `Telefone: ${customerPhone.trim()}` : null,
+          `Inicio: ${formatDateTimeForBackend(startLocal)}`,
+          `Duracao: ${hours} hora(s)`,
+        ].filter(Boolean).join(" | "),
       };
 
-      const res = await api.post("/user/alugueis/rent", payload);
-      const dto = res?.data;
+      const res = await api.post("/rentals/bookings", payload);
+      const booking = res?.data?.data ?? res?.data;
+      const dto = {
+        id: booking?.id,
+        rentalItemId: booking?.productId ?? item.id,
+        renterName: renterName || "Cliente",
+        quantity: booking?.quantity ?? quantity,
+        startDate: formatDateOnly(startDateTime),
+        endDate: formatDateOnly(returnDateTime),
+        totalPrice: Number(booking?.subtotal ?? Number(totalPrice)),
+        createdAt: booking?.createdAt ?? new Date().toISOString(),
+        returnTime: booking?.checkInAt ?? undefined,
+      };
       toast.success("Aluguel confirmado com sucesso!", {
         description: `${item.name} reservado por ${hours} hora(s).`,
         icon: <CheckCircle className="h-4 w-4 text-green-600" />,

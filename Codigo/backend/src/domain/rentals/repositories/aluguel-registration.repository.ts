@@ -44,6 +44,7 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
   async findById(id: string): Promise<IAluguelRegistration | null> {
     const booking = await this.prisma.rentalItem.findUnique({
       where: { id },
+      include: { rental: true },
     });
     if (!booking || booking.deletedAt) {
       return null;
@@ -60,6 +61,7 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
           deletedAt: null,
         },
       },
+      include: { rental: true },
       orderBy: { createdAt: 'desc' },
     });
     return items.map((item) => this.mapBooking(item));
@@ -68,6 +70,7 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
   async findByRentalId(rentalId: string): Promise<IAluguelRegistration[]> {
     const items = await this.prisma.rentalItem.findMany({
       where: { rentalId, deletedAt: null, rental: { deletedAt: null } },
+      include: { rental: true },
       orderBy: { createdAt: 'asc' },
     });
     return items.map((item) => this.mapBooking(item));
@@ -92,6 +95,7 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
           returnDate: { gte: startDate },
         },
       },
+      include: { rental: true },
       orderBy: { createdAt: 'desc' },
     });
     return items.map((item) => this.mapBooking(item));
@@ -173,7 +177,7 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
   }
 
   private mapBooking(
-    booking: Prisma.RentalItemGetPayload<Record<string, never>>,
+    booking: Prisma.RentalItemGetPayload<Record<string, never>> & { rental?: { rentalDate: Date; returnDate: Date } | null },
   ): IAluguelRegistration {
     return {
       id: booking.id,
@@ -182,6 +186,8 @@ export class AluguelRegistrationRepository implements IRentalBookingRepository {
       quantity: booking.quantity,
       unitPrice: Number(booking.unitPrice),
       subtotal: Number(booking.subtotal),
+      rentalDate: booking.rental?.rentalDate ?? null,
+      returnDate: booking.rental?.returnDate ?? null,
       checkOutAt: booking.checkOutAt,
       checkInAt: booking.checkInAt,
       status: booking.status,

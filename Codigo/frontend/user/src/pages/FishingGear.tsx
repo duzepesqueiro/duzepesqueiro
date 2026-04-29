@@ -331,18 +331,14 @@ const FishingGear = () => {
                               setRentalOrders((prev) =>
                                 prev.map((o) =>
                                   o.dto.id === id
-                                    ? { dto: { ...o.dto, returnTime: updated?.returnTime }, itemName: o.itemName }
+                                    ? { dto: { ...o.dto, status: updated?.status || "CANCELLED" }, itemName: o.itemName }
                                     : o
                                 )
                               );
-                              if (lastRenterName || lastPhone) {
-                                refreshUserRentals(lastRenterName, lastPhone);
-                              }
+                              await refreshUserRentals(lastRenterName, lastPhone);
                             }}
                             onUpdated={() => {
-                              if (lastRenterName || lastPhone) {
-                                refreshUserRentals(lastRenterName, lastPhone);
-                              }
+                              refreshUserRentals(lastRenterName, lastPhone);
                             }}
                           />
                         </TabsContent>

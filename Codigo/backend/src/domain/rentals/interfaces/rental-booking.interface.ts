@@ -7,6 +7,8 @@ export interface IRentalBooking {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  rentalDate?: Date | null;
+  returnDate?: Date | null;
   checkOutAt?: Date | null;
   checkInAt?: Date | null;
   status: RentalStatus;

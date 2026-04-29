@@ -144,16 +144,27 @@ api.interceptors.request.use(
 );
 
 export const getUserRentals = async (name?: string, phone?: string) => {
-  const params: any = {};
-  if (name) params.name = name;
-  if (phone) params.phone = phone;
-  const res = await api.get("/user/alugueis/meus", { params });
-  return res.data;
+  const res = await api.get("/rentals/bookings");
+  const items = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+  return items.map((item: any) => ({
+    id: item.id,
+    rentalItemId: item.productId ?? item.rentalItemId,
+    renterName: name || item.renterName || "Cliente",
+    quantity: item.quantity,
+    startDate: item.rentalDate?.slice?.(0, 10) || item.checkOutAt?.slice?.(0, 10) || item.startDate || item.createdAt?.slice?.(0, 10) || "",
+    endDate: item.returnDate?.slice?.(0, 10) || item.checkInAt?.slice?.(0, 10) || item.endDate || item.createdAt?.slice?.(0, 10) || "",
+    startTime: item.rentalDate ?? item.checkOutAt ?? undefined,
+    endTime: item.returnDate ?? item.checkInAt ?? undefined,
+    totalPrice: Number(item.subtotal ?? item.totalPrice ?? 0),
+    status: item.status,
+    createdAt: item.createdAt,
+    returnTime: item.checkInAt ?? item.returnTime,
+  }));
 };
 
 export const cancelRental = async (id: string | number) => {
-  const res = await api.post(`/user/alugueis/${id}/cancel`);
-  return res.data;
+  const res = await api.patch(`/rentals/bookings/${id}/cancel`);
+  return res.data?.data ?? res.data;
 };
 
 export const getUserOrders = async (name?: string) => {
@@ -168,8 +179,12 @@ export const cancelOrder = async (id: string | number) => {
 };
 
 export const updateRental = async (id: string | number, payload: any) => {
-  const res = await api.put(`/user/alugueis/${id}`, payload);
-  return res.data;
+  const newEndDate = payload?.newEndDate || payload?.endTime || payload?.endDate || payload?.returnDate;
+  if (!newEndDate) {
+    throw new Error('Informe a nova data de devolucao para atualizar o aluguel.');
+  }
+  const res = await api.patch(`/rentals/bookings/${id}/extend`, { newEndDate });
+  return res.data?.data ?? res.data;
 };
 
 export const getUserProfile = async (): Promise<{
