@@ -1,9 +1,6 @@
 import axios from "axios";
 
-const configuredBaseURL =
-  typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL
-    ? (import.meta as any).env.VITE_API_BASE_URL
-    : "";
+const configuredBaseURL = String(import.meta.env.VITE_API_BASE_URL ?? "").trim();
 const baseURL = configuredBaseURL || "http://localhost:3000";
 
 export const api = axios.create({
@@ -13,6 +10,11 @@ const refreshClient = axios.create({ baseURL });
 let isRefreshing = false;
 let refreshQueue: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
 
+const getStoredAccessToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('auth_token') || localStorage.getItem('auth_access_token');
+};
+
 const clearSessionAndRedirect = () => {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem("auth_token");
@@ -20,7 +22,7 @@ const clearSessionAndRedirect = () => {
   window.localStorage.removeItem("auth_refresh_token");
   window.localStorage.removeItem("auth_email");
   window.localStorage.removeItem("auth_role");
-  const target = (import.meta as any)?.env?.VITE_AUTH_APP_URL || "/auth/";
+  const target = String(import.meta.env.VITE_AUTH_APP_URL ?? "/auth/");
   window.location.assign(target);
 };
 
@@ -132,7 +134,7 @@ api.interceptors.request.use(
         config.url = config.url.replace(/^\/api(?=\/|$)/, '');
       }
     }
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const token = getStoredAccessToken();
     if (token) {
       const headers = (config.headers ?? {}) as any;
       headers.Authorization = `Bearer ${token}`;
@@ -179,7 +181,7 @@ export const getUserProfile = async (): Promise<{
   telefone?: string;
 } | null> => {
   const email = typeof window !== 'undefined' ? window.localStorage.getItem('auth_email') : null;
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+  const token = getStoredAccessToken();
   // Evita chamadas não autenticadas que geram 401 no console
   if (!email || !token) return null;
   try {

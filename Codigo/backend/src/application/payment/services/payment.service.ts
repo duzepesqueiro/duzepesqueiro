@@ -24,6 +24,7 @@ import {
 } from '../interfaces';
 import { MERCADO_PAGO_SDK_CLIENT } from '../providers/mercadopago';
 import {
+  CheckoutReturnDto,
   CheckoutPreferenceResponseDto,
   MercadoPagoWebhookDto,
   PayerDto,
@@ -209,7 +210,7 @@ export class PaymentService {
 
     const localPayment = await this.prisma.payment.findUnique({
       where: { externalReference },
-      select: { id: true, entityId: true, domain: true, externalId: true, dateApproved: true },
+      select: { id: true, entityId: true, domain: true, externalId: true, dateApproved: true, metadata: true },
     });
     if (!localPayment) {
       return;
@@ -217,10 +218,15 @@ export class PaymentService {
 
     const mappedStatus = this.mapGatewayStatus(gatewayPayment.status);
     const approvedAt = this.toOptionalDate(gatewayPayment.date_approved);
-    const parsedExternalId = Number.parseInt(String(gatewayPayment.id ?? ''), 10);
-    const externalId = Number.isNaN(parsedExternalId)
-      ? localPayment.externalId ?? undefined
-      : parsedExternalId;
+    const externalId = this.toDbExternalId(gatewayPayment.id) ?? localPayment.externalId ?? undefined;
+    const checkoutMetadata = this.buildCheckoutMetadata(localPayment.metadata, {
+      paymentId: this.toOptionalString(gatewayPayment.id),
+      status: this.toOptionalString(gatewayPayment.status),
+      externalReference,
+      merchantOrderId: this.toOptionalString(gatewayPayment.order?.id),
+      preferenceId: this.toOptionalString(gatewayPayment.preference_id),
+      source: 'webhook',
+    });
 
     await this.prisma.payment.update({
       where: { id: localPayment.id },
@@ -228,6 +234,7 @@ export class PaymentService {
         externalId,
         status: mappedStatus,
         statusDetail: gatewayPayment.status_detail ?? undefined,
+        metadata: checkoutMetadata,
         dateApproved:
           mappedStatus === PaymentStatus.APPROVED
             ? approvedAt ?? localPayment.dateApproved ?? new Date()
@@ -269,6 +276,44 @@ export class PaymentService {
         },
       });
     }
+  }
+
+  async processCheckoutReturn(payload: CheckoutReturnDto): Promise<void> {
+    const externalReference = String(payload.external_reference ?? '').trim();
+    if (!externalReference) {
+      return;
+    }
+
+    const localPayment = await this.prisma.payment.findUnique({
+      where: { externalReference },
+      select: { id: true, entityId: true, domain: true, externalId: true, dateApproved: true, metadata: true },
+    });
+    if (!localPayment) {
+      return;
+    }
+
+    const hasStatus = Boolean(this.toOptionalString(payload.status));
+    const mappedStatus = hasStatus
+      ? this.mapGatewayStatus(payload.status)
+      : undefined;
+    const externalId = this.toDbExternalId(payload.payment_id) ?? localPayment.externalId ?? undefined;
+    const checkoutMetadata = this.buildCheckoutMetadata(localPayment.metadata, {
+      paymentId: this.toOptionalString(payload.payment_id),
+      status: this.toOptionalString(payload.status),
+      externalReference,
+      merchantOrderId: this.toOptionalString(payload.merchant_order_id),
+      preferenceId: this.toOptionalString(payload.preference_id),
+      source: 'redirect',
+    });
+
+    await this.prisma.payment.update({
+      where: { id: localPayment.id },
+      data: {
+        externalId,
+        status: mappedStatus ?? undefined,
+        metadata: checkoutMetadata,
+      },
+    });
   }
 
   async refundByDomainEntity(
@@ -384,6 +429,58 @@ export class PaymentService {
     if (normalized === 'charged_back') return PaymentStatus.CHARGED_BACK;
     if (normalized === 'authorized') return PaymentStatus.AUTHORIZED;
     return PaymentStatus.REJECTED;
+  }
+
+  private toDbExternalId(value: unknown): number | undefined {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (Number.isNaN(parsed)) return undefined;
+    // PostgreSQL Int (Prisma Int) supports 32-bit signed values only.
+    if (parsed > 2147483647 || parsed < -2147483648) return undefined;
+    return parsed;
+  }
+
+  private toOptionalString(value: unknown): string | undefined {
+    const normalized = String(value ?? '').trim();
+    return normalized || undefined;
+  }
+
+  private buildCheckoutMetadata(
+    currentMetadata: Prisma.JsonValue | null,
+    paymentData: {
+      paymentId?: string;
+      status?: string;
+      externalReference?: string;
+      merchantOrderId?: string;
+      preferenceId?: string;
+      source: 'webhook' | 'redirect';
+    },
+  ): Prisma.InputJsonValue {
+    const previous = (currentMetadata && typeof currentMetadata === 'object')
+      ? (currentMetadata as Record<string, any>)
+      : {};
+    const previousCheckout = previous.checkoutPro && typeof previous.checkoutPro === 'object'
+      ? previous.checkoutPro
+      : {};
+    const previousLast = previousCheckout.lastPayment && typeof previousCheckout.lastPayment === 'object'
+      ? previousCheckout.lastPayment
+      : {};
+
+    return {
+      ...previous,
+      checkoutPro: {
+        ...previousCheckout,
+        lastPayment: {
+          ...previousLast,
+          paymentId: paymentData.paymentId ?? previousLast.paymentId ?? null,
+          status: paymentData.status ?? previousLast.status ?? null,
+          externalReference: paymentData.externalReference ?? previousLast.externalReference ?? null,
+          merchantOrderId: paymentData.merchantOrderId ?? previousLast.merchantOrderId ?? null,
+          preferenceId: paymentData.preferenceId ?? previousLast.preferenceId ?? null,
+          source: paymentData.source,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
   }
 
   private async resolveUserId(

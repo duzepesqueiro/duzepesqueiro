@@ -13,12 +13,36 @@ const statusColors: Record<string, string> = {
   confirmed: 'bg-primary text-primary-foreground',
   pending: 'bg-accent text-accent-foreground',
   cancelled: 'bg-destructive text-destructive-foreground',
+  completed: 'bg-emerald-600 text-white',
+  occupied: 'bg-sky-600 text-white',
+  no_show: 'bg-slate-600 text-white',
 };
 
 const statusLabels: Record<string, string> = {
   confirmed: 'Confirmada',
   pending: 'Pendente',
   cancelled: 'Cancelada',
+  completed: 'Concluida',
+  occupied: 'Em hospedagem',
+  no_show: 'Nao compareceu',
+};
+
+const paymentStatusLabels: Record<string, string> = {
+  APPROVED: 'Aprovado',
+  PENDING: 'Pendente',
+  CANCELLED: 'Cancelado',
+  REJECTED: 'Recusado',
+  REFUNDED: 'Reembolsado',
+  CHARGED_BACK: 'Estornado',
+};
+
+const mapPaymentMethodLabel = (method?: string | null) => {
+  const value = String(method || '').toUpperCase();
+  if (value.includes('PIX')) return 'PIX';
+  if (value.includes('CREDIT')) return 'Cartao de credito';
+  if (value.includes('DEBIT')) return 'Cartao de debito';
+  if (value.includes('BOLETO')) return 'Boleto';
+  return 'Nao informado';
 };
 
 interface ReservationDetailDialogProps {
@@ -34,6 +58,9 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
     bookingData.responsibleGuestIndex !== null
       ? bookingData.guestDetails[bookingData.responsibleGuestIndex] ?? bookingData.guestDetails[0]
       : bookingData.guestDetails[0];
+  const paymentStatus = String(
+    reservation.paymentStatus || (paymentData.status === 'success' ? 'APPROVED' : 'PENDING'),
+  ).toUpperCase();
   const nights = bookingData.checkIn && bookingData.checkOut
     ? Math.max(1, Math.round((new Date(bookingData.checkOut).getTime() - new Date(bookingData.checkIn).getTime()) / 86400000))
     : 1;
@@ -44,9 +71,9 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
         <DialogHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DialogTitle className="font-display text-xl">Detalhes da Reserva</DialogTitle>
-            <Badge className={statusColors[status]}>{statusLabels[status]}</Badge>
+            <Badge className={statusColors[status] || statusColors.pending}>{statusLabels[status] || statusLabels.pending}</Badge>
           </div>
-          <p className="text-xs text-muted-foreground font-mono">{reservation.id}</p>
+          <p className="text-xs text-muted-foreground font-mono">{reservation.code || reservation.id}</p>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
@@ -77,7 +104,7 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
               <User className="h-4 w-4" /> Responsável
             </h4>
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label="Nome" value={responsibleGuest?.name || '—'} />
+              <InfoCard label="Nome" value={responsibleGuest?.name || reservation.guestName || '—'} />
               <InfoCard label="CPF" value={responsibleGuest?.document || '—'} />
               <InfoCard label="Idade" value={responsibleGuest ? `${responsibleGuest.age} anos` : '—'} />
               <InfoCard label="Placa do veículo" value={bookingData.vehiclePlate || '—'} />
@@ -101,6 +128,11 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
                   </p>
                 </div>
               ))}
+              {bookingData.guestDetails.length === 0 && (
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-sm text-muted-foreground">Detalhes de hóspedes indisponíveis nesta listagem.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -109,12 +141,12 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
           {/* Payment */}
           <div>
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              {paymentData.method === 'pix' ? <QrCode className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+              {(paymentData.method === 'pix' || String(reservation.paymentMethod || '').toUpperCase().includes('PIX')) ? <QrCode className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
               Pagamento
             </h4>
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label="Método" value={paymentData.method === 'pix' ? 'PIX' : 'Cartão de Crédito'} />
-              <InfoCard label="Status" value={paymentData.status === 'success' ? 'Aprovado' : paymentData.status === 'error' ? 'Erro' : 'Processando'} />
+              <InfoCard label="Método" value={mapPaymentMethodLabel(reservation.paymentMethod)} />
+              <InfoCard label="Status" value={paymentStatusLabels[paymentStatus] || paymentStatus} />
             </div>
           </div>
 
@@ -123,7 +155,7 @@ const ReservationDetailDialog = ({ open, onOpenChange, reservation, room }: Rese
           {/* Price */}
           <div className="rounded-xl p-4" style={{ background: 'var(--gradient-gold)' }}>
             <div className="flex justify-between items-center">
-              <span className="text-primary-foreground font-semibold">Total pago</span>
+              <span className="text-primary-foreground font-semibold">Valor da reserva</span>
               <span className="text-primary-foreground font-bold text-2xl">{formatBRL(totalPrice)}</span>
             </div>
             {room && (

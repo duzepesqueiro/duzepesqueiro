@@ -27,9 +27,15 @@ export type ForgotPasswordRequest = {
   email: string;
 };
 
+export type VerifyPasswordResetCodeRequest = {
+  email: string;
+  code: string;
+};
+
 export type ResetPasswordRequest = {
-  token: string;
+  resetSessionToken: string;
   newPassword: string;
+  confirmPassword: string;
 };
 
 export type SessionData = {
@@ -136,6 +142,12 @@ export async function resendConfirmationRequest(payload: ForgotPasswordRequest):
 
 export async function forgotPasswordRequest(payload: ForgotPasswordRequest): Promise<Response> {
   return postJson("/auth/forgot-password", payload);
+}
+
+export async function verifyPasswordResetCodeRequest(
+  payload: VerifyPasswordResetCodeRequest,
+): Promise<Response> {
+  return postJson("/auth/verify-password-reset-code", payload);
 }
 
 export async function resetPasswordRequest(payload: ResetPasswordRequest): Promise<Response> {

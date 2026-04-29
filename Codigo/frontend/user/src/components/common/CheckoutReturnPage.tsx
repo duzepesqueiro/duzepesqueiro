@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Clock3 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Header from '@/components/common/layout/Header';
+import { api } from '@/lib/api';
 
 type CheckoutReturnStatus = 'success' | 'pending' | 'failure';
 
@@ -50,6 +52,7 @@ const CheckoutReturnPage = ({ status }: CheckoutReturnPageProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const config = STATUS_CONFIG[status];
+  const hasPersistedRef = useRef(false);
   const details = useMemo(
     () => ({
       paymentId: searchParams.get('payment_id') || searchParams.get('collection_id') || '-',
@@ -62,6 +65,21 @@ const CheckoutReturnPage = ({ status }: CheckoutReturnPageProps) => {
   );
   const Icon = config.Icon;
 
+  useEffect(() => {
+    if (hasPersistedRef.current) return;
+    hasPersistedRef.current = true;
+
+    void api.post('/api/payments/checkout-pro/return', {
+      payment_id: details.paymentId !== '-' ? details.paymentId : undefined,
+      status: details.paymentStatus !== '-' ? details.paymentStatus : undefined,
+      external_reference:
+        details.externalReference !== '-' ? details.externalReference : undefined,
+      merchant_order_id:
+        details.merchantOrderId !== '-' ? details.merchantOrderId : undefined,
+      preference_id: details.preferenceId !== '-' ? details.preferenceId : undefined,
+    });
+  }, [details]);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -69,7 +87,25 @@ const CheckoutReturnPage = ({ status }: CheckoutReturnPageProps) => {
         <div className="container mx-auto max-w-2xl">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
             <div className="flex items-center gap-3">
-              <Icon className={`h-10 w-10 ${config.iconClass}`} />
+              <motion.div
+                className={`rounded-full p-2 ${
+                  status === 'success'
+                    ? 'bg-emerald-100'
+                    : status === 'pending'
+                      ? 'bg-amber-100'
+                      : 'bg-rose-100'
+                }`}
+                animate={
+                  status === 'success'
+                    ? { scale: [1, 1.1, 1] }
+                    : status === 'pending'
+                      ? { rotate: [0, 10, -10, 0] }
+                      : { x: [0, -6, 6, -4, 4, 0] }
+                }
+                transition={{ duration: 0.8, repeat: status === 'pending' ? Infinity : 0 }}
+              >
+                <Icon className={`h-10 w-10 ${config.iconClass}`} />
+              </motion.div>
               <div>
                 <h1 className="font-display text-3xl font-bold text-foreground">{config.title}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
@@ -82,16 +118,9 @@ const CheckoutReturnPage = ({ status }: CheckoutReturnPageProps) => {
               </span>
             </div>
 
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Retorno Mercado Pago</p>
-              <div className="mt-3 space-y-2 text-sm text-foreground">
-                <p>payment_id: {details.paymentId}</p>
-                <p>status: {details.paymentStatus}</p>
-                <p>external_reference: {details.externalReference}</p>
-                <p>merchant_order_id: {details.merchantOrderId}</p>
-                <p>preference_id: {details.preferenceId}</p>
-              </div>
-            </div>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Você pode acompanhar os detalhes desta transação em suas reservas.
+            </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button

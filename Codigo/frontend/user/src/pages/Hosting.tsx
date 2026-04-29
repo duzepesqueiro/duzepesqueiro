@@ -10,7 +10,6 @@ const Index = lazy(() => import("../components/common/Index"));
 const RoomsPage = lazy(() => import("../components/common/RoomsPage"));
 const RoomDetailPage = lazy(() => import("../components/common/RoomDetailPage"));
 const BookingPage = lazy(() => import("../components/common/BookingPage"));
-const CheckoutProPage = lazy(() => import("../components/common/CheckoutProPage"));
 const ConfirmationPage = lazy(() => import("../components/common/ConfirmationPage"));
 const PaymentSuccessPage = lazy(() => import("../components/common/PaymentSuccessPage"));
 const PaymentPendingPage = lazy(() => import("../components/common/PaymentPendingPage"));
@@ -40,7 +39,6 @@ const Hosting = () => (
                 <Route path="rooms" element={<RoomsPage />} />
                 <Route path="rooms/:id" element={<RoomDetailPage />} />
                 <Route path="booking" element={<BookingPage />} />
-                <Route path="checkout-pro" element={<CheckoutProPage />} />
                 <Route path="pagamento/sucesso" element={<PaymentSuccessPage />} />
                 <Route path="pagamento/pendente" element={<PaymentPendingPage />} />
                 <Route path="pagamento/falha" element={<PaymentFailurePage />} />

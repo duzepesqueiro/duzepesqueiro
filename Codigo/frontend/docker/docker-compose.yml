@@ -25,6 +25,7 @@ services:
       VITE_BASE_PATH: /user/
       VITE_AUTH_APP_URL: /auth/
       VITE_API_BASE_URL: /api
+      VITE_MERCADOPAGO_PUBLIC_KEY: APP_USR-08993d66-3a54-4c22-b4b8-3daf2738a767
     volumes:
       - ../user:/app
       - user_node_modules:/app/node_modules

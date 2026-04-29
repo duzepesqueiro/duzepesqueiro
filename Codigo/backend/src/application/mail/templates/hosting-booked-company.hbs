@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nova Reserva de Hospedagem</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <div style="max-width: 720px; margin: 0 auto; padding: 20px;">
+    <h1 style="color: #2c5530;">Nova Reserva de Hospedagem</h1>
+    <p>Uma nova reserva foi confirmada no sistema.</p>
+
+    <h3>Resumo da reserva</h3>
+    <p>Código da reserva: <strong>{{codigoReserva}}</strong></p>
+    <p>Status da reserva: <strong>{{reservationStatus}}</strong></p>
+    <p>Status do pagamento: <strong>{{paymentStatus}}</strong></p>
+    <p>Método de pagamento: <strong>{{paymentMethod}}</strong></p>
+    <p>Acomodação: <strong>{{accommodationName}}</strong></p>
+    <p>Check-in previsto: <strong>{{checkIn}}</strong></p>
+    <p>Check-out previsto: <strong>{{checkOut}}</strong></p>
+    <p>Total de hóspedes: <strong>{{guests}}</strong> (Adultos: {{adults}} | Crianças: {{children}})</p>
+
+    <h3>Responsável pela reserva</h3>
+    <p>Nome: <strong>{{customerName}}</strong></p>
+    <p>E-mail: <strong>{{customerEmail}}</strong></p>
+    <p>Telefone: <strong>{{customerPhone}}</strong></p>
+
+    <h3>Valores</h3>
+    <p>Valor da diária: <strong>R$ {{valorDiaria}}</strong></p>
+    <p>Valor total da reserva: <strong>R$ {{total}}</strong></p>
+    <p>Pagamento no app (50%): <strong>R$ {{valorPagoApp}}</strong></p>
+    <p>Pagamento no check-in (50%): <strong>R$ {{valorRestanteCheckin}}</strong></p>
+
+    <h3>Hóspedes cadastrados</h3>
+    {{#if guestDetails.length}}
+    <ul style="padding-left: 18px;">
+      {{#each guestDetails}}
+      <li style="margin-bottom: 10px;">
+        <strong>{{fullName}}</strong>{{#if isPrimary}} (responsável){{/if}}<br>
+        E-mail: {{email}}<br>
+        Telefone: {{phone}}<br>
+        CPF: {{cpf}}<br>
+        RG: {{rg}}<br>
+        Data de nascimento: {{birthDate}}
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <p>Não há hóspedes detalhados cadastrados. Lista recebida:</p>
+    <ul style="padding-left: 18px;">
+      {{#each guestList}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+    {{/if}}
+
+    {{#if observacoes}}
+    <h3>Observações</h3>
+    <p>{{observacoes}}</p>
+    {{/if}}
+
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="font-size: 12px; color: #999;">© {{year}} DuZePesqueiro. Todos os direitos reservados.</p>
+  </div>
+</body>
+</html>
