@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import Header from "@/components/Header";
 import HeroCarousel from "@/components/HeroCarousel";
-import SocialActions from "@/components/SocialActions";
 import { isAuthenticated } from "@/lib/auth";
 import { peekRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { showRatingToast } from "@/components/RatingToast";
@@ -45,7 +44,6 @@ const Index = () => {
       <main>
         <HeroCarousel />
       </main>
-      <SocialActions />
 
       {/* Rating via toast é gerenciado automaticamente via showRatingToast */}
     </div>
