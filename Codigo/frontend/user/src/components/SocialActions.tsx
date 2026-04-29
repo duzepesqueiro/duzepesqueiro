@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,10 +16,60 @@ const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
+const WppChatBubble = () => {
+  const textLine1 = "Precisa de mais espaço?";
+  const textLine2 = "Podemos combinar o número de hospedes!";
+  
+  return (
+    <div className="relative rounded-2xl border border-border/50 bg-background px-4 py-3 text-sm shadow-xl max-w-[280px]">
+      <div className="text-foreground">{textLine1}</div>
+      <div className="text-muted-foreground">{textLine2}</div>
+      
+      {/* Triângulo do balão apontando para a direita */}
+      <div className="absolute right-[-6px] top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-t border-r border-border/50 bg-background" />
+    </div>
+  );
+};
+
 const SocialActions = () => {
   const [message, setMessage] = useState("");
+  const [showBubble, setShowBubble] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false); // Evita incomodar o usuário que já clicou
+  
   const instagramUrl = String(import.meta.env.VITE_STORE_INSTAGRAM_URL ?? "https://instagram.com");
-  const storeWhatsappPhone = String(import.meta.env.VITE_STORE_WHATSAPP_PHONE ?? ""); // e.g. 5591999999999
+  const storeWhatsappPhone = String(import.meta.env.VITE_STORE_WHATSAPP_PHONE ?? ""); 
+
+  useEffect(() => {
+    // Se o usuário já interagiu com o botão, paramos o cronômetro para não incomodar mais.
+    if (hasInteracted) {
+      setShowBubble(false);
+      return;
+    }
+
+    const checkAndShowBubble = () => {
+      // Verifica se a URL atual contém "/hospedagem"
+      const isHostingPage = window.location.pathname.includes("/hospedagem");
+      
+      if (isHostingPage && !hasInteracted) {
+        setShowBubble(true);
+        // Oculta o balão após 8 segundos
+        setTimeout(() => setShowBubble(false), 8000);
+      } else {
+        setShowBubble(false);
+      }
+    };
+
+    // Primeira exibição após 3 segundos
+    const initialTimeout = setTimeout(checkAndShowBubble, 3000);
+
+    // Depois repete o ciclo a cada 45 segundos
+    const interval = setInterval(checkAndShowBubble, 45000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [hasInteracted]);
 
   const openWhatsApp = () => {
     const text = message.trim();
@@ -29,16 +79,27 @@ const SocialActions = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-[70] flex flex-col gap-3">
-      {/* WhatsApp: abre dialog */}
-      <Dialog>
+    <div className="fixed bottom-4 right-4 z-[70] flex flex-col items-end gap-3">
+      {/* WhatsApp: envolve balão e botão em linha (flex-row) */}
+      <Dialog onOpenChange={(open) => { if (open) setHasInteracted(true); }}>
         <DialogTrigger asChild>
-          <Button
-            aria-label="Contato via WhatsApp"
-            className="h-12 w-12 rounded-full p-0 bg-[#25D366] text-white hover:brightness-110 shadow-lg"
+          <div 
+            className="flex flex-row items-center gap-4 cursor-pointer group"
+            onClick={() => setHasInteracted(true)} // Registra interação ao clicar
           >
-            <WhatsAppIcon className="w-6 h-6" />
-          </Button>
+            {/* Renderização condicional do balão com animação suave de entrada */}
+            {showBubble && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 ease-out">
+                <WppChatBubble />
+              </div>
+            )}
+            <Button
+              aria-label="Contato via WhatsApp"
+              className="h-14 w-14 rounded-full p-0 bg-[#25D366] text-white hover:brightness-110 shadow-xl group-hover:scale-105 transition-transform shrink-0"
+            >
+              <WhatsAppIcon className="w-7 h-7" />
+            </Button>
+          </div>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -97,15 +158,15 @@ const SocialActions = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Instagram: link direto */}
+      {/* Instagram: mantido alinhado à direita debaixo do WPP */}
       <Button
         aria-label="Instagram da loja"
         onClick={() => {
           if (typeof window !== "undefined") window.open(instagramUrl, "_blank");
         }}
-        className="h-12 w-12 rounded-full p-0 bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 text-white hover:brightness-110 shadow-lg"
+        className="h-14 w-14 rounded-full p-0 bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 text-white hover:brightness-110 shadow-xl shrink-0"
       >
-        <Instagram className="w-6 h-6" />
+        <Instagram className="w-7 h-7" />
       </Button>
     </div>
   );
