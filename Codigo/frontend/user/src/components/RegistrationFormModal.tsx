@@ -3,11 +3,10 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { format } from "date-fns";
 import { CalendarIcon, Clock, MapPin, Users } from "lucide-react";
 import { toast } from "sonner";
 import { api, getUserProfile } from "@/lib/api";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
+import { isAuthenticated } from "@/lib/auth"; // Removido o redirectToLogin que não estava sendo usado
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatPhoneBR, unmaskPhone } from "@/lib/phone";
-
 
 const formSchema = z.object({
   eventId: z.string().min(1, {
@@ -75,9 +73,20 @@ export const RegistrationFormModal = ({
   const [selectedEventId, setSelectedEventId] = useState<string>(
     initialEventId?.toString() || ""
   );
-
   const [events, setEvents] = useState<any[]>([]);
 
+  // 1. INICIALIZAMOS O FORM PRIMEIRO (Para os UseEffects poderem usá-lo)
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      eventId: initialEventId?.toString() || "",
+      fullName: "",
+      phoneNumber: "",
+      age: "",
+    },
+  });
+
+  // 2. BUSCAR OS EVENTOS DISPONÍVEIS
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -90,65 +99,61 @@ export const RegistrationFormModal = ({
     fetchEvents();
   }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      eventId: initialEventId?.toString() || "",
-      fullName: "",
-      phoneNumber: "",
-      age: "",
-    },
-  });
-
+  // 3. PRÉ-PREENCHER OS DADOS DO USUÁRIO LOGADO E O EVENTO INICIAL
   useEffect(() => {
-    // Prefill user data when authenticated
-    (async () => {
-      try {
-        if (isAuthenticated()) {
-          const profile = await getUserProfile();
-          if (profile) {
-            if (profile.nome) form.setValue("fullName", profile.nome);
-            if (profile.telefone) form.setValue("phoneNumber", formatPhoneBR(profile.telefone));
-          }
-        }
-      } catch {}
-    })();
+    let mounted = true; 
 
+    const prefillUserData = async () => {
+      if (open && isAuthenticated()) {
+        try {
+          const profile = await getUserProfile();
+          if (mounted && profile) {
+            if (profile.nome) {
+              form.setValue("fullName", profile.nome);
+            }
+            if (profile.telefone) {
+              form.setValue("phoneNumber", formatPhoneBR(profile.telefone));
+            }
+          }
+        } catch (error) {
+          console.warn("Erro ao buscar dados do usuário para o modal de eventos", error);
+        }
+      }
+    };
+
+    prefillUserData();
+
+    // Seta o Evento Inicial se houver
     if (initialEventId) {
       const eventIdStr = initialEventId.toString();
       setSelectedEventId(eventIdStr);
       form.setValue("eventId", eventIdStr);
     }
-  }, [initialEventId, form]);
+
+    return () => { mounted = false; };
+  }, [open, initialEventId, form]); 
 
   const selectedEvent = events.find(e => e.id.toString() === selectedEventId);
 
-async function onSubmit(values: z.infer<typeof formSchema>) {
-  setIsSubmitting(true);
-  try {
-    // Require authentication on action
-    // if (!isAuthenticated()) {
-    //   setIsSubmitting(false);
-    //   redirectToLogin(`register_event:${values.eventId}`);
-    //   return;
-    // }
-
-    await api.post(`/eventos/${values.eventId}/inscrever`, {
-      nome: values.fullName,
-      telefone: values.phoneNumber,
-      idade: Number(values.age),
-    });
-    toast.success("Inscrição realizada com sucesso!");
-    onOpenChange(false);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
     try {
-      onRegistered?.({ eventId: Number(values.eventId), eventTitle: selectedEvent?.title });
-    } catch {}
-  } catch (error) {
-    toast.error("Erro ao realizar inscrição!");
-  } finally {
-    setIsSubmitting(false);
+      await api.post(`/eventos/${values.eventId}/inscrever`, {
+        nome: values.fullName,
+        telefone: values.phoneNumber,
+        idade: Number(values.age),
+      });
+      toast.success("Inscrição realizada com sucesso!");
+      onOpenChange(false);
+      try {
+        onRegistered?.({ eventId: Number(values.eventId), eventTitle: selectedEvent?.title });
+      } catch {}
+    } catch (error) {
+      toast.error("Erro ao realizar inscrição!");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
-}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
