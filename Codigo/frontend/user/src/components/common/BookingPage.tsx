@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Wallet, initMercadoPago } from '@mercadopago/sdk-react';
 import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
@@ -49,6 +50,34 @@ type ActivePolicyDTO = {
   termsContent: string;
   effectiveFrom: string;
   effectiveTo?: string | null;
+};
+
+type ApiLoggedUserProfile = {
+  id?: string;
+  email?: string;
+  nome?: string;
+  name?: string;
+  telefone?: string;
+  phone?: string;
+};
+
+type ApiReservationResponse = {
+  id: string;
+  code?: string;
+  totalAmount?: number;
+  guestName?: string;
+  guestEmail?: string;
+};
+
+type CheckoutPreferenceResponse = {
+  id: string;
+  preferenceId: string;
+  initPoint: string;
+};
+
+type CheckoutPreparationResult = {
+  checkoutPreferenceId: string;
+  initPoint?: string;
 };
 
 const WhatsAppIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
@@ -156,11 +185,29 @@ const BookingPage = () => {
   const [step, setStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<BookingErrors>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
 
   const locationState = location.state as BookingLocationState | null | undefined;
   const locationRoom = locationState?.room;
   const bookingSeed = locationState?.booking;
   const roomId = locationRoom?.id || booking.roomId;
+  const authEmail = typeof window === 'undefined' ? '' : window.localStorage.getItem('auth_email') || '';
+  const envMercadoPagoPublicKey = String(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY ?? '').trim();
+  const sessionMercadoPagoPublicKey = typeof window === 'undefined'
+    ? ''
+    : (window.sessionStorage.getItem('mp_public_key') || '').trim();
+  const mercadoPagoPublicKey = envMercadoPagoPublicKey || sessionMercadoPagoPublicKey;
+
+  useEffect(() => {
+    if (envMercadoPagoPublicKey && typeof window !== 'undefined') {
+      window.sessionStorage.setItem('mp_public_key', envMercadoPagoPublicKey);
+    }
+  }, [envMercadoPagoPublicKey]);
+
+  useEffect(() => {
+    if (!mercadoPagoPublicKey) return;
+    initMercadoPago(mercadoPagoPublicKey);
+  }, [mercadoPagoPublicKey]);
 
   const { data: apiRoomData } = useQuery<ApiChaletDetail>({
     queryKey: ['booking-room-detail', roomId],
@@ -181,6 +228,16 @@ const BookingPage = () => {
     },
     staleTime: 1000 * 60 * 5,
   });
+  const { data: loggedUserProfile } = useQuery<ApiLoggedUserProfile>({
+    queryKey: ['booking-user-profile', authEmail],
+    queryFn: async () => {
+      const { data } = await api.get('/user/usuarios/me', {
+        params: { email: authEmail },
+      });
+      return data as ApiLoggedUserProfile;
+    },
+    enabled: Boolean(authEmail),
+  });
   const room = locationRoom ?? (apiRoomData ? mapApiChaletToRoom(apiRoomData) : null);
   const checkInDate = isValidDateValue(booking.checkIn) ? startOfDay(booking.checkIn) : null;
   const checkOutDate = isValidDateValue(booking.checkOut) ? startOfDay(booking.checkOut) : null;
@@ -198,7 +255,7 @@ const BookingPage = () => {
   const hasTermsDocument = Boolean(activePolicy?.termsContent?.trim());
   const termsFileName = `termos-reserva-${booking.policyVersion || 'atual'}.pdf`;
   const whatsappMessage = 'Precisa de mais espaço? Podemos combinar o número de hospedes!';
-  const whatsappPhone = (import.meta as any)?.env?.VITE_STORE_WHATSAPP_PHONE || '';
+  const whatsappPhone = String(import.meta.env.VITE_STORE_WHATSAPP_PHONE ?? '');
 
   useEffect(() => {
     if (!room) return;
@@ -242,6 +299,93 @@ const BookingPage = () => {
       policyTerm: activePolicy.termsContent ?? '',
     }));
   }, [activePolicy, setBooking]);
+
+  const finalizeReservationMutation = useMutation<CheckoutPreparationResult>({
+    mutationFn: async () => {
+      if (!room) {
+        throw new Error('Quarto não encontrado.');
+      }
+      if (!booking.checkIn || !booking.checkOut) {
+        throw new Error('Check-in e check-out são obrigatórios.');
+      }
+      if (booking.responsibleGuestIndex === null || !booking.guestDetails[booking.responsibleGuestIndex]) {
+        throw new Error('Selecione um hóspede responsável válido.');
+      }
+
+      const responsibleGuest = booking.guestDetails[booking.responsibleGuestIndex];
+      const reservationEmail = (loggedUserProfile?.email || authEmail || '').trim();
+      if (!reservationEmail) {
+        throw new Error('Não foi possível identificar o e-mail da conta logada.');
+      }
+      const userId = (loggedUserProfile?.id || '').trim();
+      if (!userId) {
+        throw new Error('Não foi possível identificar o usuário logado para criar o pagamento.');
+      }
+
+      const reservationPayload = {
+        chaletId: room.id,
+        checkInDate: booking.checkIn.toISOString(),
+        checkOutDate: booking.checkOut.toISOString(),
+        adults: booking.guestDetails.length,
+        children: 0,
+        guestName: responsibleGuest.name.trim(),
+        guestEmail: reservationEmail,
+        guestPhone: (loggedUserProfile?.telefone || '').trim() || undefined,
+        vehiclePlate: booking.vehiclePlate,
+        notes: booking.observations.trim() || undefined,
+        policiesAccepted: booking.termsAccepted,
+        policiesAcceptedAt: new Date().toISOString(),
+        policyVersion: booking.policyVersion,
+        policyTerm: booking.policyTerm,
+        guests: booking.guestDetails.map((guest) => ({
+          fullName: guest.name.trim(),
+          cpf: guest.document.trim(),
+          age: guest.age,
+        })),
+        responsibleGuestIndex: booking.responsibleGuestIndex,
+      };
+
+      const { data: reservationData } = await api.post('/api/reservas', reservationPayload);
+      const reservation = reservationData as ApiReservationResponse;
+      const reservationTotal = Number(reservation.totalAmount ?? totalPrice);
+      const reservationGuestName = (reservation.guestName || responsibleGuest.name).trim();
+      const [firstName, ...lastNameParts] = reservationGuestName.split(' ').filter(Boolean);
+      const preferencePayload = {
+        domain: 'hosting',
+        entityId: reservation.id,
+        userId,
+        payer: {
+          email: reservation.guestEmail || reservationEmail,
+          firstName: firstName || 'Hospede',
+          lastName: lastNameParts.join(' ') || undefined,
+          identification: {
+            type: 'CPF',
+            number: responsibleGuest.document.replace(/\D/g, ''),
+          },
+        },
+        items: [
+          {
+            id: reservation.id,
+            title: `Reserva ${reservation.code || reservation.id}`,
+            description: `Pagamento da hospedagem (${Math.max(nights, 1)} noite(s))`,
+            quantity: 1,
+            unitPrice: reservationTotal,
+          },
+        ],
+      };
+
+      const { data: preferenceData } = await api.post('/api/payments/checkout-pro/preference', preferencePayload);
+      const preference = preferenceData as CheckoutPreferenceResponse;
+      if (!preference.preferenceId && !preference.id) {
+        throw new Error('Não foi possível obter o identificador da preferência.');
+      }
+      const checkoutPreferenceId = preference.preferenceId || preference.id;
+      return {
+        checkoutPreferenceId,
+        initPoint: preference.initPoint,
+      };
+    },
+  });
 
   if (!room) {
     return (
@@ -517,7 +661,7 @@ const BookingPage = () => {
   };
 
   const next = async () => {
-    const errors = step === 3 ? validateAll() : validateStep(step);
+    const errors = validateStep(step);
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -538,9 +682,58 @@ const BookingPage = () => {
       setStep((prev) => prev + 1);
       return;
     }
-
-    navigate('/hospedagem/payment', { state: { room, totalPrice } });
   };
+
+  const walletInitialization = useMemo(
+    () => ({ redirectMode: 'self' as const }),
+    [],
+  );
+
+  const handleWalletError = useCallback((error: unknown) => {
+    const errorMessage =
+      (error as any)?.message || 'Falha ao carregar o botão do Mercado Pago.';
+    toast({
+      title: 'Erro no checkout Mercado Pago',
+      description: errorMessage,
+      variant: 'destructive',
+    });
+  }, []);
+
+  const handleWalletSubmit = useCallback(async () => {
+    const errors = validateAll();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setStep(getFirstInvalidStep(errors));
+      const firstError = Object.values(errors)[0] ?? 'Preencha os dados da reserva antes de pagar.';
+      toast({
+        title: 'Nao foi possivel iniciar o pagamento',
+        description: firstError,
+        variant: 'destructive',
+      });
+      throw new Error(firstError);
+    }
+
+    setFieldErrors({});
+    setIsPreparingCheckout(true);
+    try {
+      const { checkoutPreferenceId } = await finalizeReservationMutation.mutateAsync();
+      return checkoutPreferenceId;
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message ?? error?.message ?? 'Não foi possível iniciar o pagamento.';
+      const description = Array.isArray(backendMessage)
+        ? backendMessage[0]
+        : backendMessage;
+      toast({
+        title: 'Erro ao redirecionar para pagamento',
+        description,
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsPreparingCheckout(false);
+    }
+  }, [finalizeReservationMutation, getFirstInvalidStep, validateAll]);
 
   const back = () => {
     if (step > 0) {
@@ -1143,22 +1336,45 @@ const BookingPage = () => {
                 >
                   <ChevronLeft className="h-4 w-4" /> Voltar
                 </button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={next}
-                  className="btn-gold flex items-center gap-1 text-base"
-                >
-                  {step === 3
-                    ? 'Ir para pagamento'
-                    : 'Proximo'} <ChevronRight className="h-4 w-4" />
-                </motion.button>
+                {step < 3 ? (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={next}
+                    className="btn-gold flex items-center gap-1 text-base"
+                  >
+                    Proximo <ChevronRight className="h-4 w-4" />
+                  </motion.button>
+                ) : (
+                  <div className="w-full max-w-[320px]">
+                    {mercadoPagoPublicKey ? (
+                      <Wallet
+                        id="booking-wallet-brick"
+                        initialization={walletInitialization}
+                        onSubmit={handleWalletSubmit}
+                        onError={handleWalletError}
+                      />
+                    ) : (
+                      <p className="text-sm text-destructive">
+                        Configure `VITE_MERCADOPAGO_PUBLIC_KEY` para habilitar o pagamento.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </AnimatePresence>
         </div>
         </div>
       </main>
+      {isPreparingCheckout ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50">
+          <div className="rounded-xl bg-white px-6 py-5 text-center shadow-xl">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#024059] border-t-transparent" />
+            <p className="mt-3 text-sm font-medium text-foreground">Preparando pagamento...</p>
+          </div>
+        </div>
+      ) : null}
       {step === 0 ? (
         <div className="fixed bottom-6 right-6 z-[80] flex items-end gap-3">
           <div className="max-w-[250px] rounded-2xl border border-[#25D366]/30 bg-white px-4 py-3 text-sm text-foreground shadow-lg">

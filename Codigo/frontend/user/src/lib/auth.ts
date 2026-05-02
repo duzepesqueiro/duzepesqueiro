@@ -1,6 +1,9 @@
 export const isAuthenticated = (): boolean => {
   if (typeof window === "undefined") return false;
-  return !!window.localStorage.getItem("auth_token");
+  return !!(
+    window.localStorage.getItem("auth_token") ||
+    window.localStorage.getItem("auth_access_token")
+  );
 };
 
 export const redirectToLogin = (pendingAction?: string) => {
@@ -19,7 +22,7 @@ export const redirectToLogin = (pendingAction?: string) => {
     }
   } catch {}
 
-  const target = (import.meta as any)?.env?.VITE_AUTH_APP_URL || "/auth/";
+  const target = String(import.meta.env.VITE_AUTH_APP_URL ?? "/auth/");
   window.location.assign(target);
 };
 

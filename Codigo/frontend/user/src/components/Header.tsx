@@ -72,7 +72,12 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setIsLoggedIn(!!window.localStorage.getItem("auth_token"));
+    setIsLoggedIn(
+      !!(
+        window.localStorage.getItem("auth_token") ||
+        window.localStorage.getItem("auth_access_token")
+      ),
+    );
   }, []);
 
   const fetchProfile = async () => {
@@ -409,7 +414,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                       variant="ghost"
                       className="justify-start gap-2 w-full"
                       onClick={() => {
-                        const target = (import.meta as any)?.env?.VITE_AUTH_APP_URL;
+                        const target = String(import.meta.env.VITE_AUTH_APP_URL ?? '');
                         if (target) {
                           window.location.assign(target);
                         } else {
@@ -424,7 +429,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                       variant="ghost"
                       className="justify-start gap-2 w-full"
                       onClick={() => {
-                        const target = (import.meta as any)?.env?.VITE_AUTH_APP_URL;
+                        const target = String(import.meta.env.VITE_AUTH_APP_URL ?? '');
                         if (target) {
                           window.location.assign(target);
                         } else {

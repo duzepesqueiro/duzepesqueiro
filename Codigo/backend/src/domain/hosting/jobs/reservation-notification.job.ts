@@ -7,7 +7,7 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { LogsService } from '../../../application/logs/services';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
-import { HostingEventTypes } from '../../../shared/events/hosting/event-types';
+import { EventTypes } from '../../../shared/events/event-types';
 import { HospedagemNotificationService } from '../services';
 
 type BookingEventPayload = {
@@ -41,14 +41,30 @@ export class ReservationNotificationJob implements OnModuleInit, OnModuleDestroy
     }
   }
 
-  @OnEvent(HostingEventTypes.HOSTING_BOOKED)
-  async handleReservationCreated(event: BookingEventPayload): Promise<void> {
+  @OnEvent(EventTypes.HOSTING_PAID)
+  async handleReservationPaid(event: BookingEventPayload): Promise<void> {
     const reservationId = event.reservationId ?? event.bookingId ?? event.hostingId;
     if (!reservationId) {
-      this.logger.warn('Evento HOSTING_BOOKED recebido sem reservationId.');
+      this.logger.warn('Evento HOSTING_PAID recebido sem reservationId.');
       return;
     }
-    this.logger.log(`Processando envio de e-mail da reserva ${reservationId}.`);
+    this.logger.log(`Processando notificação pós-pagamento da reserva ${reservationId}.`);
+
+    try {
+      this.logger.log(`Enviando confirmação de pagamento da reserva ${reservationId}.`);
+      await this.notificationService.enviarConfirmacaoPagamento(reservationId);
+      this.logger.log(`Confirmação de pagamento enviada para ${reservationId}.`);
+    } catch (error) {
+      this.logger.error(
+        `Falha ao enviar confirmação de pagamento da reserva ${reservationId}: ${this.toErrorMessage(error)}`,
+      );
+      await this.persistFailure(
+        reservationId,
+        HostingNotificationChannel.EMAIL,
+        'PAYMENT_CONFIRMED',
+        error,
+      );
+    }
 
     try {
       this.logger.log(`Enviando confirmação de reserva para ${reservationId}.`);
