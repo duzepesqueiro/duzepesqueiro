@@ -10,6 +10,7 @@ import { LogsService } from '../../logs/services';
 import {
   EventBookingConfirmationMailPayload,
   HostingBookedMailPayload,
+  HostingBookedCompanyMailPayload,
   HostingCancellationMailPayload,
   HostingCheckinMailPayload,
   HostingCheckoutMailPayload,
@@ -161,9 +162,12 @@ export class MailService {
     }
   }
 
-  async sendPasswordResetEmail(email: string, name: string, resetToken: string) {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
+  async sendPasswordResetCodeEmail(
+    email: string,
+    name: string,
+    resetCode: string,
+    expiresInMinutes: number,
+  ) {
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -171,20 +175,69 @@ export class MailService {
         template: 'reset-password',
         context: {
           name,
-          resetUrl,
+          resetCode,
+          expiresInMinutes,
           year: new Date().getFullYear(),
         },
       });
-      this.logger.log(`Password reset email sent to ${email}`);
-      void this.logsService.info('mail', 'PasswordResetEmailSent', { email, name });
+      this.logger.log(`Password reset code email sent to ${email}`);
+      void this.logsService.info('mail', 'PasswordResetCodeEmailSent', { email, name });
     } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${email}`, error);
-      void this.logsService.error('mail', 'PasswordResetEmailFailed', {
+      this.logger.error(`Failed to send password reset code email to ${email}`, error);
+      void this.logsService.error('mail', 'PasswordResetCodeEmailFailed', {
         email,
         name,
         error: error instanceof Error ? error.message : 'unknown',
       });
     }
+  }
+
+  async sendPasswordUpdatedEmail(email: string, name: string) {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Senha Atualizada com Sucesso - DuZePesqueiro',
+        template: 'password-updated-success',
+        context: {
+          name,
+          year: new Date().getFullYear(),
+        },
+      });
+      this.logger.log(`Password updated notification sent to ${email}`);
+      void this.logsService.info('mail', 'PasswordUpdatedEmailSent', {
+        email,
+        name,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to send password updated email to ${email}`, error);
+      void this.logsService.error('mail', 'PasswordUpdatedEmailFailed', {
+        email,
+        name,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+    }
+  }
+
+  async sendHostingBookedCompanyEmail(payload: HostingBookedCompanyMailPayload) {
+    await this.sendTemplatedEmail(
+      {
+        to: payload.email,
+        subject: `Nova Reserva de Hospedagem - ${payload.codigoReserva}`,
+        template: 'hosting-booked-company',
+        context: {
+          ...payload,
+          year: new Date().getFullYear(),
+        },
+        event: 'HostingBookedCompanyEmail',
+        metadata: {
+          codigoReserva: payload.codigoReserva,
+          accommodationName: payload.accommodationName,
+          reservationStatus: payload.reservationStatus,
+          paymentStatus: payload.paymentStatus,
+        },
+      },
+      true,
+    );
   }
 
   async sendOrderConfirmation(payload: OrderConfirmationMailPayload) {

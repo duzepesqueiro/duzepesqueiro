@@ -18,8 +18,8 @@ const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 
 const SocialActions = () => {
   const [message, setMessage] = useState("");
-  const instagramUrl = (import.meta as any)?.env?.VITE_STORE_INSTAGRAM_URL || "https://instagram.com";
-  const storeWhatsappPhone = (import.meta as any)?.env?.VITE_STORE_WHATSAPP_PHONE || ""; // e.g. 5591999999999
+  const instagramUrl = String(import.meta.env.VITE_STORE_INSTAGRAM_URL ?? "https://instagram.com");
+  const storeWhatsappPhone = String(import.meta.env.VITE_STORE_WHATSAPP_PHONE ?? ""); // e.g. 5591999999999
 
   const openWhatsApp = () => {
     const text = message.trim();

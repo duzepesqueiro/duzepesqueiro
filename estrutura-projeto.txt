@@ -1,0 +1,1149 @@
+pmg-es-2026-1-ti3-9577100-duze
+|---.github
+|   +---ISSUE_TEMPLATE
+|       |---epic.md
+|       +---story.md
+|---Artefatos
+|   |---atas
+|   |   |---Reunioes
+|   |   |   |---Sprint-1-Ata-Reuniao-25DeMarco.docx
+|   |   |   +---Sprint-2-Ata-Reuniao-08DeAbril.docx
+|   |   |---AtaAcordo-ComClienteExterno.pdf
+|   |   +---Template-Ata-Reuniao.pdf
+|   |---docs
+|   |   |---ATAs
+|   |   |   +---Template-Ata-Reuniao-Sprint-1-25DeMarco.docx
+|   |   |---interfaces
+|   |   |   |---1 Interface de Usuario (tela de início).doc
+|   |   |   |---10 Template_Interface de Usuario ( Minhas reservas).docx
+|   |   |   |---2 Interface de Usuario (tela que mostra quartos disponíveis).doc
+|   |   |   |---3 Interface de Usuario (tela sobre o quarto).doc
+|   |   |   |---4 Interface de usuário _Formulário de Reserva - Dados da Reserva_.docx
+|   |   |   |---5 Interface de usuário _Formulário de Reserva - Hospedes_.docx
+|   |   |   |---6 Interface de usuário _Formulário de Reserva - Responsável_.docx
+|   |   |   |---7 Template_Interface de Usuario(Revisão).docx
+|   |   |   |---8 Template_Interface de Usuario ( Pagamento).docx
+|   |   |   +---9 Template_Interface de Usuario ( Confirmação reserva).docx
+|   |   |---Caso de uso hospedagem.png
+|   |   |---DuZe-Documento-de-Visao.pdf
+|   |   |---Fluxo de pagamento.png
+|   |   |---PROCURACAO_NIT_PUC_MINAS (1).pdf
+|   |   +---Termo de Sigilo e Confidencialidade.pdf
+|   +---README.md
+|---Codigo
+|   |---backend
+|   |   |---docker
+|   |   |   |---docker-compose.prod.yml
+|   |   |   |---docker-compose.yml
+|   |   |   |---Dockerfile
+|   |   |   |---Dockerfile.dev
+|   |   |   +---entrypoint.sh
+|   |   |---prisma
+|   |   |   |---migrations
+|   |   |   |   |---20260322164736_add_payment_models
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260401235000_add_inventory_tables
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260403023000_add_product_images_table
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260403193000_add_events_tables
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260403202000_add_event_images_table
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260404161000_add_rentals_tables
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260411120000_add_hosting_tables
+|   |   |   |   |   +---migration.sql
+|   |   |   |   |---20260412103000_hosting_chalet_and_block_notes_fields
+|   |   |   |   |   +---migration.sql
+|   |   |   |   +---migration_lock.toml
+|   |   |   +---schema.prisma
+|   |   |---src
+|   |   |   |---application
+|   |   |   |   |---auth
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---auth.controller.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---decorators
+|   |   |   |   |   |   |---current-user.decorator.ts
+|   |   |   |   |   |   |---public.decorator.ts
+|   |   |   |   |   |   +---roles.decorator.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---confirm-email.dto.ts
+|   |   |   |   |   |   |---forgot-password.dto.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---login.dto.ts
+|   |   |   |   |   |   |---refresh-token.dto.ts
+|   |   |   |   |   |   |---register.dto.ts
+|   |   |   |   |   |   |---reset-password.dto.ts
+|   |   |   |   |   |   +---update-profile.dto.ts
+|   |   |   |   |   |---guards
+|   |   |   |   |   |   |---google-auth.guard.ts
+|   |   |   |   |   |   |---jwt-auth.guard.ts
+|   |   |   |   |   |   |---local-auth.guard.ts
+|   |   |   |   |   |   +---roles.guard.ts
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---auth.service.ts
+|   |   |   |   |   |   +---token.service.ts
+|   |   |   |   |   |---strategies
+|   |   |   |   |   |   |---google.strategy.ts
+|   |   |   |   |   |   |---jwt-refresh.strategy.ts
+|   |   |   |   |   |   |---jwt.strategy.ts
+|   |   |   |   |   |   +---local.strategy.ts
+|   |   |   |   |   +---auth.module.ts
+|   |   |   |   |---exception
+|   |   |   |   |   |---filters
+|   |   |   |   |   |   +---all-exceptions.filter.ts
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   +---exception-response.interface.ts
+|   |   |   |   |   +---exception.module.ts
+|   |   |   |   |---logs
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---log-entry.interface.ts
+|   |   |   |   |   |---listeners
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---logs-events.listener.ts
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---logs-mongo.repository.ts
+|   |   |   |   |   |   +---logs.service.ts
+|   |   |   |   |   +---logs.module.ts
+|   |   |   |   |---mail
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   +---mail-template-payloads.interface.ts
+|   |   |   |   |   |---services
+|   |   |   |   |   |   +---mail.service.ts
+|   |   |   |   |   |---templates
+|   |   |   |   |   |   |---account-verified.hbs
+|   |   |   |   |   |   |---event-booking-confirmation.hbs
+|   |   |   |   |   |   |---hosting-booked.hbs
+|   |   |   |   |   |   |---hosting-cancellation.hbs
+|   |   |   |   |   |   |---hosting-checkin-confirmed.hbs
+|   |   |   |   |   |   |---hosting-checkout-confirmed.hbs
+|   |   |   |   |   |   |---hosting-no-show.hbs
+|   |   |   |   |   |   |---hosting-payment-confirmed.hbs
+|   |   |   |   |   |   |---hosting-payment-reminder.hbs
+|   |   |   |   |   |   |---hosting-reminder-1day.hbs
+|   |   |   |   |   |   |---hosting-reservation-completed.hbs
+|   |   |   |   |   |   |---hosting-voucher-details.hbs
+|   |   |   |   |   |   |---order-confirmation.hbs
+|   |   |   |   |   |   |---product-lifecycle-notification.hbs
+|   |   |   |   |   |   |---product-purchase-confirmation.hbs
+|   |   |   |   |   |   |---rental-cancellation.hbs
+|   |   |   |   |   |   |---rental-confirmation.hbs
+|   |   |   |   |   |   |---rental-reminder.hbs
+|   |   |   |   |   |   |---rental-return-confirmation.hbs
+|   |   |   |   |   |   |---reset-password.hbs
+|   |   |   |   |   |   +---welcome.hbs
+|   |   |   |   |   +---mail.module.ts
+|   |   |   |   |---notifications
+|   |   |   |   |   |---gateways
+|   |   |   |   |   |   +---notifications.gateway.ts
+|   |   |   |   |   |---services
+|   |   |   |   |   |   +---notifications.service.ts
+|   |   |   |   |   +---notifications.module.ts
+|   |   |   |   |---payment
+|   |   |   |   |   |---constants
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---payment.constants.ts
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---payment-health.controller.ts
+|   |   |   |   |   |   |---payment.controller.ts
+|   |   |   |   |   |   +---webhook.controller.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---cancel-payment.dto.ts
+|   |   |   |   |   |   |---create-payment.dto.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---mercadopago-webhook.dto.ts
+|   |   |   |   |   |   |---payment-response.dto.ts
+|   |   |   |   |   |   |---responses.dto.ts
+|   |   |   |   |   |   |---search-payment.dto.ts
+|   |   |   |   |   |   +---update-payment.dto.ts
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---payment-domain.listeners.ts
+|   |   |   |   |   |   |---payment-event.listeners.ts
+|   |   |   |   |   |   |---payment-event.payloads.ts
+|   |   |   |   |   |   +---payment.events.ts
+|   |   |   |   |   |---exceptions
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---payment-exception.filter.ts
+|   |   |   |   |   |   +---payment.exceptions.ts
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---payment.interfaces.ts
+|   |   |   |   |   |---providers
+|   |   |   |   |   |   +---mercadopago
+|   |   |   |   |   |       |---index.ts
+|   |   |   |   |   |       |---mercadopago-http.service.ts
+|   |   |   |   |   |       |---mercadopago-token.service.ts
+|   |   |   |   |   |       +---mercadopago.config.ts
+|   |   |   |   |   |---seeds
+|   |   |   |   |   |   +---payment-postman-endpoints.md
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---create-payment.service.ts
+|   |   |   |   |   |   |---get-payment.service.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---payment-facade.service.ts
+|   |   |   |   |   |   |---payment-health.service.ts
+|   |   |   |   |   |   |---payment-webhook.service.ts
+|   |   |   |   |   |   |---payment.service.ts
+|   |   |   |   |   |   |---search-payment.service.ts
+|   |   |   |   |   |   +---update-payment.service.ts
+|   |   |   |   |   +---payment.module.ts
+|   |   |   |   |---security
+|   |   |   |   |   |---filters
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---guards
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---interceptors
+|   |   |   |   |   |   +---logging.interceptor.ts
+|   |   |   |   |   |---middlewares
+|   |   |   |   |   |   +---helmet.middleware.ts
+|   |   |   |   |   +---security.module.ts
+|   |   |   |   +---index.ts
+|   |   |   |---config
+|   |   |   |   |---app.config.ts
+|   |   |   |   |---database.config.ts
+|   |   |   |   |---index.ts
+|   |   |   |   +---jwt.config.ts
+|   |   |   |---domain
+|   |   |   |   |---events
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---event-admin.controller.ts
+|   |   |   |   |   |   |   |---event-chart.controller.ts
+|   |   |   |   |   |   |   |---event-kpi.controller.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---event-payment.controller.ts
+|   |   |   |   |   |   |   |---event-registration.controller.ts
+|   |   |   |   |   |   |   |---event-user.controller.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---chart-query.dto.ts
+|   |   |   |   |   |   |   |---create-event.dto.ts
+|   |   |   |   |   |   |   |---filter-events-admin.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---kpi-period-query.dto.ts
+|   |   |   |   |   |   |   |---set-kpi-goal.dto.ts
+|   |   |   |   |   |   |   |---update-event-status.dto.ts
+|   |   |   |   |   |   |   |---update-event.dto.ts
+|   |   |   |   |   |   |   +---upload-image.dto.ts
+|   |   |   |   |   |   |---docs
+|   |   |   |   |   |   |   |---event-response.dto.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---event-payment.dto.ts
+|   |   |   |   |   |   |   |---filter-events.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   +---register-event.dto.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---event.events.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---gateways
+|   |   |   |   |   |   |---events.gateway.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   |---event-chart.interface.ts
+|   |   |   |   |   |   |---event-kpi.interface.ts
+|   |   |   |   |   |   |---event-payment.interface.ts
+|   |   |   |   |   |   |---event-registration.interface.ts
+|   |   |   |   |   |   |---event.interface.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---repository.interface.ts
+|   |   |   |   |   |---listeners
+|   |   |   |   |   |   |---event-email.listener.ts
+|   |   |   |   |   |   |---event-metrics.listener.ts
+|   |   |   |   |   |   |---event-notification.listener.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---models
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---repositories
+|   |   |   |   |   |   |---event-kpi.repository.ts
+|   |   |   |   |   |   |---event-registration.repository.ts
+|   |   |   |   |   |   |---event.repository.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---seeds
+|   |   |   |   |   |   +---README.md
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---event-admin.service.ts
+|   |   |   |   |   |   |   |---event-chart.service.ts
+|   |   |   |   |   |   |   |---event-kpi.service.ts
+|   |   |   |   |   |   |   |---file-upload.service.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---event-payment.service.ts
+|   |   |   |   |   |   |   |---event-registration.service.ts
+|   |   |   |   |   |   |   |---event-user.service.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---events.module.ts
+|   |   |   |   |   +---index.ts
+|   |   |   |   |---hosting
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---avaliacao.controller.ts
+|   |   |   |   |   |   |   |---bloqueio.controller.ts
+|   |   |   |   |   |   |   |---chale.controller.ts
+|   |   |   |   |   |   |   |---dashboard.controller.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---preco-regra.controller.ts
+|   |   |   |   |   |   |   +---reserva.controller.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---avaliacao-controller.dto.ts
+|   |   |   |   |   |   |   |---avaliacao-response.dto.ts
+|   |   |   |   |   |   |   |---bloqueio-controller.dto.ts
+|   |   |   |   |   |   |   |---bloqueio-response.dto.ts
+|   |   |   |   |   |   |   |---chale-controller.dto.ts
+|   |   |   |   |   |   |   |---chale-response.dto.ts
+|   |   |   |   |   |   |   |---create-avaliacao.dto.ts
+|   |   |   |   |   |   |   |---create-bloqueio.dto.ts
+|   |   |   |   |   |   |   |---create-chale.dto.ts
+|   |   |   |   |   |   |   |---create-hospede.dto.ts
+|   |   |   |   |   |   |   |---create-image.dto.ts
+|   |   |   |   |   |   |   |---create-manual-reserva.dto.ts
+|   |   |   |   |   |   |   |---create-preco-regra.dto.ts
+|   |   |   |   |   |   |   |---create-reserva.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---list-bloqueios-filters.dto.ts
+|   |   |   |   |   |   |   |---list-chales-filters.dto.ts
+|   |   |   |   |   |   |   |---list-reservas-filters.dto.ts
+|   |   |   |   |   |   |   |---metrics-dashboard.dto.ts
+|   |   |   |   |   |   |   |---politica-cancelamento.dto.ts
+|   |   |   |   |   |   |   |---preco-controller.dto.ts
+|   |   |   |   |   |   |   |---preco-response.dto.ts
+|   |   |   |   |   |   |   |---reserva-controller.dto.ts
+|   |   |   |   |   |   |   |---reserva-filters.dto.ts
+|   |   |   |   |   |   |   |---reserva-response.dto.ts
+|   |   |   |   |   |   |   |---update-avaliacao.dto.ts
+|   |   |   |   |   |   |   |---update-bloqueio.dto.ts
+|   |   |   |   |   |   |   |---update-chale.dto.ts
+|   |   |   |   |   |   |   |---update-hospede.dto.ts
+|   |   |   |   |   |   |   |---update-preco-regra.dto.ts
+|   |   |   |   |   |   |   +---update-reserva.dto.ts
+|   |   |   |   |   |   |---common
+|   |   |   |   |   |   |   |---validators
+|   |   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---listeners
+|   |   |   |   |   |   |   |---hosting-notification.listener.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---rating-stats.interface.ts
+|   |   |   |   |   |---jobs
+|   |   |   |   |   |   |---abandoned-reservation-cleanup.job.ts
+|   |   |   |   |   |   |---hospedagem-kpi-calculation.job.ts
+|   |   |   |   |   |   |---hospedagem-metrics.jobs.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---reservation-notification.job.ts
+|   |   |   |   |   |---middlewares
+|   |   |   |   |   |   |---capacity-validation.middleware.ts
+|   |   |   |   |   |   |---hospedagem-authorization.middleware.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---reservation-date-validation.middleware.ts
+|   |   |   |   |   |---models
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---repositories
+|   |   |   |   |   |   |---avaliacao-reserva.repository.ts
+|   |   |   |   |   |   |---bloqueio-chale.repository.ts
+|   |   |   |   |   |   |---chale.repository.ts
+|   |   |   |   |   |   |---hospede-reserva.repository.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---preco-regra.repository.ts
+|   |   |   |   |   |   +---reserva.repository.ts
+|   |   |   |   |   |---seeds
+|   |   |   |   |   |   +---README.md
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---avaliacao.service.ts
+|   |   |   |   |   |   |   |---bloqueio.service.ts
+|   |   |   |   |   |   |   |---chale.service.ts
+|   |   |   |   |   |   |   |---hospedagem-metrics.service.ts
+|   |   |   |   |   |   |   |---hospedagem-notification.service.ts
+|   |   |   |   |   |   |   |---hosting-image-storage.service.ts
+|   |   |   |   |   |   |   |---hosting-terms-storage.service.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---politica-cancelamento.service.ts
+|   |   |   |   |   |   |   |---preco.service.ts
+|   |   |   |   |   |   |   +---reserva.service.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---hosting.module.ts
+|   |   |   |   |   +---index.ts
+|   |   |   |   |---inventory
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---inventory-admin-facade.controller.ts
+|   |   |   |   |   |   |   |---kpi.controller.ts
+|   |   |   |   |   |   |   |---product.controller.ts
+|   |   |   |   |   |   |   |---purchase-order.controller.ts
+|   |   |   |   |   |   |   |---rental-inventory.controller.ts
+|   |   |   |   |   |   |   +---supplier.controller.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   +---product-user.controller.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---kpi
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   +---kpi-response.dto.ts
+|   |   |   |   |   |   |   |---movement
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   +---inventory-movement.dto.ts
+|   |   |   |   |   |   |   |---product
+|   |   |   |   |   |   |   |   |---create-product.dto.ts
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   |---product-list.dto.ts
+|   |   |   |   |   |   |   |   |---product-response.dto.ts
+|   |   |   |   |   |   |   |   +---update-product.dto.ts
+|   |   |   |   |   |   |   |---purchase-order
+|   |   |   |   |   |   |   |   |---create-purchase-order.dto.ts
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   |---purchase-order-response.dto.ts
+|   |   |   |   |   |   |   |   +---update-purchase-order.dto.ts
+|   |   |   |   |   |   |   |---rental-inventory
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   +---rental-inventory.dto.ts
+|   |   |   |   |   |   |   +---supplier
+|   |   |   |   |   |   |       |---create-supplier.dto.ts
+|   |   |   |   |   |   |       |---index.ts
+|   |   |   |   |   |   |       |---supplier-response.dto.ts
+|   |   |   |   |   |   |       +---update-supplier.dto.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---product
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   +---user-product-list.dto.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---enums
+|   |   |   |   |   |   |---delivery-status.enum.ts
+|   |   |   |   |   |   |---equipment-quality.enum.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---kpi-type.enum.ts
+|   |   |   |   |   |   |---movement-reason.enum.ts
+|   |   |   |   |   |   |---movement-type.enum.ts
+|   |   |   |   |   |   |---order-priority.enum.ts
+|   |   |   |   |   |   |---product-category.enum.ts
+|   |   |   |   |   |   |---product-status.enum.ts
+|   |   |   |   |   |   |---purchase-order-status.enum.ts
+|   |   |   |   |   |   |---turnover-rate.enum.ts
+|   |   |   |   |   |   +---unit-measure.enum.ts
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---listeners
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---inventory.listener.ts
+|   |   |   |   |   |   |   |---rental.listener.ts
+|   |   |   |   |   |   |   +---sales.listener.ts
+|   |   |   |   |   |   |---constants.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---kpi.events.ts
+|   |   |   |   |   |   |---payloads.ts
+|   |   |   |   |   |   |---product.events.ts
+|   |   |   |   |   |   +---supplier.events.ts
+|   |   |   |   |   |---gateways
+|   |   |   |   |   |   |---estoque.gateway.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---inventory.gateway.ts
+|   |   |   |   |   |---models
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---repositories
+|   |   |   |   |   |   |---base.repository.ts
+|   |   |   |   |   |   |---concurrency-control.repository.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---inventory-movement.repository.ts
+|   |   |   |   |   |   |---kpi.repository.ts
+|   |   |   |   |   |   |---product.repository.ts
+|   |   |   |   |   |   |---purchase-order.repository.ts
+|   |   |   |   |   |   |---rental-inventory.repository.ts
+|   |   |   |   |   |   +---supplier.repository.ts
+|   |   |   |   |   |---seeds
+|   |   |   |   |   |   +---READM.md
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---inventory-admin-facade.service.ts
+|   |   |   |   |   |   |---inventory-movement.service.ts
+|   |   |   |   |   |   |---kpi.service.ts
+|   |   |   |   |   |   |---product-image-storage.service.ts
+|   |   |   |   |   |   |---product-user.service.ts
+|   |   |   |   |   |   |---product.service.ts
+|   |   |   |   |   |   |---purchase-order.service.ts
+|   |   |   |   |   |   |---rental-inventory.service.ts
+|   |   |   |   |   |   +---supplier.service.ts
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---inventory.module.ts
+|   |   |   |   |---rentals
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---aluguel-admin-facade.controller.ts
+|   |   |   |   |   |   |   |---aluguel-admin.controller.ts
+|   |   |   |   |   |   |   |---aluguel-kpi.controller.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---aluguel-payment.controller.ts
+|   |   |   |   |   |   |   |---aluguel-user.controller.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---create-aluguel.dto.ts
+|   |   |   |   |   |   |   |---create-rental.dto.ts
+|   |   |   |   |   |   |   |---filter-aluguel-admin.dto.ts
+|   |   |   |   |   |   |   |---filter-rental-admin.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---update-aluguel.dto.ts
+|   |   |   |   |   |   |   +---update-rental.dto.ts
+|   |   |   |   |   |   |---common
+|   |   |   |   |   |   |   |---validators
+|   |   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |   |---is-after-date.decorator.ts
+|   |   |   |   |   |   |   |   +---is-valid-rental-period.decorator.ts
+|   |   |   |   |   |   |   |---equipment-condition.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   +---rental-period.dto.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---create-rental-booking.dto.ts
+|   |   |   |   |   |   |   |---create-rental.dto.ts
+|   |   |   |   |   |   |   |---filter-rental.dto.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   +---rental-response.dto.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---listeners
+|   |   |   |   |   |   |   |---aluguel-email.listener.ts
+|   |   |   |   |   |   |   |---aluguel-metrics.listener.ts
+|   |   |   |   |   |   |   |---aluguel-notification.listener.ts
+|   |   |   |   |   |   |   |---aluguel-payment.listener.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---aluguel.events.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---interfaces
+|   |   |   |   |   |   |---aluguel-registration.interface.ts
+|   |   |   |   |   |   |---aluguel.interface.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---rental-booking-repository.interface.ts
+|   |   |   |   |   |   |---rental-booking.interface.ts
+|   |   |   |   |   |   |---rental-filter.interface.ts
+|   |   |   |   |   |   |---rental-repository.interface.ts
+|   |   |   |   |   |   +---rental.interface.ts
+|   |   |   |   |   |---repositories
+|   |   |   |   |   |   |---aluguel-registration.repository.ts
+|   |   |   |   |   |   |---aluguel.repository.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---seeds
+|   |   |   |   |   |   +---README.md
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---aluguel-admin-facade.service.ts
+|   |   |   |   |   |   |   |---aluguel-admin.service.ts
+|   |   |   |   |   |   |   |---aluguel-kpi.service.ts
+|   |   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---aluguel-payment.service.ts
+|   |   |   |   |   |   |   |---aluguel-user.service.ts
+|   |   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |   |---rental-booking.service.spec.ts
+|   |   |   |   |   |   |   +---rental-booking.service.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---aluguel.module.ts
+|   |   |   |   |   +---index.ts
+|   |   |   |   |---swagger
+|   |   |   |   |   +---events-documentation.ts
+|   |   |   |   |---users
+|   |   |   |   |   |---controllers
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   +---users-admin.controller.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   +---users-user.controller.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---dto
+|   |   |   |   |   |   |---admin
+|   |   |   |   |   |   |   |---create-admin-user.dto.ts
+|   |   |   |   |   |   |   |---list-users-query.dto.ts
+|   |   |   |   |   |   |   |---update-user.dto.ts
+|   |   |   |   |   |   |   |---users-chart-query.dto.ts
+|   |   |   |   |   |   |   +---users-kpi-query.dto.ts
+|   |   |   |   |   |   |---user
+|   |   |   |   |   |   |   |---create-user.dto.ts
+|   |   |   |   |   |   |   +---get-me-query.dto.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---repositories
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---users.repository.ts
+|   |   |   |   |   |---services
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---users.service.ts
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---users.module.ts
+|   |   |   |   +---index.ts
+|   |   |   |---infrastructure
+|   |   |   |   |---database
+|   |   |   |   |   +---prisma
+|   |   |   |   |       |---prisma.module.ts
+|   |   |   |   |       +---prisma.service.ts
+|   |   |   |   |---websocket
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---websocket.module.ts
+|   |   |   |   +---index.ts
+|   |   |   |---shared
+|   |   |   |   |---common
+|   |   |   |   |   |---decorators
+|   |   |   |   |   |   |---current-user.decorator.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   |---pagination.decorator.ts
+|   |   |   |   |   |   +---roles.decorator.ts
+|   |   |   |   |   |---filters
+|   |   |   |   |   |   |---http-exception.filter.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---guards
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---roles.guard.ts
+|   |   |   |   |   |---interceptors
+|   |   |   |   |   |   |---audit.interceptor.ts
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---transform.interceptor.ts
+|   |   |   |   |   |---pipes
+|   |   |   |   |   |   |---index.ts
+|   |   |   |   |   |   +---validation.pipe.ts
+|   |   |   |   |   +---index.ts
+|   |   |   |   |---decorators
+|   |   |   |   |   |---current-user.decorator.ts
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---roles.decorator.ts
+|   |   |   |   |---dto
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---pagination.dto.ts
+|   |   |   |   |---events
+|   |   |   |   |   |---events
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---hosting
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---inventory
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---rental
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---sales
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---user
+|   |   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |   |---event-types.ts
+|   |   |   |   |   |   +---index.ts
+|   |   |   |   |   |---event-payload.ts
+|   |   |   |   |   |---event-payloads.ts
+|   |   |   |   |   |---event-type.ts
+|   |   |   |   |   |---event-types.ts
+|   |   |   |   |   +---index.ts
+|   |   |   |   |---filters
+|   |   |   |   |   |---http-exception.filter.ts
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---prisma-exception.filter.ts
+|   |   |   |   |---guards
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---roles.guard.ts
+|   |   |   |   |---interceptors
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   |---logging.interceptor.ts
+|   |   |   |   |   +---transform.interceptor.ts
+|   |   |   |   |---pipes
+|   |   |   |   |   |---file-validation.pipe.ts
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---parse-date.pipe.ts
+|   |   |   |   |---validators
+|   |   |   |   |   |---index.ts
+|   |   |   |   |   +---is-cnpj.decorator.ts
+|   |   |   |   +---index.ts
+|   |   |   |---tests
+|   |   |   |   |---create-payment.service.spec.ts
+|   |   |   |   +---webhook.service.spec.ts
+|   |   |   |---app.controller.spec.ts
+|   |   |   |---app.controller.ts
+|   |   |   |---app.module.ts
+|   |   |   |---app.service.ts
+|   |   |   +---main.ts
+|   |   |---test
+|   |   |   |---app.e2e-spec.ts
+|   |   |   |---jest-e2e.json
+|   |   |   +---payment.e2e-spec.ts
+|   |   |---.dockerignore
+|   |   |---.env
+|   |   |---.env.example
+|   |   |---.env.production
+|   |   |---.env.qa
+|   |   |---.gitignore
+|   |   |---.prettierrc
+|   |   |---eslint.config.mjs
+|   |   |---nest-cli.json
+|   |   |---package-lock.json
+|   |   |---package.json
+|   |   |---README.md
+|   |   |---tsconfig.build.json
+|   |   |---tsconfig.json
+|   |   +---VERSIONS.md
+|   +---frontend
+|       |---administrator
+|       |   |---public
+|       |   |   |---assets
+|       |   |   |   +---images
+|       |   |   |       |---logo.jpg
+|       |   |   |       +---no_image.png
+|       |   |   |---favicon.ico
+|       |   |   |---manifest.json
+|       |   |   +---robots.txt
+|       |   |---src
+|       |   |   |---components
+|       |   |   |   |---ui
+|       |   |   |   |   |---AlertNotificationCenter.jsx
+|       |   |   |   |   |---Button.jsx
+|       |   |   |   |   |---Checkbox.jsx
+|       |   |   |   |   |---ExportControlPanel.jsx
+|       |   |   |   |   |---Header.jsx
+|       |   |   |   |   |---Input.jsx
+|       |   |   |   |   |---QuickActions.jsx
+|       |   |   |   |   |---Select.jsx
+|       |   |   |   |   +---ThemeToggle.jsx
+|       |   |   |   |---AppIcon.jsx
+|       |   |   |   |---AppImage.jsx
+|       |   |   |   |---ErrorBoundary.jsx
+|       |   |   |   |---RequireAdmin.jsx
+|       |   |   |   +---ScrollToTop.jsx
+|       |   |   |---contexts
+|       |   |   |   +---ThemeContext.jsx
+|       |   |   |---pages
+|       |   |   |   |---events-management-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---CustomerAnalytics.jsx
+|       |   |   |   |   |   |---EventsChart.jsx
+|       |   |   |   |   |   |---EventsDataTable.jsx
+|       |   |   |   |   |   |---EventsFilters.jsx
+|       |   |   |   |   |   +---EventsKPICards.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---executive-overview-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---AlertsPanel.jsx
+|       |   |   |   |   |   |---CategoryPerformance.jsx
+|       |   |   |   |   |   |---KPICard.jsx
+|       |   |   |   |   |   |---RevenueChart.jsx
+|       |   |   |   |   |   +---TopProductsList.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---hosting-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---BlockDatesModal.jsx
+|       |   |   |   |   |   |---CancelReservationModal.jsx
+|       |   |   |   |   |   |---ChaletFormModal.jsx
+|       |   |   |   |   |   |---ChaletsTable.jsx
+|       |   |   |   |   |   |---ChaletSuccessModal.jsx
+|       |   |   |   |   |   |---ConfirmDeleteChaletModal.jsx
+|       |   |   |   |   |   |---ConfirmPriceRuleActionModal.jsx
+|       |   |   |   |   |   |---CreateManualReservationModal.jsx
+|       |   |   |   |   |   |---FreeDateActionModal.jsx
+|       |   |   |   |   |   |---HostingKPICard.jsx
+|       |   |   |   |   |   |---HostingLayout.jsx
+|       |   |   |   |   |   |---HostingReservationModal.jsx
+|       |   |   |   |   |   |---HostingRevenueChart.jsx
+|       |   |   |   |   |   |---HostingSectionPlaceholder.jsx
+|       |   |   |   |   |   |---HostingSidebarMenu.jsx
+|       |   |   |   |   |   |---NoShowModal.jsx
+|       |   |   |   |   |   |---OccupationMap.jsx
+|       |   |   |   |   |   |---PriceRuleFormModal.jsx
+|       |   |   |   |   |   |---PriceRulesList.jsx
+|       |   |   |   |   |   |---PriceSimulator.jsx
+|       |   |   |   |   |   |---ReservationDetailsModal.jsx
+|       |   |   |   |   |   |---ReservationsTable.jsx
+|       |   |   |   |   |   +---TermsUploadModal.jsx
+|       |   |   |   |   |---ChaletsManagementPage.jsx
+|       |   |   |   |   |---index.jsx
+|       |   |   |   |   |---PricingManagementPage.jsx
+|       |   |   |   |   +---ReservationsManagementPage.jsx
+|       |   |   |   |---inventory-management-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---CriticalAlertsStrip.jsx
+|       |   |   |   |   |   |---InventoryDataTable.jsx
+|       |   |   |   |   |   |---InventoryHeatmap.jsx
+|       |   |   |   |   |   |---InventoryKPICards.jsx
+|       |   |   |   |   |   |---ReorderSuggestions.jsx
+|       |   |   |   |   |   +---SupplierPerformance.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---logs-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---LogsKPICards.jsx
+|       |   |   |   |   |   |---LogsPieChart.jsx
+|       |   |   |   |   |   +---LogsScatterChart.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---rental-operations-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---ActiveRentalsOverview.jsx
+|       |   |   |   |   |   |---EquipmentUtilizationHeatmap.jsx
+|       |   |   |   |   |   |---GPSTrackingPanel.jsx
+|       |   |   |   |   |   |---PriorityAlertsSidebar.jsx
+|       |   |   |   |   |   |---RentalHistoryTable.jsx
+|       |   |   |   |   |   +---RentalTimelineVisualization.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---sales-analytics-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---CustomerAnalytics.jsx
+|       |   |   |   |   |   |---SalesChart.jsx
+|       |   |   |   |   |   |---SalesFilters.jsx
+|       |   |   |   |   |   |---SalesKPICards.jsx
+|       |   |   |   |   |   |---SalesManagementTable.jsx
+|       |   |   |   |   |   +---TopProductsPanel.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---users-management-dashboard
+|       |   |   |   |   |---components
+|       |   |   |   |   |   |---CustomerAnalytics.jsx
+|       |   |   |   |   |   |---UserRatingsManager.jsx
+|       |   |   |   |   |   |---UsersKPICards.jsx
+|       |   |   |   |   |   +---UsersNewUsersChart.jsx
+|       |   |   |   |   +---index.jsx
+|       |   |   |   |---AccessDenied.jsx
+|       |   |   |   +---NotFound.jsx
+|       |   |   |---services
+|       |   |   |   |---ratingsService.js
+|       |   |   |   |---salesAnalyticsService.js
+|       |   |   |   +---usersService.js
+|       |   |   |---styles
+|       |   |   |   |---index.css
+|       |   |   |   +---tailwind.css
+|       |   |   |---utils
+|       |   |   |   |---api.js
+|       |   |   |   |---cn.js
+|       |   |   |   |---eventService.js
+|       |   |   |   |---exportService.js
+|       |   |   |   |---hostingService.js
+|       |   |   |   |---inventoryService.js
+|       |   |   |   |---inventorySocketService.js
+|       |   |   |   |---notificationService.js
+|       |   |   |   |---purchaseOrderPdf.js
+|       |   |   |   |---rentalService.js
+|       |   |   |   +---salesManagementService.js
+|       |   |   |---App.jsx
+|       |   |   |---index.jsx
+|       |   |   +---Routes.jsx
+|       |   |---.dockerignore
+|       |   |---.gitignore
+|       |   |---index.html
+|       |   |---jsconfig.json
+|       |   |---package-lock.json
+|       |   |---package.json
+|       |   |---postcss.config.js
+|       |   |---README.md
+|       |   |---tailwind.config.js
+|       |   +---vite.config.mjs
+|       |---auth
+|       |   |---public
+|       |   |   |---placeholder.svg
+|       |   |   +---robots.txt
+|       |   |---src
+|       |   |   |---assets
+|       |   |   |   |---DuZeImg.jpg
+|       |   |   |   |---hero-lake.jpg
+|       |   |   |   |---peixe-aberto.png
+|       |   |   |   +---peixe-fechado.png
+|       |   |   |---components
+|       |   |   |   +---ui
+|       |   |   |       |---accordion.tsx
+|       |   |   |       |---alert-dialog.tsx
+|       |   |   |       |---alert.tsx
+|       |   |   |       |---aspect-ratio.tsx
+|       |   |   |       |---avatar.tsx
+|       |   |   |       |---badge.tsx
+|       |   |   |       |---breadcrumb.tsx
+|       |   |   |       |---button.tsx
+|       |   |   |       |---calendar.tsx
+|       |   |   |       |---card.tsx
+|       |   |   |       |---carousel.tsx
+|       |   |   |       |---chart.tsx
+|       |   |   |       |---checkbox.tsx
+|       |   |   |       |---collapsible.tsx
+|       |   |   |       |---command.tsx
+|       |   |   |       |---context-menu.tsx
+|       |   |   |       |---dialog.tsx
+|       |   |   |       |---drawer.tsx
+|       |   |   |       |---dropdown-menu.tsx
+|       |   |   |       |---form.tsx
+|       |   |   |       |---hover-card.tsx
+|       |   |   |       |---input-otp.tsx
+|       |   |   |       |---input.tsx
+|       |   |   |       |---label.tsx
+|       |   |   |       |---menubar.tsx
+|       |   |   |       |---navigation-menu.tsx
+|       |   |   |       |---pagination.tsx
+|       |   |   |       |---popover.tsx
+|       |   |   |       |---progress.tsx
+|       |   |   |       |---radio-group.tsx
+|       |   |   |       |---resizable.tsx
+|       |   |   |       |---scroll-area.tsx
+|       |   |   |       |---select.tsx
+|       |   |   |       |---separator.tsx
+|       |   |   |       |---sheet.tsx
+|       |   |   |       |---sidebar.tsx
+|       |   |   |       |---skeleton.tsx
+|       |   |   |       |---slider.tsx
+|       |   |   |       |---sonner.tsx
+|       |   |   |       |---switch.tsx
+|       |   |   |       |---table.tsx
+|       |   |   |       |---tabs.tsx
+|       |   |   |       |---textarea.tsx
+|       |   |   |       |---toast.tsx
+|       |   |   |       |---toaster.tsx
+|       |   |   |       |---toggle-group.tsx
+|       |   |   |       |---toggle.tsx
+|       |   |   |       |---tooltip.tsx
+|       |   |   |       +---use-toast.ts
+|       |   |   |---hooks
+|       |   |   |   |---use-mobile.tsx
+|       |   |   |   +---use-toast.ts
+|       |   |   |---lib
+|       |   |   |   |---api.ts
+|       |   |   |   +---utils.ts
+|       |   |   |---pages
+|       |   |   |   |---Cadastro.tsx
+|       |   |   |   |---Index.tsx
+|       |   |   |   |---NotFound.tsx
+|       |   |   |   |---OAuthCallback.tsx
+|       |   |   |   |---ResetPassword.tsx
+|       |   |   |   +---VerificarEmail.tsx
+|       |   |   |---App.css
+|       |   |   |---App.tsx
+|       |   |   |---index.css
+|       |   |   |---main.tsx
+|       |   |   +---vite-env.d.ts
+|       |   |---.dockerignore
+|       |   |---.gitignore
+|       |   |---AuthContext.tsx
+|       |   |---bun.lockb
+|       |   |---components.json
+|       |   |---eslint.config.js
+|       |   |---index.html
+|       |   |---package-lock.json
+|       |   |---package.json
+|       |   |---postcss.config.js
+|       |   |---tailwind.config.ts
+|       |   |---tsconfig.app.json
+|       |   |---tsconfig.json
+|       |   |---tsconfig.node.json
+|       |   +---vite.config.ts
+|       |---docker
+|       |   |---docker-compose.yml
+|       |   |---Dockerfile.administrator
+|       |   |---Dockerfile.auth
+|       |   |---Dockerfile.user
+|       |   +---nginx.conf
+|       |---routes
+|       |   +---ProtectedRoute.tsx
+|       |---user
+|       |   |---public
+|       |   |   |---favico.ico
+|       |   |   |---placeholder.svg
+|       |   |   +---robots.txt
+|       |   |---src
+|       |   |   |---assets
+|       |   |   |   |---booking-reservation-bg.png
+|       |   |   |   |---duzepesqueiro1.jpeg
+|       |   |   |   |---duzepesqueiro2-mobile.jpeg
+|       |   |   |   |---duzepesqueiro2.jpeg
+|       |   |   |   |---duzepesqueiro3-mobile.jpeg
+|       |   |   |   |---duzepesqueiro3.jpeg
+|       |   |   |   |---duzepesqueiro4-mobile.jpeg
+|       |   |   |   |---duzepesqueiro4.jpeg
+|       |   |   |   |---evento1.jpg
+|       |   |   |   |---evento2.jpg
+|       |   |   |   |---evento3.jpg
+|       |   |   |   |---evento4.jpg
+|       |   |   |   |---hero-home.jpg
+|       |   |   |   |---hero-hotel.jpg
+|       |   |   |   |---logo.jpg
+|       |   |   |   |---logo.svg
+|       |   |   |   |---room-cabin.jpg
+|       |   |   |   |---room-deluxe.jpg
+|       |   |   |   |---room-standard.jpg
+|       |   |   |   +---room-suite.jpg
+|       |   |   |---components
+|       |   |   |   |---common
+|       |   |   |   |   |---booking
+|       |   |   |   |   |   |---RoomCard.tsx
+|       |   |   |   |   |   +---SearchBox.tsx
+|       |   |   |   |   |---layout
+|       |   |   |   |   |   +---Header.tsx
+|       |   |   |   |   |---reservation
+|       |   |   |   |   |   |---CancelReservationDialog.tsx
+|       |   |   |   |   |   |---EditGuestsDialog.tsx
+|       |   |   |   |   |   |---ReservationDetailDialog.tsx
+|       |   |   |   |   |   +---RoomInfoGrid.tsx
+|       |   |   |   |   |---BookingContext.tsx
+|       |   |   |   |   |---BookingPage.tsx
+|       |   |   |   |   |---ConfirmationPage.tsx
+|       |   |   |   |   |---home.module.css
+|       |   |   |   |   |---Index.tsx
+|       |   |   |   |   |---MyReservationsPage.tsx
+|       |   |   |   |   |---NotFound.tsx
+|       |   |   |   |   |---PaymentPage.tsx
+|       |   |   |   |   |---RoomDetailPage.tsx
+|       |   |   |   |   +---RoomsPage.tsx
+|       |   |   |   |---fishing
+|       |   |   |   |   |---CartSummary.tsx
+|       |   |   |   |   |---OrderHistory.tsx
+|       |   |   |   |   |---ProductDetailModal.tsx
+|       |   |   |   |   |---RentalCard.tsx
+|       |   |   |   |   |---RentalHistory.tsx
+|       |   |   |   |   |---RentalModal.tsx
+|       |   |   |   |   |---RentalSection.tsx
+|       |   |   |   |   |---ShopCard.tsx
+|       |   |   |   |   +---ShoppingSection.tsx
+|       |   |   |   |---ui
+|       |   |   |   |   |---accordion.tsx
+|       |   |   |   |   |---alert-dialog.tsx
+|       |   |   |   |   |---alert.tsx
+|       |   |   |   |   |---aspect-ratio.tsx
+|       |   |   |   |   |---avatar.tsx
+|       |   |   |   |   |---badge.tsx
+|       |   |   |   |   |---breadcrumb.tsx
+|       |   |   |   |   |---button.tsx
+|       |   |   |   |   |---calendar.tsx
+|       |   |   |   |   |---card.tsx
+|       |   |   |   |   |---carousel.tsx
+|       |   |   |   |   |---chart.tsx
+|       |   |   |   |   |---checkbox.tsx
+|       |   |   |   |   |---collapsible.tsx
+|       |   |   |   |   |---command.tsx
+|       |   |   |   |   |---container-scroll-animation.tsx
+|       |   |   |   |   |---context-menu.tsx
+|       |   |   |   |   |---dialog.tsx
+|       |   |   |   |   |---drawer.tsx
+|       |   |   |   |   |---dropdown-menu.tsx
+|       |   |   |   |   |---form.tsx
+|       |   |   |   |   |---hover-card.tsx
+|       |   |   |   |   |---input-otp.tsx
+|       |   |   |   |   |---input.tsx
+|       |   |   |   |   |---label.tsx
+|       |   |   |   |   |---menubar.tsx
+|       |   |   |   |   |---navigation-menu.tsx
+|       |   |   |   |   |---pagination.tsx
+|       |   |   |   |   |---pointer-highlight.tsx
+|       |   |   |   |   |---popover.tsx
+|       |   |   |   |   |---progress.tsx
+|       |   |   |   |   |---radio-group.tsx
+|       |   |   |   |   |---resizable.tsx
+|       |   |   |   |   |---scroll-area.tsx
+|       |   |   |   |   |---select.tsx
+|       |   |   |   |   |---separator.tsx
+|       |   |   |   |   |---sheet.tsx
+|       |   |   |   |   |---sidebar.tsx
+|       |   |   |   |   |---skeleton.tsx
+|       |   |   |   |   |---slider.tsx
+|       |   |   |   |   |---sonner.tsx
+|       |   |   |   |   |---switch.tsx
+|       |   |   |   |   |---table.tsx
+|       |   |   |   |   |---tabs.tsx
+|       |   |   |   |   |---textarea.tsx
+|       |   |   |   |   |---toast.tsx
+|       |   |   |   |   |---toaster.tsx
+|       |   |   |   |   |---toggle-group.tsx
+|       |   |   |   |   |---toggle.tsx
+|       |   |   |   |   |---tooltip.tsx
+|       |   |   |   |   +---use-toast.ts
+|       |   |   |   |---EventCard.tsx
+|       |   |   |   |---EventFilters.tsx
+|       |   |   |   |---EventsCarousel.tsx
+|       |   |   |   |---GPSTrackingPanel.tsx
+|       |   |   |   |---Header.tsx
+|       |   |   |   |---HeroCarousel.tsx
+|       |   |   |   |---LoadingBar.tsx
+|       |   |   |   |---LoadingOverlay.tsx
+|       |   |   |   |---LoadingSpinner.tsx
+|       |   |   |   |---RatingModal.tsx
+|       |   |   |   |---RatingStars.tsx
+|       |   |   |   |---RatingToast.tsx
+|       |   |   |   |---RegistrationForm.tsx
+|       |   |   |   |---RegistrationFormModal.tsx
+|       |   |   |   +---SocialActions.tsx
+|       |   |   |---contexts
+|       |   |   |   +---BookingContext.tsx
+|       |   |   |---data
+|       |   |   |   +---rooms.ts
+|       |   |   |---hooks
+|       |   |   |   |---use-mobile.tsx
+|       |   |   |   +---use-toast.ts
+|       |   |   |---lib
+|       |   |   |   |---api.ts
+|       |   |   |   |---auth.ts
+|       |   |   |   |---currency.ts
+|       |   |   |   |---hostingRoomMapper.ts
+|       |   |   |   |---image.png
+|       |   |   |   |---phone.ts
+|       |   |   |   |---ratings.ts
+|       |   |   |   +---utils.ts
+|       |   |   |---pages
+|       |   |   |   |---About.tsx
+|       |   |   |   |---ChangePassword.tsx
+|       |   |   |   |---Events.tsx
+|       |   |   |   |---FishingGear.tsx
+|       |   |   |   |---Hosting.tsx
+|       |   |   |   |---Index.tsx
+|       |   |   |   +---NotFound.tsx
+|       |   |   |---types
+|       |   |   |   +---booking.ts
+|       |   |   |---App.css
+|       |   |   |---App.tsx
+|       |   |   |---index.css
+|       |   |   |---main.tsx
+|       |   |   +---vite-env.d.ts
+|       |   |---.dockerignore
+|       |   |---.gitignore
+|       |   |---bun.lockb
+|       |   |---components.json
+|       |   |---eslint.config.js
+|       |   |---index.html
+|       |   |---package-lock.json
+|       |   |---package.json
+|       |   |---postcss.config.js
+|       |   |---README.md
+|       |   |---tailwind.config.ts
+|       |   |---tsconfig.app.json
+|       |   |---tsconfig.json
+|       |   |---tsconfig.node.json
+|       |   +---vite.config.ts
+|       |---.gitignore
+|       |---App.tsx
+|       |---declarations.d.ts
+|       |---package-lock.json
+|       |---package.json
+|       |---README.md
+|       |---tsconfig.json
+|       +---vite.config.ts
+|---Divulgacao
+|   |---Apresentacao
+|   |   +---README.md
+|   +---Video
+|       +---README.md
+|---.gitattributes
+|---CITATION.cff
+|---estrutura-projeto.txt
+|---LICENSE
++---README.md

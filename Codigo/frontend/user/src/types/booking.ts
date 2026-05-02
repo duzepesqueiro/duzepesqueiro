@@ -58,7 +58,11 @@ export interface Reservation {
   id: string;
   bookingData: BookingData;
   paymentData: PaymentData;
-  status: 'confirmed' | 'pending' | 'cancelled';
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'occupied' | 'no_show';
+  paymentStatus?: string | null;
+  paymentMethod?: string | null;
+  code?: string;
+  guestName?: string;
   createdAt: Date;
   totalPrice: number;
 }
