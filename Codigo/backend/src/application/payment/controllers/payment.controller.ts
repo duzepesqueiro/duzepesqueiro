@@ -1,139 +1,68 @@
+import { Body, Controller, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
-  Body,
-  Controller,
-  Get,
-  Logger,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-  Query,
-  UseFilters,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { User, UserRole } from '@prisma/client';
-import { Throttle } from '@nestjs/throttler';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../auth/guards/roles.guard';
-import {
-  CancelPaymentDto,
-  CreatePaymentDto,
-  PaymentResponseDto,
-  SearchPaymentDto,
-  SearchPaymentResponseDto,
-  UpdatePaymentDto,
+  CheckoutReturnDto,
+  CheckoutPreferenceResponseDto,
+  CreateCheckoutPreferenceDto,
+  MercadoPagoWebhookDto,
 } from '../dto';
-import { PaymentExceptionFilter } from '../exceptions';
-import {
-  CreatePaymentService,
-  GetPaymentService,
-  SearchPaymentService,
-  UpdatePaymentService,
-} from '../services';
+import { PaymentService } from '../services/payment.service';
+import { Public } from '../../auth/decorators/public.decorator';
 
-@Controller('payments')
 @ApiTags('Payments')
-@UseGuards(JwtAuthGuard)
-@UseFilters(PaymentExceptionFilter)
+@Controller('api/payments')
 export class PaymentController {
-  private readonly logger = new Logger(PaymentController.name);
+  constructor(private readonly paymentService: PaymentService) {}
 
-  constructor(
-    private readonly createPaymentService: CreatePaymentService,
-    private readonly getPaymentService: GetPaymentService,
-    private readonly searchPaymentService: SearchPaymentService,
-    private readonly updatePaymentService: UpdatePaymentService,
-  ) {}
-
-  @Post()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Criar novo pagamento' })
-  @ApiResponse({ status: 201, description: 'Pagamento criado', type: PaymentResponseDto })
-  @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  @ApiResponse({ status: 502, description: 'Erro no gateway de pagamento' })
-  @ApiUnauthorizedResponse({ description: 'Não autorizado' })
-  async create(
-    @Body() dto: CreatePaymentDto,
-    @CurrentUser() user: User,
-  ): Promise<PaymentResponseDto> {
-    this.logger.log(`create payment requested by user=${user.id}`);
-    return this.createPaymentService.execute(dto, user.id);
-  }
-
-  @Get('search')
-  @ApiOperation({ summary: 'Buscar pagamentos' })
+  @Post('checkout-pro/preference')
+  @ApiOperation({ summary: 'Cria preferência de pagamento no Checkout Pro' })
   @ApiResponse({
-    status: 200,
-    description: 'Pagamentos encontrados',
-    type: SearchPaymentResponseDto,
+    status: 201,
+    description: 'Preferência criada com sucesso',
+    type: CheckoutPreferenceResponseDto,
   })
-  @ApiUnauthorizedResponse({ description: 'Não autorizado' })
-  async search(@Query() params: SearchPaymentDto): Promise<SearchPaymentResponseDto> {
-    this.logger.log(`search payments criteria=${JSON.stringify(params)}`);
-    return this.searchPaymentService.execute(params);
+  async createCheckoutPreference(
+    @Body() dto: CreateCheckoutPreferenceDto,
+  ): Promise<CheckoutPreferenceResponseDto> {
+    return this.paymentService.createCheckoutPreference(dto);
   }
 
-  @Get('reference/:reference')
-  @ApiOperation({ summary: 'Obter pagamento por referência externa' })
-  @ApiResponse({ status: 200, type: PaymentResponseDto })
-  @ApiResponse({ status: 404, description: 'Pagamento não encontrado' })
-  async getByReference(
-    @Param('reference') reference: string,
-  ): Promise<PaymentResponseDto> {
-    this.logger.log(`get payment by reference=${reference}`);
-    return this.getPaymentService.getByExternalReference(reference);
+  @Post('checkout-pro/return')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Persiste dados de retorno do Checkout Pro' })
+  @ApiResponse({ status: 200, description: 'Dados de retorno processados com sucesso' })
+  async processCheckoutReturn(
+    @Body() dto: CheckoutReturnDto,
+  ): Promise<{ received: true }> {
+    await this.paymentService.processCheckoutReturn(dto);
+    return { received: true };
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Obter pagamento por ID' })
-  @ApiResponse({ status: 200, type: PaymentResponseDto })
-  @ApiResponse({ status: 404, description: 'Pagamento não encontrado' })
-  async getById(@Param('id', ParseIntPipe) id: number): Promise<PaymentResponseDto> {
-    this.logger.log(`get payment by external id=${id}`);
-    return this.getPaymentService.execute(id);
-  }
-
-  @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Atualizar pagamento' })
-  @ApiResponse({ status: 200, type: PaymentResponseDto })
-  @ApiResponse({ status: 400, description: 'Atualização inválida' })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdatePaymentDto,
-  ): Promise<PaymentResponseDto> {
-    this.logger.log(`update payment requested id=${id}`);
-    return this.updatePaymentService.execute(id, dto);
-  }
-
-  @Post(':id/capture')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Capturar pagamento autorizado' })
-  @ApiResponse({ status: 200, type: PaymentResponseDto })
-  async capture(@Param('id', ParseIntPipe) id: number): Promise<PaymentResponseDto> {
-    this.logger.log(`capture payment requested id=${id}`);
-    return this.updatePaymentService.capturePayment(id);
-  }
-
-  @Post(':id/cancel')
-  @ApiOperation({ summary: 'Cancelar pagamento' })
-  @ApiResponse({ status: 200, type: PaymentResponseDto })
-  async cancel(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CancelPaymentDto,
-    @CurrentUser() user: User,
-  ): Promise<PaymentResponseDto> {
-    this.logger.log(`cancel payment requested id=${id} by user=${user.id}`);
-    return this.updatePaymentService.cancelPayment(id, dto.reason);
+  @Post('webhook/mercadopago')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Processa notificações de pagamento do Mercado Pago' })
+  @ApiResponse({ status: 200, description: 'Webhook processado com sucesso' })
+  async handleMercadoPagoWebhook(
+    @Body() body: Record<string, any>,
+    @Query('type') queryType?: string,
+    @Query('data.id') queryDataId?: string,
+  ): Promise<{ received: true }> {
+    const dto: MercadoPagoWebhookDto = {
+      type: String(queryType ?? body?.type ?? ''),
+      action: typeof body?.action === 'string' ? body.action : undefined,
+      dateCreated:
+        typeof body?.dateCreated === 'string'
+          ? body.dateCreated
+          : typeof body?.date_created === 'string'
+            ? body.date_created
+            : undefined,
+      data: {
+        id: String(queryDataId ?? body?.data?.id ?? body?.id ?? ''),
+      },
+    };
+    await this.paymentService.processMercadoPagoWebhook(dto);
+    return { received: true };
   }
 }

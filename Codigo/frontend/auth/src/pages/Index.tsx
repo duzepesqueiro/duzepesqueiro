@@ -163,7 +163,7 @@ const Index = () => {
 
   const handleForgotPassword = async () => {
     if (!email || !email.includes("@")) {
-      toast({ title: "Informe seu e-mail", description: "Digite seu e-mail para enviar a nova senha.", variant: "destructive" });
+      toast({ title: "Informe seu e-mail", description: "Digite seu e-mail para receber o código de verificação.", variant: "destructive" });
       return;
     }
     setSendingReset(true);
@@ -173,13 +173,8 @@ const Index = () => {
         const msg = await safeError(resp);
         throw new Error(msg || `Erro ${resp.status}`);
       }
-      const data = await parseJson<{ success: boolean; resetToken?: string }>(resp);
-      if (data?.resetToken) {
-        navigate(`/reset-password?token=${encodeURIComponent(data.resetToken)}`);
-        toast({ title: "Token gerado", description: "Defina sua nova senha para concluir." });
-        return;
-      }
-      toast({ title: "Solicitação enviada", description: "Verifique sua caixa de e-mail para redefinir sua senha." });
+      navigate("/reset-password", { state: { email } });
+      toast({ title: "Código enviado", description: "Verifique sua caixa de e-mail para continuar a redefinição." });
     } catch (err: any) {
       toast({ title: "Falha no envio", description: err?.message || "Tente novamente.", variant: "destructive" });
     } finally {

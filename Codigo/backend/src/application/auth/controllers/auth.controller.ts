@@ -10,7 +10,6 @@ import {
   Req,
   Patch,
   Res,
-  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -30,6 +29,7 @@ import { ConfirmEmailDto } from '../dto/confirm-email.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { VerifyPasswordResetCodeDto } from '../dto/verify-password-reset-code.dto';
 
 @ApiTags('Auth')
 @Controller(['auth', 'api/auth'])
@@ -101,16 +101,29 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Create password reset token' })
-  async forgotPassword(
-    @Body() dto: ForgotPasswordDto,
-    @Query('email') emailQuery?: string,
-  ) {
-    const email = (dto.email || emailQuery || '').trim().toLowerCase();
+  @ApiOperation({ summary: 'Send password reset code by email' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    const email = (dto.email || '').trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new BadRequestException('E-mail inválido');
     }
     return this.authService.forgotPassword(email);
+  }
+
+  @Public()
+  @Post('verify-password-reset-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Validate password reset code' })
+  async verifyPasswordResetCode(@Body() dto: VerifyPasswordResetCodeDto) {
+    const email = (dto.email || '').trim().toLowerCase();
+    const code = (dto.code || '').trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('E-mail inválido');
+    }
+    if (!/^\d{6}$/.test(code)) {
+      throw new BadRequestException('Código inválido');
+    }
+    return this.authService.verifyPasswordResetCode(email, code);
   }
 
   @Public()
@@ -128,9 +141,13 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiOperation({ summary: 'Reset password with verified reset session token' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto.token, dto.newPassword);
+    return this.authService.resetPassword(
+      dto.resetSessionToken,
+      dto.newPassword,
+      dto.confirmPassword,
+    );
   }
 
   @Public()

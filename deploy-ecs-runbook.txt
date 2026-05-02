@@ -1,0 +1,368 @@
+## 1. VISÃO GERAL DA ARQUITETURA
+
+Este documento e o runbook tecnico oficial para deploy e operacao da aplicacao em containers, com foco em AWS ECS (Fargate).
+
+Componentes principais:
+- Backend: API NestJS containerizada (porta 3000)
+- Frontend: 3 apps React (auth, user, admin) com build estatico via Vite
+- Proxy: Nginx unificado servindo estaticos e roteando /api e /socket.io para o backend
+- Infraestrutura AWS:
+  - Amazon ECS (Fargate)
+  - Amazon ECR
+  - Application Load Balancer (ALB)
+  - Amazon CloudWatch
+
+Fluxo de requisicao:
+User -> Load Balancer -> Nginx ->
+|- /auth -> React Auth
+|- /user -> React User
+|- /admin -> React Admin
+\- /api -> Backend NestJS
+
+Fluxo operacional em producao:
+1. Usuario acessa ALB
+2. ALB encaminha para target group do container Nginx
+3. Nginx resolve rotas SPA para os bundles estaticos
+4. Requisicoes de API e websocket sao encaminhadas ao backend
+5. Backend responde e logs/metricas sao enviados ao CloudWatch
+
+
+## 2. BACKEND (DOCKER + EXECUÇÃO)
+
+Arquivos de referencia no repositorio:
+- Codigo/backend/docker/Dockerfile
+- Codigo/backend/docker/entrypoint.sh
+- Codigo/backend/src/main.ts
+- Codigo/backend/docker/docker-compose.prod.yml
+
+2.1 Dockerfile multi-stage
+- Stage build:
+  - usa node:20-bookworm-slim
+  - executa npm ci para instalacao reproduzivel
+  - executa Prisma generate no build
+  - executa npm run build para gerar dist/
+- Stage runtime:
+  - instala apenas dependencias de runtime com npm ci --omit=dev
+  - copia dist/ e artefatos necessarios
+  - expoe porta 3000
+  - usa ENTRYPOINT com script de bootstrap
+
+2.2 ENTRYPOINT de producao
+O entrypoint deve:
+1. Validar DATABASE_URL
+2. Aguardar disponibilidade do banco com retry controlado
+3. Executar migrations (prisma migrate deploy) quando RUN_MIGRATIONS=true
+4. Executar seed opcional quando RUN_PRISMA_SEED=true
+5. Iniciar a aplicacao
+
+2.3 Regras obrigatorias do backend
+- Listen do NestJS deve usar 0.0.0.0:
+  await app.listen(port, '0.0.0.0');
+- Nao usar .env dentro do container em producao
+- Variaveis devem ser injetadas via ECS Task Definition (e Secrets Manager quando aplicavel)
+- Container deve ser stateless
+
+
+## 3. FRONTEND (BUILD ESTÁTICO)
+
+Arquivos de referencia:
+- Codigo/frontend/docker/Dockerfile.prod
+- Codigo/frontend/auth/vite.config.ts
+- Codigo/frontend/user/vite.config.ts
+- Codigo/frontend/administrator/vite.config.mjs
+
+3.1 Principios
+- Em producao, frontend e sempre build estatico
+- Nao usar npm run dev em producao
+- Build feito por Docker multi-stage
+- Saida final em dist/
+
+3.2 Build dos 3 apps React
+- auth: build separado
+- user: build separado
+- admin: build separado
+
+Resultado publicado pelo Nginx:
+- /usr/share/nginx/html/auth
+- /usr/share/nginx/html/user
+- /usr/share/nginx/html/admin
+
+3.3 Build args para VITE_*
+As variaveis VITE_* devem ser resolvidas no build (nao em runtime):
+- AUTH_VITE_API_BASE_URL, AUTH_VITE_BASE_PATH
+- USER_VITE_API_BASE_URL, USER_VITE_BASE_PATH
+- ADMIN_VITE_API_BASE_URL, ADMIN_VITE_BASE_PATH
+
+3.4 Base path obrigatorio por app
+- auth -> /auth/
+- user -> /user/
+- admin -> /admin/
+
+Observacao critica:
+- Se o base path estiver incorreto, assets JS/CSS serao carregados em caminho errado e a SPA quebra.
+
+
+## 4. NGINX (PROXY E SPA)
+
+Arquivo de referencia:
+- Codigo/frontend/docker/nginx.prod.conf
+
+4.1 Rotas principais
+- /auth/
+- /user/
+- /admin/
+- /api/
+- /socket.io/
+
+4.2 SPA fallback
+Para cada app SPA, usar fallback com try_files:
+- try_files $uri $uri/ /auth/index.html;
+- try_files $uri $uri/ /user/index.html;
+- try_files $uri $uri/ /admin/index.html;
+
+Regra geral equivalente:
+- try_files $uri /index.html;
+
+4.3 Proxy para backend
+- /api/ e /socket.io/ devem ser encaminhados para http://localhost:3000
+- Em task ECS com Nginx e backend juntos, localhost:3000 e valido
+
+4.4 WebSocket
+Configuracao minima:
+- proxy_http_version 1.1
+- proxy_set_header Upgrade $http_upgrade
+- proxy_set_header Connection "upgrade"
+
+
+## 5. DOCKER — PADRÕES DE PRODUÇÃO
+
+Regras obrigatorias:
+- containers imutaveis
+- sem volumes em producao
+- sem dev server em producao
+- sem .env dentro do container
+- tudo buildado na imagem
+
+Complementos recomendados:
+- usar imagens base leves
+- usar multi-stage builds
+- usar npm ci para reproducibilidade
+- evitar side effects no startup
+
+
+## 6. AWS — CONFIGURAÇÃO COMPLETA
+
+### 6.1 Amazon ECR
+
+Criar repositorios:
+- backend
+- frontend
+- nginx
+
+Padrao de tags recomendado:
+- <repo>:<github.sha>
+- opcionalmente manter tambem latest para referencia humana
+
+Observacao:
+- Este projeto funciona com frontend servido por Nginx no mesmo container de frontend.
+- O repositorio nginx pode ser mantido para evolucao futura (separacao de imagem proxy dedicada).
+
+
+### 6.2 Amazon ECS
+
+- Criar cluster Fargate
+- Criar service com desired count >= 1
+- Task definition com 2 containers:
+  - nginx (porta 80)
+  - backend (porta 3000)
+
+Boas praticas de task definition:
+- usar cpu/memory compativeis com carga
+- definir logConfiguration awslogs para ambos
+- definir healthchecks coerentes
+- configurar restart behavior padrao do ECS
+
+
+### 6.3 Load Balancer
+
+- Criar ALB com listener HTTP 80
+- Target group apontando para container nginx
+- Health check do target group: /
+- Path-based routing opcional para multiplos servicos
+
+
+### 6.4 IAM
+
+Perfis recomendados:
+- ecsTaskExecutionRole:
+  - permissao para puxar imagem do ECR
+  - permissao para enviar logs para CloudWatch
+- github-actions-user:
+  - permissao para login/push no ECR
+  - permissao para registrar nova task definition
+  - permissao para atualizar ECS service
+
+
+## 7. CI/CD (GITHUB ACTIONS)
+
+Objetivo do pipeline:
+1. Login no ECR
+2. Build das imagens
+3. Push das imagens
+4. Atualizacao do task-definition.json com novas tags
+5. Deploy no ECS
+
+Acao principal de deploy:
+- aws-actions/amazon-ecs-deploy-task-definition
+
+Tag de imagem:
+- usar github.sha para imutabilidade e rastreabilidade
+
+Secrets necessarios no GitHub:
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_REGION
+- ECR_REGISTRY
+- ECS_CLUSTER
+- ECS_SERVICE
+- ECS_TASK_DEFINITION
+
+Exemplo de fluxo (alto nivel):
+1. Checkout do codigo
+2. Configure AWS credentials
+3. Login ECR
+4. Build backend e frontend
+5. Tag com github.sha
+6. Push ECR
+7. Render task definition com novas imagens
+8. Deploy task definition no ECS
+9. Aguardar estabilidade do service
+
+Observacao:
+- Se necessario, separar pipelines por ambiente (staging/prod) e por branch.
+
+
+## 8. VARIÁVEIS DE AMBIENTE
+
+### Backend:
+
+Fonte de verdade:
+- ECS Task Definition (environment)
+- AWS Secrets Manager (opcional e recomendado para segredos)
+
+Exemplos:
+- DATABASE_URL
+- MONGO_URI
+- RUN_MIGRATIONS
+- RUN_PRISMA_SEED
+- PORT
+- NODE_ENV
+
+Diretriz:
+- segredos nao devem ficar em imagem, .env comitado ou arquivos locais do container
+
+
+### Frontend:
+
+- Variaveis VITE_* devem entrar como build args
+- Nao usar runtime env para frontend estatico
+
+Exemplo conceitual:
+- --build-arg AUTH_VITE_API_BASE_URL=/api
+- --build-arg AUTH_VITE_BASE_PATH=/auth/
+
+
+## 9. EXECUÇÃO LOCAL
+
+### Backend:
+
+Comando:
+- docker compose -f docker-compose.prod.yml up --build
+
+Diretorio esperado:
+- Codigo/backend
+
+Pre-requisitos:
+- DATABASE_URL e MONGO_URI definidos no ambiente local
+
+
+### Frontend:
+
+Comandos:
+- docker build -f frontend/docker/Dockerfile.prod .
+- docker run -p 80:80 imagem
+
+Diretorio recomendado para build:
+- Codigo
+
+Validacao manual local:
+- http://localhost/auth/
+- http://localhost/user/
+- http://localhost/admin/
+- proxy de API via /api
+
+
+## 10. ERROS COMUNS E SOLUÇÕES
+
+1) App nao acessivel
+- Causa comum: bind incorreto no backend
+- Solucao: garantir listen em 0.0.0.0
+
+2) Nginx nao conecta no backend
+- Causa comum: proxy para host incorreto
+- Solucao: usar http://localhost:3000 quando containers estiverem na mesma task ECS
+
+3) React quebrando rota ao atualizar pagina
+- Causa comum: ausencia de try_files para SPA
+- Solucao: configurar fallback para index.html de cada app
+
+4) ECS nao atualiza deploy
+- Causa comum: imagem com mesma tag
+- Solucao: usar tag unica por commit (github.sha)
+
+5) Variavel de frontend nao funciona
+- Causa comum: confusao entre build-time e runtime
+- Solucao: passar VITE_* no build, nao no runtime
+
+
+## 11. CHECKLIST DE DEPLOY
+
+Checklist antes de subir:
+- [ ] backend bind 0.0.0.0
+- [ ] frontend buildado
+- [ ] nginx configurado
+- [ ] sem volumes
+- [ ] sem dev mode
+- [ ] env correto
+- [ ] imagens no ECR
+
+Checklist complementar recomendado:
+- [ ] healthcheck backend validado (/health)
+- [ ] healthcheck ALB validado (/)
+- [ ] logs no CloudWatch habilitados
+- [ ] rollback documentado
+
+
+## 12. BOAS PRÁTICAS
+
+- usar imagens leves
+- evitar multiplos containers frontend
+- manter logs no CloudWatch
+- usar build imutavel
+- separar dev e prod
+
+Boas praticas adicionais:
+- padronizar nomenclatura de tags e repositorios ECR
+- manter task-definition versionada no repositorio
+- revisar IAM por principio de menor privilegio
+- monitorar taxa de erro e latencia no ALB/CloudWatch
+- executar deploy progressivo sempre que possivel
+
+
+FIM DO RUNBOOK
+
+Este documento deve ser mantido atualizado a cada alteracao em:
+- Dockerfiles
+- Nginx de producao
+- Task definitions
+- Pipeline de CI/CD

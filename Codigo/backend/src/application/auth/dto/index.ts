@@ -3,5 +3,6 @@ export * from './register.dto';
 export * from './refresh-token.dto';
 export * from './confirm-email.dto';
 export * from './forgot-password.dto';
+export * from './verify-password-reset-code.dto';
 export * from './reset-password.dto';
 export * from './update-profile.dto';

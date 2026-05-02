@@ -58,6 +58,40 @@ export interface HostingBookedMailPayload {
   contactEmail: string;
 }
 
+export interface HostingBookedCompanyGuestDetail {
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  birthDate?: string | null;
+  isPrimary?: boolean;
+}
+
+export interface HostingBookedCompanyMailPayload {
+  email: string;
+  codigoReserva: string;
+  customerName: string;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  accommodationName: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  adults: number;
+  children: number;
+  guestList: string[];
+  guestDetails: HostingBookedCompanyGuestDetail[];
+  valorDiaria: string | number;
+  total: string | number;
+  valorPagoApp: string | number;
+  valorRestanteCheckin: string | number;
+  paymentStatus: string;
+  paymentMethod?: string | null;
+  reservationStatus: string;
+  observacoes?: string | null;
+}
+
 export interface ProductPurchaseConfirmationMailPayload {
   email: string;
   customerName: string;

@@ -1,0 +1,20 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      MONGO_URI: ${MONGO_URI}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_PRISMA_SEED: ${RUN_PRISMA_SEED:-false}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

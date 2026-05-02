@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HostingNotificationStatus, Prisma } from '@prisma/client';
 import { LogsService } from '../../../../application/logs/services';
-import { HostingBookedMailPayload } from '../../../../application/mail/interfaces/mail-template-payloads.interface';
+import {
+  HostingBookedCompanyMailPayload,
+  HostingBookedMailPayload,
+} from '../../../../application/mail/interfaces/mail-template-payloads.interface';
 import { MailService } from '../../../../application/mail/services/mail.service';
 import { PrismaService } from '../../../../infrastructure/database/prisma/prisma.service';
 
@@ -28,17 +31,23 @@ export class HospedagemNotificationService {
       target: 'customer',
     });
 
-    const systemEmail = this.resolveSystemEmail();
-    if (systemEmail && systemEmail !== customerEmail) {
-      this.logger.log(`Enviando cópia sistêmica da reserva ${reservaId} para ${systemEmail}.`);
-      await this.mailService.sendHostingBookedEmail({
-        ...payload,
-        email: systemEmail,
-      });
-      await this.logNotification(reservaId, reserva.userId, 'BOOKING_CONFIRMED', systemEmail, 'SENT', {
-        code: reserva.code,
-        target: 'system',
-      });
+    const companyEmail = this.resolveCompanyBookingEmail();
+    if (companyEmail) {
+      this.logger.log(`Enviando e-mail corporativo da reserva ${reservaId} para ${companyEmail}.`);
+      await this.mailService.sendHostingBookedCompanyEmail(
+        this.buildHostingBookedCompanyPayload(reserva, companyEmail),
+      );
+      await this.logNotification(
+        reservaId,
+        reserva.userId,
+        'BOOKING_CONFIRMED',
+        companyEmail,
+        'SENT',
+        {
+          code: reserva.code,
+          target: 'company',
+        },
+      );
     }
 
     await this.enviarDetalhesVoucher(reservaId);
@@ -253,6 +262,12 @@ export class HospedagemNotificationService {
         guests: {
           select: {
             fullName: true,
+            email: true,
+            phone: true,
+            cpf: true,
+            rg: true,
+            birthDate: true,
+            isPrimary: true,
           },
         },
       },
@@ -344,7 +359,74 @@ export class HospedagemNotificationService {
     };
   }
 
-  private resolveSystemEmail(): string | null {
+  private buildHostingBookedCompanyPayload(
+    reserva: any,
+    email: string,
+  ): HostingBookedCompanyMailPayload {
+    const financialSummary = this.buildFinancialSummary(reserva);
+    const halfAmount = financialSummary.totalAmount / 2;
+    const guestDetails = Array.isArray(reserva.guests)
+      ? reserva.guests.map(
+          (guest: {
+            fullName: string;
+            email?: string | null;
+            phone?: string | null;
+            cpf?: string | null;
+            rg?: string | null;
+            birthDate?: Date | null;
+            isPrimary?: boolean;
+          }) => ({
+            fullName: guest.fullName,
+            email: guest.email ?? null,
+            phone: guest.phone ?? null,
+            cpf: guest.cpf ?? null,
+            rg: guest.rg ?? null,
+            birthDate: guest.birthDate ? this.toDateString(guest.birthDate) : null,
+            isPrimary: Boolean(guest.isPrimary),
+          }),
+        )
+      : [];
+    const guestList =
+      guestDetails.length > 0
+        ? guestDetails.map((guest: { fullName: string }) => guest.fullName).filter(Boolean)
+        : [reserva.guestName].filter(Boolean);
+
+    return {
+      email,
+      codigoReserva: reserva.code,
+      customerName: reserva.guestName,
+      customerEmail: reserva.guestEmail ?? null,
+      customerPhone: reserva.guestPhone ?? null,
+      accommodationName: reserva.chalet.name,
+      checkIn: this.toDateWithExpectedTime(reserva.checkInDate, this.getCheckinTime()),
+      checkOut: this.toDateWithExpectedTime(reserva.checkOutDate, this.getCheckoutTime()),
+      guests: reserva.adults + reserva.children,
+      adults: reserva.adults,
+      children: reserva.children,
+      guestList,
+      guestDetails,
+      valorDiaria: financialSummary.dailyAmount.toFixed(2),
+      total: financialSummary.totalAmount.toFixed(2),
+      valorPagoApp: halfAmount.toFixed(2),
+      valorRestanteCheckin: halfAmount.toFixed(2),
+      paymentStatus: String(reserva.paymentStatus),
+      paymentMethod: reserva.paymentMethod ?? null,
+      reservationStatus: String(reserva.status),
+      observacoes: reserva.notes ?? null,
+    };
+  }
+
+  private resolveCompanyBookingEmail(): string | null {
+    const username = process.env.MAIL_USERNAME?.trim();
+    if (username?.includes('@')) {
+      return username;
+    }
+
+    const user = process.env.MAIL_USER?.trim();
+    if (user?.includes('@')) {
+      return user;
+    }
+
     const from = process.env.MAIL_FROM?.trim();
     if (!from) {
       return null;

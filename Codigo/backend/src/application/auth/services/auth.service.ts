@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   UnauthorizedException,
   ConflictException,
@@ -9,16 +10,22 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import { UserRole, UserStatus } from '@prisma/client';
-import { randomBytes, randomInt } from 'crypto';
+import { createHash, randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { RegisterDto } from '../dto/register.dto';
 import { EventTypes } from '../../../shared/events/event-types';
 import { TokenService } from './token.service';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { LogsService } from '../../logs/services';
+import { MailService } from '../../mail/services/mail.service';
 
 @Injectable()
 export class AuthService {
+  private static readonly PASSWORD_RESET_CODE_PREFIX = 'PWDRESET';
+  private static readonly PASSWORD_RESET_SESSION_PREFIX = 'PWDSESSION';
+  private static readonly PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10;
+  private static readonly PASSWORD_RESET_SESSION_EXPIRY_MINUTES = 10;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -26,6 +33,7 @@ export class AuthService {
     private eventEmitter: EventEmitter2,
     private tokenService: TokenService,
     private logsService: LogsService,
+    private mailService: MailService,
   ) {}
 
   private buildIdentity(user: {
@@ -430,23 +438,43 @@ export class AuthService {
   async forgotPassword(email: string) {
     const userEmail = await this.prisma.userEmail.findUnique({
       where: { email },
-      select: { id: true },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
     });
 
-    if (!userEmail) {
+    if (
+      !userEmail?.user ||
+      !userEmail.isVerified ||
+      !userEmail.user.isActive ||
+      userEmail.user.status !== UserStatus.ACTIVE
+    ) {
       return { success: true };
     }
 
-    const token = randomBytes(32).toString('hex');
+    const code = this.generatePasswordResetCode();
+    const expiresAt = new Date(
+      Date.now() +
+        AuthService.PASSWORD_RESET_CODE_EXPIRY_MINUTES * 60 * 1000,
+    );
+    const token = this.buildPasswordResetCodeToken(code, expiresAt);
     await this.prisma.userEmail.update({
       where: { id: userEmail.id },
       data: { token },
     });
 
-    return {
-      success: true,
-      resetToken: token,
-    };
+    await this.mailService.sendPasswordResetCodeEmail(
+      userEmail.email,
+      userEmail.user.profile?.fullName ?? userEmail.user.username,
+      code,
+      AuthService.PASSWORD_RESET_CODE_EXPIRY_MINUTES,
+    );
+
+    return { success: true };
   }
 
   async resendConfirmation(email: string) {
@@ -494,14 +522,121 @@ export class AuthService {
     return { success: true };
   }
 
-  async resetPassword(token: string, newPassword: string) {
-    const userEmail = await this.prisma.userEmail.findFirst({
-      where: { token },
-      select: { id: true, userId: true },
+  async verifyPasswordResetCode(email: string, code: string) {
+    const userEmail = await this.prisma.userEmail.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        userId: true,
+        token: true,
+        isVerified: true,
+        user: {
+          select: {
+            id: true,
+            isActive: true,
+            status: true,
+          },
+        },
+      },
+    });
+    if (
+      !userEmail?.user ||
+      !userEmail.isVerified ||
+      !userEmail.user.isActive ||
+      userEmail.user.status !== UserStatus.ACTIVE
+    ) {
+      throw new UnauthorizedException('Código de recuperação inválido');
+    }
+
+    const tokenData = this.parsePasswordResetCodeToken(userEmail.token);
+    if (
+      !tokenData ||
+      tokenData.expiresAt.getTime() < Date.now() ||
+      tokenData.codeHash !== this.hashPasswordResetValue(code)
+    ) {
+      throw new UnauthorizedException('Código de recuperação inválido');
+    }
+
+    const sessionId = randomBytes(24).toString('hex');
+    const sessionExpiresAt = new Date(
+      Date.now() +
+        AuthService.PASSWORD_RESET_SESSION_EXPIRY_MINUTES * 60 * 1000,
+    );
+    await this.prisma.userEmail.update({
+      where: { id: userEmail.id },
+      data: {
+        token: this.buildPasswordResetSessionToken(sessionId, sessionExpiresAt),
+      },
     });
 
-    if (!userEmail) {
-      throw new UnauthorizedException('Invalid recovery token');
+    const resetSessionToken = await this.jwtService.signAsync(
+      {
+        sub: userEmail.userId,
+        emailId: userEmail.id,
+        sid: sessionId,
+        purpose: 'PASSWORD_RESET',
+      },
+      {
+        secret: this.configService.get<string>('jwt.secret'),
+        expiresIn: `${AuthService.PASSWORD_RESET_SESSION_EXPIRY_MINUTES}m`,
+      },
+    );
+
+    return { success: true, resetSessionToken };
+  }
+
+  async resetPassword(
+    resetSessionToken: string,
+    newPassword: string,
+    confirmPassword: string,
+  ) {
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('As senhas informadas não coincidem');
+    }
+
+    const secret = this.configService.get<string>('jwt.secret');
+    if (!secret) {
+      throw new UnauthorizedException('JWT secret is not configured');
+    }
+
+    let payload: {
+      sub: string;
+      emailId: string;
+      sid: string;
+      purpose: string;
+    };
+    try {
+      payload = await this.jwtService.verifyAsync(resetSessionToken, { secret });
+    } catch {
+      throw new UnauthorizedException('Sessão de recuperação inválida');
+    }
+
+    if (!payload?.sub || !payload?.emailId || !payload?.sid || payload.purpose !== 'PASSWORD_RESET') {
+      throw new UnauthorizedException('Sessão de recuperação inválida');
+    }
+
+    const userEmail = await this.prisma.userEmail.findUnique({
+      where: { id: payload.emailId },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    if (!userEmail?.user || userEmail.userId !== payload.sub) {
+      throw new UnauthorizedException('Sessão de recuperação inválida');
+    }
+
+    const sessionData = this.parsePasswordResetSessionToken(userEmail.token);
+    if (
+      !sessionData ||
+      sessionData.expiresAt.getTime() < Date.now() ||
+      sessionData.sessionHash !== this.hashPasswordResetValue(payload.sid)
+    ) {
+      throw new UnauthorizedException('Sessão de recuperação inválida');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -518,6 +653,18 @@ export class AuthService {
         data: { token: null },
       }),
     ]);
+
+    this.eventEmitter.emit(EventTypes.USER_PASSWORD_RESET, {
+      userId: userEmail.userId,
+      email: userEmail.email,
+      timestamp: new Date(),
+      triggeredBy: 'system',
+    });
+
+    await this.mailService.sendPasswordUpdatedEmail(
+      userEmail.email,
+      userEmail.user.profile?.fullName ?? userEmail.user.username,
+    );
 
     return { success: true };
   }
@@ -609,5 +756,70 @@ export class AuthService {
       }
     }
     throw new ConflictException('Unable to generate confirmation code');
+  }
+
+  private generatePasswordResetCode(): string {
+    return randomInt(0, 1_000_000).toString().padStart(6, '0');
+  }
+
+  private hashPasswordResetValue(value: string): string {
+    const secret = this.configService.get<string>('jwt.secret') ?? 'duze-reset-fallback';
+    return createHash('sha256').update(`${value}:${secret}`).digest('hex');
+  }
+
+  private buildPasswordResetCodeToken(code: string, expiresAt: Date): string {
+    return [
+      AuthService.PASSWORD_RESET_CODE_PREFIX,
+      expiresAt.getTime().toString(),
+      this.hashPasswordResetValue(code),
+    ].join(':');
+  }
+
+  private parsePasswordResetCodeToken(token?: string | null): {
+    expiresAt: Date;
+    codeHash: string;
+  } | null {
+    if (!token) {
+      return null;
+    }
+    const [prefix, expiresAtRaw, codeHash] = token.split(':');
+    if (prefix !== AuthService.PASSWORD_RESET_CODE_PREFIX || !expiresAtRaw || !codeHash) {
+      return null;
+    }
+    const expiresAtMs = Number(expiresAtRaw);
+    if (!Number.isFinite(expiresAtMs)) {
+      return null;
+    }
+    return { expiresAt: new Date(expiresAtMs), codeHash };
+  }
+
+  private buildPasswordResetSessionToken(sessionId: string, expiresAt: Date): string {
+    return [
+      AuthService.PASSWORD_RESET_SESSION_PREFIX,
+      expiresAt.getTime().toString(),
+      this.hashPasswordResetValue(sessionId),
+    ].join(':');
+  }
+
+  private parsePasswordResetSessionToken(token?: string | null): {
+    expiresAt: Date;
+    sessionHash: string;
+  } | null {
+    if (!token) {
+      return null;
+    }
+    const [prefix, expiresAtRaw, sessionHash] = token.split(':');
+    if (
+      prefix !== AuthService.PASSWORD_RESET_SESSION_PREFIX ||
+      !expiresAtRaw ||
+      !sessionHash
+    ) {
+      return null;
+    }
+    const expiresAtMs = Number(expiresAtRaw);
+    if (!Number.isFinite(expiresAtMs)) {
+      return null;
+    }
+    return { expiresAt: new Date(expiresAtMs), sessionHash };
   }
 }
