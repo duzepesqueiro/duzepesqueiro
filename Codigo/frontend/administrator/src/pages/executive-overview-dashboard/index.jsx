@@ -4,167 +4,22 @@ import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import KPICard from './components/KPICard';
 import RevenueChart from './components/RevenueChart';
-import TopProductsList from './components/TopProductsList';
+import TopChalesList from './components/TopChalesList';
 import AlertsPanel from './components/AlertsPanel';
 import CategoryPerformance from './components/CategoryPerformance';
 import QuickActions from '../../components/ui/QuickActions';
 import Icon from '../../components/AppIcon';
 import { exportAdminData } from '../../utils/exportService';
-import api from '../../utils/api';
-import { syncAlertsWithReadStatus } from '../../utils/notificationService';
 
 const ExecutiveOverviewDashboard = () => {
-  const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [kpiData, setKpiData] = useState([]);
-  const [revenueData, setRevenueData] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
   const [timeframe, setTimeframe] = useState('weekly');
-  const [dashboardAlerts, setDashboardAlerts] = useState([]);
-
-  // Generate dynamic alerts based on dashboard data
-  const generateDashboardAlerts = (kpis, categories) => {
-    const alerts = [];
-
-    // 1. Active Rentals Alert
-    const rentalKpi = kpis.find(k => k.title.toLowerCase().includes('aluguéis') || k.title.toLowerCase().includes('ativos'));
-    if (rentalKpi) {
-      alerts.push({
-        id: 'dashboard-rentals-active',
-        type: "info",
-        priority: "medium",
-        title: "Status de Aluguéis",
-        message: `${rentalKpi.value} Aluguéis ativos no momento`,
-        details: `O número de aluguéis ativos é ${rentalKpi.value}. Acompanhe o painel de operações para mais detalhes.`,
-        timestamp: new Date()
-      });
-    }
-
-    // 2. Revenue Alert
-    const revenueKpi = kpis.find(k => k.title.toLowerCase().includes('receita') || k.title.toLowerCase().includes('faturamento'));
-    if (revenueKpi) {
-      const isIncrease = revenueKpi.changeType === 'positive' || revenueKpi.changeType === 'increase';
-      alerts.push({
-        id: 'dashboard-revenue-status',
-        type: isIncrease ? "success" : "warning",
-        priority: "high",
-        title: "Atualização de Receita",
-        message: `Receita Total ${isIncrease ? 'aumentou' : 'diminuiu'} ${revenueKpi.change}`,
-        details: `A receita total registrada é de ${revenueKpi.value}, representando uma ${isIncrease ? 'alta' : 'baixa'} de ${revenueKpi.change} em relação ao período anterior.`,
-        timestamp: new Date()
-      });
-    }
-
-    // 3. Category Performance Alerts
-    if (categories && categories.length > 0) {
-      // Find category with highest change (positive or negative)
-      // Since change is currently 0, we'll just check if there's any non-zero change
-      // Or we can just pick the top category as a "performance" highlight if no change data
-      
-      const topCategory = categories.reduce((prev, current) => (prev.value > current.value) ? prev : current, categories[0]);
-      
-      if (topCategory) {
-         alerts.push({
-          id: 'dashboard-cat-top',
-          type: "info",
-          priority: "low",
-          title: "Desempenho de Categoria",
-          message: `Categoria destaque: ${topCategory.name}`,
-          details: `${topCategory.name} representa ${topCategory.percentage}% das vendas totais com ${topCategory.value} unidades vendidas.`,
-          timestamp: new Date()
-        });
-      }
-
-      // If we had change data, we would add specific alerts for increase/decrease
-      categories.forEach(cat => {
-        if (cat.change && Math.abs(cat.change) > 10) { // Threshold for alert
-           const isIncrease = cat.change > 0;
-           alerts.push({
-            id: `dashboard-cat-change-${cat.name}`,
-            type: isIncrease ? "success" : "warning",
-            priority: "medium",
-            title: `Desempenho: ${cat.name}`,
-            message: `Vendas de ${cat.name} ${isIncrease ? 'aumentaram' : 'diminuíram'} ${Math.abs(cat.change)}%`,
-            details: `A categoria ${cat.name} apresentou uma variação significativa de ${cat.change}% no período.`,
-            timestamp: new Date()
-          });
-        }
-      });
-    }
-
-    return alerts;
-  };
-
-  // Fetch KPI and Revenue data from backend
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [kpiRes, revenueRes, topProductsRes, categoryRes] = await Promise.all([
-          api.get('/api/admin/dashboard/kpis'),
-          api.get(`/api/admin/dashboard/performance?period=${timeframe}`),
-          api.get('/api/admin/dashboard/top-products?limit=10'),
-          api.get('/api/admin/dashboard/category-performance')
-        ]);
-
-        let currentKpiData = [];
-        let currentCategoryData = [];
-
-        if (kpiRes.data) {
-          currentKpiData = kpiRes.data.map(kpi => {
-            let color = 'primary';
-            const title = (kpi.title || '').toLowerCase();
-            if (title.includes('receita') || title.includes('lucro')) color = 'success';
-            else if (title.includes('inventário')) color = 'warning';
-            else if (title.includes('aluguéis')) color = 'primary';
-            
-            return {
-              ...kpi,
-              color,
-              trend: [0, 0, 0, 0, 0, 0, 0] // Placeholder trend
-            };
-          });
-          setKpiData(currentKpiData);
-        }
-
-        if (revenueRes.data) {
-          setRevenueData(revenueRes.data.map(item => ({
-            period: item.period,
-            revenue: item.revenue,
-            userCount: item.userCount
-          })));
-        }
-
-        if (topProductsRes.data) {
-          setTopProducts(topProductsRes.data);
-        }
-
-        if (categoryRes.data) {
-          const total = categoryRes.data.reduce((acc, item) => acc + (item.quantitySold || 0), 0);
-          currentCategoryData = categoryRes.data.map(item => ({
-            name: item.category,
-            value: item.quantitySold || 0,
-            percentage: total > 0 ? parseFloat(((item.quantitySold || 0) / total * 100).toFixed(1)) : 0,
-            change: item.change || 0 // Use backend change if available
-          }));
-          setCategoryData(currentCategoryData);
-        }
-
-        // Generate alerts based on fetched data
-        const generatedAlerts = generateDashboardAlerts(currentKpiData, currentCategoryData);
-        // Sync with backend read status
-        const syncedAlerts = await syncAlertsWithReadStatus(generatedAlerts);
-        setDashboardAlerts(syncedAlerts);
-
-      } catch (error) {
-        console.error("Error fetching dashboard data", error);
-        // Fallback to empty or mock if needed
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [timeframe]);
+  const isLoading = false;
+  const kpiData = [];
+  const revenueData = [];
+  const topChales = [];
+  const categoryData = [];
+  const dashboardAlerts = [];
 
   useEffect(() => {
     // Auto-refresh data every 30 minutes
@@ -266,9 +121,9 @@ const ExecutiveOverviewDashboard = () => {
               </div>
             </div>
 
-            {/*Top Products List*/}
+            {/* Top Chales List */}
             <div className="xl:col-span-1 h-full">
-              <TopProductsList products={topProducts} className="h-full" />
+              <TopChalesList chales={topChales} className="h-full" />
             </div>
           </div>
 
