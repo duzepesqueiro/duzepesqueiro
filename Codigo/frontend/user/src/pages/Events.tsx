@@ -51,12 +51,20 @@ const Events = () => {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const response = await api.get("/eventos/filtrar");
-        const data = Array.isArray(response.data) ? response.data : [];
+        const response = await api.get("/events");
+        const raw: any[] = response.data?.items ?? (Array.isArray(response.data) ? response.data : []);
+        const data = raw.map((e: any) => ({
+          ...e,
+          image: e.imageUrl ?? '',
+          date: e.eventDate ? formatDate(new Date(e.eventDate), 'dd/MM/yyyy') : '',
+          time: e.eventTime ?? '',
+          currentAttendees: (e.totalSlots ?? 0) - (e.availableSlots ?? 0),
+          totalCapacity: e.totalSlots ?? 0,
+          description: e.description ?? '',
+          rules: e.rules ?? '',
+        }));
         setCarouselEvents(data);
         setAllEvents(data);
-        // Inicialmente filteredEvents pode ser igual a allEvents, 
-        // mas será atualizado pelo useEffect de filtro logo em seguida.
       } catch (error) {
         console.error("Erro ao buscar eventos", error);
         setCarouselEvents([]);
@@ -90,12 +98,10 @@ const Events = () => {
 
     // 2. Filtro por Data
     if (filters.date) {
-      const filterDateStr = formatDate(filters.date, "yyyy-MM-dd");
+      const filterDateStr = formatDate(filters.date, "dd/MM/yyyy");
       result = result.filter((e) => {
         if (!e.date) return false;
-        // Assume e.date vindo do backend ou formato string comparável
-        // Se e.date for ISO completo, extrair a parte da data
-        return String(e.date).includes(filterDateStr);
+        return String(e.date) === filterDateStr;
       });
     }
 
@@ -120,7 +126,7 @@ const Events = () => {
 
     // 5. Filtro por Status
     if (filters.status && filters.status !== "all") {
-      result = result.filter((e) => e.status === filters.status);
+      result = result.filter((e) => String(e.status ?? "").toLowerCase() === filters.status.toLowerCase());
     }
 
     setFilteredEvents(result);
