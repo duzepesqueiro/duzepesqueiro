@@ -11,7 +11,7 @@ import { ArrowUpAZ, Package, DollarSign, ArrowDown, ArrowUp } from "lucide-react
 
 interface RentalSectionProps {
   onBooked: (payload: { dto: any; itemName: string; renterName: string; customerPhone: string }) => void;
-  initialRentalId?: number;
+  initialRentalId?: string;
 }
 
 export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps) => {
@@ -30,18 +30,30 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get("/user/alugueis");
-        const data = Array.isArray(res.data) ? res.data : [];
-        const mapped: RentalItem[] = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          hourlyPrice: Number(d.hourlyPrice ?? 0),
-          available: Number(d.available ?? 0),
-          image: d.image,
-          fullDescription: d.fullDescription ?? d.description ?? "",
-          unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-        }));
+        const res = await api.get("/user/products/rental", { params: { limit: 100 } });
+        const data = Array.isArray(res.data?.items)
+          ? res.data.items
+          : Array.isArray(res.data)
+            ? res.data
+            : [];
+        const mapped: RentalItem[] = data.map((d: any) => {
+          const images = Array.isArray(d.images)
+            ? d.images.filter(Boolean).slice(0, 10)
+            : [];
+          const image = d.image || images[0] || "https://placehold.co/600x600?text=Aluguel";
+
+          return {
+            id: d.id,
+            name: d.name,
+            description: d.description,
+            hourlyPrice: Number(d.hourlyPrice ?? d.salePrice ?? 0),
+            available: Number(d.available ?? d.stockQuantity ?? 0),
+            image,
+            images: images.length ? images : [image],
+            fullDescription: d.fullDescription ?? d.description ?? "",
+            unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
+          };
+        });
         // Default: ordenar por disponibilidade (sem disponibilidade por último)
         const sorted = mapped.sort((a, b) => {
           if (b.available !== a.available) return b.available - a.available;

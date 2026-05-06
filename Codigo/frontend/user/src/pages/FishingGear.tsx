@@ -21,12 +21,13 @@ import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { toast } from "sonner";
 
 export interface RentalItem {
-  id: number;
+  id: string;
   name: string;
   description: string;
   hourlyPrice: number;
   available: number;
   image: string;
+  images: string[];
   fullDescription: string;
   unavailableDates: Date[];
 }
@@ -60,20 +61,33 @@ const FishingGear = () => {
   const refreshUserRentals = async (name?: string, phone?: string) => {
     try {
       const rentals: RentalDTO[] = await getUserRentals(name, phone);
-      const itemsRes = await api.get("/user/alugueis");
-      const items: RentalItem[] = (Array.isArray(itemsRes.data) ? itemsRes.data : []).map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        hourlyPrice: Number(d.hourlyPrice ?? 0),
-        available: Number(d.available ?? 0),
-        image: d.image,
-        fullDescription: d.fullDescription ?? d.description ?? "",
-        unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-      }));
-      const nameMap = new Map<number, string>(items.map((it) => [it.id, it.name]));
+      const itemsRes = await api.get("/user/products/rental", { params: { limit: 100 } });
+      const catalog = Array.isArray(itemsRes.data?.items)
+        ? itemsRes.data.items
+        : Array.isArray(itemsRes.data)
+          ? itemsRes.data
+          : [];
+      const items: RentalItem[] = catalog.map((d: any) => {
+        const images = Array.isArray(d.images)
+          ? d.images.filter(Boolean).slice(0, 10)
+          : [];
+        const image = d.image || images[0] || "https://placehold.co/600x600?text=Aluguel";
+
+        return {
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          hourlyPrice: Number(d.hourlyPrice ?? d.salePrice ?? 0),
+          available: Number(d.available ?? d.stockQuantity ?? 0),
+          image,
+          images: images.length ? images : [image],
+          fullDescription: d.fullDescription ?? d.description ?? "",
+          unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
+        };
+      });
+      const nameMap = new Map<string, string>(items.map((it) => [it.id, it.name]));
       setRentalOrders(
-        rentals.map((dto) => ({ dto, itemName: nameMap.get(dto.rentalItemId) || "Item" }))
+        rentals.map((dto) => ({ dto, itemName: nameMap.get(String(dto.rentalItemId)) || "Item" }))
       );
     } catch (err) {
       console.error("Falha ao buscar seus aluguéis", err);
@@ -334,7 +348,7 @@ const FishingGear = () => {
                         <TabsContent value="rentals" className="mt-4">
                           <RentalHistory
                             orders={rentalOrders}
-                            onCancel={async (id: number) => {
+                            onCancel={async (id: string | number) => {
                               const updated = await cancelRental(id);
                               setRentalOrders((prev) =>
                                 prev.map((o) =>
@@ -370,7 +384,7 @@ const FishingGear = () => {
                   setRentalOrders((prev) => [{ dto, itemName }, ...prev]);
                   // Depois busca histórico completo do usuário
                   refreshUserRentals(renterName, customerPhone);
-                  const prompt = { type: "rental" as const, id: dto?.rentalItemId ?? 0, name: itemName };
+                  const prompt = { type: "rental" as const, id: dto?.rentalItemId ?? "", name: itemName };
                   enqueueRatingPrompt(prompt);
                   // Exibe após confirmação de aluguel (leve atraso)
                   setTimeout(() => {
@@ -392,7 +406,7 @@ const FishingGear = () => {
                 initialRentalId={(() => {
                   const params = new URLSearchParams(location.search);
                   const rid = params.get("rentalId");
-                  return rid ? Number(rid) : undefined;
+                  return rid || undefined;
                 })()}
               />
             </TabsContent>
