@@ -380,7 +380,7 @@ const FishingGear = () => {
                 initialRentalId={(() => {
                   const params = new URLSearchParams(location.search);
                   const rid = params.get("rentalId");
-                  return rid ? Number(rid) : undefined;
+                  return rid || undefined;
                 })()}
               />
             </TabsContent>

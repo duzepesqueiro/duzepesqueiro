@@ -1,4 +1,3 @@
-import axios from "axios";
 import { api } from "@/lib/api";
 
 export type RentalCatalogItem = {
@@ -103,7 +102,7 @@ export const getRentalCatalog = async (): Promise<RentalCatalogItem[]> => {
   }
 
   try {
-    const { data } = await axios.get("/user/products/rental", { params: { limit: 100 } });
+    const { data } = await api.get("/user/products/rental", { params: { limit: 100 } });
     const rentalItems = readItems(data);
     if (rentalItems.length) {
       return rentalItems.map(normalizeRentalCatalogItem);
@@ -113,7 +112,7 @@ export const getRentalCatalog = async (): Promise<RentalCatalogItem[]> => {
   }
 
   try {
-    const { data } = await axios.get("/user/products/sale", { params: { limit: 100 } });
+    const { data } = await api.get("/user/products/sale", { params: { limit: 100 } });
     const productItems = readItems(data);
     if (productItems.length) {
       return productItems.map(normalizeRentalCatalogItem);

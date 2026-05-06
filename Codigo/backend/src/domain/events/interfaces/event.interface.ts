@@ -82,21 +82,13 @@ export interface IEventFilter {
 export interface IEventCard {
   id: string;
   title: string;
-  description?: string;
-  rules?: string;
   imageUrl: string;
-  image?: string;
-  images?: string[];
   location: string;
   eventDate: Date;
-  date?: Date;
   eventTime: string;
-  time?: string;
   status: EventStatus;
   isPaid: boolean;
   price?: number | null;
   availableSlots: number;
   totalSlots: number;
-  totalCapacity?: number;
-  currentAttendees?: number;
 }

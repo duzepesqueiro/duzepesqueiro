@@ -11,7 +11,7 @@ import { ArrowUpAZ, Package, DollarSign, ArrowDown, ArrowUp } from "lucide-react
 
 interface RentalSectionProps {
   onBooked: (payload: { dto: any; itemName: string; renterName: string; customerPhone: string }) => void;
-  initialRentalId?: number;
+  initialRentalId?: string | number;
 }
 
 export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps) => {

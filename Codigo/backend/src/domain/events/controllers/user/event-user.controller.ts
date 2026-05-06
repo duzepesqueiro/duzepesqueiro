@@ -27,14 +27,13 @@ import {
   EventCardResponseDto,
   PaginatedEventCardResponseDto,
   RegistrationStatusResponseDto,
-  UserEventRegistrationResponseDto,
 } from '../../dto/docs';
-import { IEventCard, IPaginatedResult, IUserEventRegistration } from '../../interfaces';
+import { IEventCard, IPaginatedResult } from '../../interfaces';
 import { EventRegistrationService, EventUserService } from '../../services/user';
 
 type StatusParam = 'ALL' | 'UPCOMING' | 'CANCELLED';
 
-@Controller(['events', 'api/events'])
+@Controller('events')
 @ApiTags('Events - User')
 @UseInterceptors(ClassSerializerInterceptor)
 @UsePipes(
@@ -64,23 +63,6 @@ export class EventUserController {
     @Query() filters: FilterEventsDto,
   ): Promise<IPaginatedResult<IEventCard>> {
     return this.eventUserService.getEvents(filters);
-  }
-
-  @Get('registrations')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar inscrições do usuário autenticado' })
-  @ApiResponse({
-    status: 200,
-    description: 'Inscrições retornadas com sucesso',
-    type: UserEventRegistrationResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({ status: 401, description: 'Não autenticado' })
-  async getMyRegistrations(
-    @CurrentUser('id') userId: string,
-  ): Promise<IUserEventRegistration[]> {
-    return this.eventRegistrationService.getUserRegistrations(userId);
   }
 
   @Get(':id')

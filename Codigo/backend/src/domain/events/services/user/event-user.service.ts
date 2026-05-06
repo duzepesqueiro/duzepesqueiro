@@ -138,33 +138,18 @@ export class EventUserService {
   }
 
   private toEventCard(event: IEvent): IEventCard {
-    const currentAttendees = Math.max(0, event.totalSlots - event.availableSlots);
-    const images = Array.isArray(event.images) && event.images.length
-      ? event.images
-      : event.imageUrl
-      ? [event.imageUrl]
-      : [];
-
     return {
       id: event.id,
       title: event.title,
-      description: event.description,
-      rules: event.rules,
       imageUrl: event.imageUrl,
-      image: event.imageUrl || images[0],
-      images,
       location: event.location,
       eventDate: event.eventDate,
-      date: event.eventDate,
       eventTime: event.eventTime,
-      time: event.eventTime,
       status: event.status,
       isPaid: event.isPaid,
       price: event.price ?? null,
       availableSlots: event.availableSlots,
       totalSlots: event.totalSlots,
-      totalCapacity: event.totalSlots,
-      currentAttendees,
     };
   }
 }
