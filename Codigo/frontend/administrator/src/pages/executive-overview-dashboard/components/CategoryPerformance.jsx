@@ -145,7 +145,9 @@ const CategoryPerformance = ({ categories, className = '' }) => {
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Melhor Desempenho:</span>
             <span className="font-medium text-success">
-              {categories?.reduce((best, cat) => cat?.change > best?.change ? cat : best)?.name}
+              {categories?.length
+                ? categories.reduce((best, cat) => (cat?.change > best?.change ? cat : best), categories[0])?.name
+                : 'N/A'}
             </span>
           </div>
           <div className="flex items-center justify-between">

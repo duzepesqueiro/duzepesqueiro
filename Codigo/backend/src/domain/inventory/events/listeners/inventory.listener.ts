@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { UserRole } from '@prisma/client';
 import { MailService } from '../../../../application/mail/services/mail.service';
 import { NotificationsGateway } from '../../../../application/notifications/gateways/notifications.gateway';
+import { NotificationsService } from '../../../../application/notifications/services/notifications.service';
 import { PrismaService } from '../../../../infrastructure/database/prisma/prisma.service';
 import { KpiService } from '../../services/kpi.service';
 import { InventoryEventName } from '../constants';
@@ -55,6 +56,7 @@ type DashboardUpdatedPayload = {
 export class InventoryEventListener {
   constructor(
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly notificationsService: NotificationsService,
     private readonly kpiService: KpiService,
     private readonly mailService: MailService,
     private readonly prisma: PrismaService,
@@ -67,6 +69,15 @@ export class InventoryEventListener {
       message: `Product ${payload.sku} - ${payload.name ?? ''} was created`,
       data: payload,
     });
+    await this.notificationsService.notifyAdmins({
+      source: 'inventory',
+      eventKey: 'inventory.product.created',
+      title: 'Novo produto cadastrado',
+      message: `Produto ${payload.sku} - ${payload.name ?? ''} cadastrado no estoque.`,
+      type: 'SUCCESS',
+      dedupKey: `inventory.product.created.${payload.productId}`,
+      payload: payload as Record<string, unknown>,
+    });
     await this.kpiService.calculateTotalStockValue();
   }
 
@@ -77,6 +88,15 @@ export class InventoryEventListener {
       message: `Product ${payload.sku} changed ${payload.changedFields?.length ?? 0} fields`,
       data: payload,
     });
+    await this.notificationsService.notifyAdmins({
+      source: 'inventory',
+      eventKey: 'inventory.product.updated',
+      title: 'Produto atualizado',
+      message: `Produto ${payload.sku} alterado (${payload.changedFields?.length ?? 0} campos).`,
+      type: 'INFO',
+      dedupKey: `inventory.product.updated.${payload.productId}.${(payload.changedFields || []).join('-')}`,
+      payload: payload as Record<string, unknown>,
+    });
   }
 
   @OnEvent(InventoryEventName.PRODUCT_DELETED)
@@ -85,6 +105,15 @@ export class InventoryEventListener {
       title: 'Product Deleted',
       message: `Product ${payload.sku} was deleted`,
       data: payload,
+    });
+    await this.notificationsService.notifyAdmins({
+      source: 'inventory',
+      eventKey: 'inventory.product.deleted',
+      title: 'Produto removido',
+      message: `Produto ${payload.sku} removido do estoque.`,
+      type: 'WARNING',
+      dedupKey: `inventory.product.deleted.${payload.productId}`,
+      payload: payload as Record<string, unknown>,
     });
     await this.kpiService.calculateTotalStockValue();
   }
@@ -150,11 +179,35 @@ export class InventoryEventListener {
       currentQuantity: payload.currentQuantity,
       minimumQuantity: payload.minimumQuantity,
     });
+    await this.notificationsService.notifyAdmins({
+      source: 'inventory',
+      eventKey: 'inventory.low-stock',
+      title: payload.currentQuantity <= 0 ? 'Produto esgotado' : 'Estoque baixo',
+      message: `${product?.name ?? payload.productName ?? payload.productId} com ${payload.currentQuantity} unidade(s).`,
+      type: payload.currentQuantity <= 0 ? 'ERROR' : 'WARNING',
+      dedupKey: `inventory.low-stock.${payload.productId}.${payload.currentQuantity}.${payload.minimumQuantity}`,
+      payload: {
+        productId: payload.productId,
+        sku: product?.sku ?? payload.sku,
+        productName: product?.name ?? payload.productName,
+        currentQuantity: payload.currentQuantity,
+        minimumQuantity: payload.minimumQuantity,
+      },
+    });
   }
 
   @OnEvent(InventoryEventName.PURCHASE_ORDER_RECEIVED)
   async handlePurchaseOrderReceived(payload: PurchaseOrderReceivedPayload): Promise<void> {
     this.notificationsGateway.sendToAdmins('inventory:purchase-order:received', payload);
+    await this.notificationsService.notifyAdmins({
+      source: 'inventory',
+      eventKey: 'inventory.purchase-order.received',
+      title: 'Pedido de compra recebido',
+      message: `Pedido ${payload.orderId} recebido do fornecedor.`,
+      type: 'SUCCESS',
+      dedupKey: `inventory.purchase-order.received.${payload.orderId}`,
+      payload: payload as Record<string, unknown>,
+    });
   }
 
   @OnEvent(InventoryEventName.PURCHASE_SUGGESTION_GENERATED)
@@ -164,6 +217,17 @@ export class InventoryEventListener {
     if (payload.suggestions.length > 0) {
       this.notificationsGateway.sendToAdmins('inventory:purchase-suggestions', {
         totalItems: payload.suggestions.length,
+      });
+      await this.notificationsService.notifyAdmins({
+        source: 'inventory',
+        eventKey: 'inventory.purchase-suggestions.generated',
+        title: 'Sugestões de reposição geradas',
+        message: `${payload.suggestions.length} item(ns) com sugestão de compra.`,
+        type: 'INFO',
+        dedupKey: `inventory.purchase-suggestions.generated.${payload.suggestions.length}`,
+        payload: {
+          totalItems: payload.suggestions.length,
+        },
       });
     }
   }

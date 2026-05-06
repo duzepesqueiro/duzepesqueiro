@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '../../components/ui/Header';
 import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter';
@@ -49,28 +49,6 @@ const InventoryManagementDashboard = () => {
   });
   const debounceTimerRef = useRef(null);
   const pendingRealtimeRef = useRef(new Set());
-
-  const pageAlerts = useMemo(() => {
-    const alerts = [];
-    const now = new Date();
-    (dashboardData?.suggestions || []).forEach((item, idx) => {
-      const stock = Number(item?.currentStock || 0);
-      const min = Number(item?.minThreshold || 0);
-      const isCritical = stock <= 0;
-      if (isCritical || stock < min) {
-        alerts.push({
-          id: `inv-sugg-${item?.id || idx}`,
-          type: isCritical ? 'error' : 'warning',
-          title: isCritical ? 'Produto esgotado' : 'Estoque abaixo do mínimo',
-          message: `${item?.product || 'Produto'} com ${stock} unidade(s). Mínimo esperado: ${min}.`,
-          timestamp: now,
-          isRead: false,
-          category: 'inventory',
-        });
-      }
-    });
-    return alerts.slice(0, 20);
-  }, [dashboardData?.suggestions]);
 
   const refreshSection = useCallback(async (section, fn, ...args) => {
     setLoading((prev) => ({ ...prev, [section]: true }));
@@ -211,7 +189,7 @@ const InventoryManagementDashboard = () => {
 
 
               {/* Notifications */}
-              <AlertNotificationCenter alerts={pageAlerts} />
+              <AlertNotificationCenter />
 
               {/* Export Controls */}
               <ExportControlPanel

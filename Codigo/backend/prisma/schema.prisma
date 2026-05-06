@@ -270,6 +270,23 @@ enum HostingNotificationStatus {
   RETRYING
 }
 
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum NotificationChannel {
+  IN_APP
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
 model User {
   id                 String                        @id @default(uuid())
   username           String                        @unique
@@ -303,6 +320,7 @@ model User {
   hostingReservationReviews HostingReservationReview[] @relation("HostingReservationReviewUser")
   hostingNotificationLogs   HostingNotificationLog[] @relation("HostingNotificationLogUser")
   hostingCreatedCancellationPolicies HostingCancellationPolicy[] @relation("HostingCancellationPolicyCreatedBy")
+  notifications        Notification[]                @relation("UserNotifications")
 
   @@map("users")
 }
@@ -1104,6 +1122,30 @@ model HostingNotificationLog {
   @@index([status, nextRetryAt])
   @@index([channel, event, createdAt])
   @@map("hosting_notification_logs")
+}
+
+model Notification {
+  id              String              @id @default(uuid())
+  recipientUserId String              @map("recipient_user_id")
+  source          String              @db.VarChar(80)
+  eventKey        String              @map("event_key") @db.VarChar(120)
+  dedupKey        String?             @unique(map: "uk_notifications_dedup_key") @map("dedup_key") @db.VarChar(180)
+  title           String              @db.VarChar(160)
+  message         String              @db.Text
+  type            NotificationType    @default(INFO)
+  channel         NotificationChannel @default(IN_APP)
+  payload         Json?
+  status          NotificationStatus  @default(UNREAD)
+  readAt          DateTime?           @map("read_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  expiresAt       DateTime?           @map("expires_at")
+  user            User                @relation("UserNotifications", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, status, createdAt(sort: Desc)], map: "idx_notifications_user_status_created")
+  @@index([recipientUserId, createdAt(sort: Desc)], map: "idx_notifications_user_created")
+  @@index([eventKey, createdAt(sort: Desc)], map: "idx_notifications_event_created")
+  @@map("notifications")
 }
 
 model HostingReservationReview {

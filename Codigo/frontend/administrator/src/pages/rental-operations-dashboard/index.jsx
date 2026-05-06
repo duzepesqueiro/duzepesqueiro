@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '../../components/ui/Header';
 import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter';
-import { getRentalAlerts } from '../../utils/notificationService';
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import ActiveRentalsOverview from './components/ActiveRentalsOverview';
 import RentalTimelineVisualization from './components/RentalTimelineVisualization';
@@ -16,7 +15,6 @@ import QuickActions from '../../components/ui/QuickActions';
 const RentalOperationsDashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(15000); // 15 seconds
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [pageAlerts, setPageAlerts] = useState([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -34,33 +32,6 @@ const RentalOperationsDashboard = () => {
       alert('Falha ao exportar. Verifique o servidor.');
     }
   };
-
-  // Notificações de alugueis: novos e atrasados
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const alerts = await getRentalAlerts();
-        if (mounted) setPageAlerts(alerts);
-      } catch (err) {
-        if (mounted)
-          setPageAlerts([
-            {
-              id: 'rental-alert-error',
-              type: 'error',
-              title: 'Erro ao carregar alertas',
-              message: 'Falha ao consultar alugueis.',
-              category: 'rental',
-              timestamp: new Date(),
-              isRead: false,
-            },
-          ]);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [lastRefresh]);
 
   return (
     <>
@@ -90,7 +61,7 @@ const RentalOperationsDashboard = () => {
               </div>
               
               <div className="flex items-center space-x-4">
-                <AlertNotificationCenter alerts={pageAlerts} />
+                <AlertNotificationCenter />
                 <ExportControlPanel 
                   onExport={handleExport}
                   availableFormats={['pdf', 'excel', 'csv']}

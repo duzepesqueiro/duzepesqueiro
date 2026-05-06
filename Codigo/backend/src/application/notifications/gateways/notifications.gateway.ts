@@ -8,8 +8,10 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+import { AuthService } from '../../auth/services/auth.service';
 import { EventTypes } from '../../../shared/events/event-types';
 import {
   InventoryLowStockPayload,
@@ -34,22 +36,37 @@ export class NotificationsGateway
   private readonly logger = new Logger(NotificationsGateway.name);
   private connectedUsers = new Map<string, Set<string>>();
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private authService: AuthService,
+  ) {}
 
   afterInit() {
     const wsOrigin = this.configService.get<string>('app.frontendUrl') ?? '*';
     this.logger.log(`WebSocket Gateway initialized (origin: ${wsOrigin})`);
   }
 
-  handleConnection(client: Socket) {
-    const userIdRaw = client.handshake.query.userId;
-    const userRoleRaw = client.handshake.query.role;
-    const userId = Array.isArray(userIdRaw) ? userIdRaw[0] : userIdRaw;
-    const userRole = Array.isArray(userRoleRaw) ? userRoleRaw[0] : userRoleRaw;
+  async handleConnection(client: Socket) {
+    try {
+      const authToken = (client.handshake.auth?.token as string | undefined) ?? '';
+      const headerToken = (client.handshake.headers?.authorization as string | undefined) ?? '';
+      const rawToken = authToken || headerToken;
+      const token = rawToken.startsWith('Bearer ')
+        ? rawToken.slice('Bearer '.length)
+        : rawToken;
 
-    this.logger.log(`Client connected: ${client.id}, userId: ${userId ?? 'guest'}`);
+      if (!token) {
+        client.disconnect(true);
+        return;
+      }
 
-    if (userId) {
+      const user = await this.authService.validateToken(token);
+      const userId = user.id;
+      client.data.userId = userId;
+      client.data.role = user.role;
+
+      this.logger.log(`Client connected: ${client.id}, userId: ${userId}`);
+
       let userSockets = this.connectedUsers.get(userId);
       if (!userSockets) {
         userSockets = new Set<string>();
@@ -57,16 +74,21 @@ export class NotificationsGateway
       }
       userSockets.add(client.id);
       client.join(`user:${userId}`);
-    }
 
-    if (userRole === 'ADMIN' || userRole === 'MANAGER') {
-      client.join('admin');
+      if (
+        user.role === UserRole.ADMIN ||
+        user.role === UserRole.MANAGER ||
+        user.role === UserRole.EMPLOYEE
+      ) {
+        client.join('admin');
+      }
+    } catch {
+      client.disconnect(true);
     }
   }
 
   handleDisconnect(client: Socket) {
-    const userIdRaw = client.handshake.query.userId;
-    const userId = Array.isArray(userIdRaw) ? userIdRaw[0] : userIdRaw;
+    const userId = client.data.userId as string | undefined;
     this.logger.log(`Client disconnected: ${client.id}`);
 
     if (!userId) {
