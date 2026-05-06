@@ -52,5 +52,12 @@ export class UserProductListResponseDto {
   @ApiProperty()
   total: number;
 
+@ApiProperty()
+  page: number;
 
+  @ApiProperty()
+  itemsPerPage: number;
+
+  @ApiProperty()
+  totalPages: number;
 }
