@@ -9,8 +9,8 @@ import { updateRental } from "@/lib/api";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export interface RentalDTO {
-  id: number;
-  rentalItemId: number;
+  id: string | number;
+  rentalItemId: string | number;
   renterName: string;
   quantity: number;
   startDate: string; // yyyy-MM-dd
@@ -26,7 +26,7 @@ export interface RentalDTO {
 
 interface RentalHistoryProps {
   orders: Array<{ dto: RentalDTO; itemName: string }>;
-  onCancel?: (id: number) => void | Promise<void>;
+  onCancel?: (id: string | number) => void | Promise<void>;
   onUpdated?: () => void | Promise<void>;
 }
 
@@ -72,7 +72,7 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
   const past = orders.filter(({ dto }) => isClosed(dto));
 
   // Inline edit state
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editEndDate, setEditEndDate] = useState<string>(""); // yyyy-MM-dd
   const [editEndTime, setEditEndTime] = useState<string>("06:00"); // HH:mm
 
@@ -129,7 +129,7 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
     }
   };
 
-  const submitEdit = async (id: number) => {
+  const submitEdit = async (id: string | number) => {
     try {
       const [h, min] = (editEndTime || "06:00").split(":").map(Number);
       const [y, m, d] = (editEndDate || "").split("-").map(Number);

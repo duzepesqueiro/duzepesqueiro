@@ -326,11 +326,11 @@ const FishingGear = () => {
                         <TabsContent value="rentals" className="mt-4">
                           <RentalHistory
                             orders={rentalOrders}
-                            onCancel={async (id: number) => {
+                            onCancel={async (id: string | number) => {
                               const updated = await cancelRental(id);
                               setRentalOrders((prev) =>
                                 prev.map((o) =>
-                                  o.dto.id === id
+                                  String(o.dto.id) === String(id)
                                     ? { dto: { ...o.dto, status: updated?.status || "CANCELLED" }, itemName: o.itemName }
                                     : o
                                 )
