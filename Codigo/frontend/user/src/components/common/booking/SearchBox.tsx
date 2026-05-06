@@ -224,6 +224,7 @@ const SearchBox = ({
               onCheckedChange={(checked) =>
                 setBooking((prev) => ({ ...prev, pets: checked }))
               }
+              className="data-[state=unchecked]:bg-black/40" // Ajuste de contraste adicionado aqui
             />
             <span className="text-sm text-[#E9F2F1]">
               {booking.pets ? 'Sim' : 'Nao'}

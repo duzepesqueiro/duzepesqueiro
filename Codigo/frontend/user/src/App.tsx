@@ -12,6 +12,9 @@ import FishingGear from "./pages/FishingGear";
 import About from "./pages/About";
 import Hosting from "./pages/Hosting";
 
+// Importação do botão do WhatsApp
+import SocialActions from "./components/SocialActions";
+
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -34,6 +37,10 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          
+          {/* Botão renderizado globalmente aqui */}
+          <SocialActions />
+          
           <BrowserRouter basename={basePath || undefined}>
             <Routes>
               <Route path="/" element={<Index />} />

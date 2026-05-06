@@ -331,7 +331,11 @@ const RoomsPage = () => {
                     <label className="text-xs font-semibold uppercase tracking-wider text-[#024059]">
                       Aceita pets
                     </label>
-                    <Switch checked={petsOnly} onCheckedChange={setPetsOnly} />
+                    <Switch 
+                      checked={petsOnly} 
+                      onCheckedChange={setPetsOnly} 
+                      className="data-[state=unchecked]:bg-black/40"
+                    />
                   </div>
                 </div>
               </div>
