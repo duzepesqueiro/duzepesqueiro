@@ -8,13 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EventsCarouselProps {
-  onRegister: (eventId: number) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  events: any[];
-}
-
-interface EventsCarouselProps {
-  onRegister: (eventId: number) => void;
+  onRegister: (eventId: string | number) => void;
   events: any[];
 }
 

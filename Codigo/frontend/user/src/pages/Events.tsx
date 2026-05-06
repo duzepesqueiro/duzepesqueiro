@@ -13,6 +13,42 @@ import { toast } from "sonner";
 import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import Header from "@/components/Header";
 
+const readEventItems = (data: any) => {
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
+const normalizeEvent = (event: any) => {
+  const eventDate = event?.eventDate || event?.date || "";
+  const eventTime = event?.eventTime || event?.time || "";
+  const totalSlots = Number(event?.totalSlots ?? event?.totalCapacity ?? event?.capacity ?? 0);
+  const availableSlots = Number(event?.availableSlots ?? Math.max(0, totalSlots - Number(event?.currentAttendees ?? 0)));
+  const currentAttendees = Number(event?.currentAttendees ?? Math.max(0, totalSlots - availableSlots));
+  const images = Array.isArray(event?.images) ? event.images.filter(Boolean) : [];
+  const image = event?.image || event?.imageUrl || images[0] || "https://placehold.co/800x450?text=Evento";
+
+  return {
+    ...event,
+    id: event?.id,
+    title: event?.title || "Evento",
+    description: event?.description || "",
+    rules: event?.rules || "",
+    location: event?.location || "",
+    eventDate,
+    date: eventDate ? new Date(eventDate).toLocaleDateString("pt-BR") : "",
+    eventTime,
+    time: eventTime,
+    totalSlots,
+    totalCapacity: totalSlots,
+    availableSlots,
+    currentAttendees,
+    image,
+    imageUrl: event?.imageUrl || image,
+    images: images.length ? images : [image],
+  };
+};
+
 const Events = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [carouselEvents, setCarouselEvents] = useState<any[]>([]);
@@ -23,7 +59,7 @@ const Events = () => {
   const [globalLoading, setGlobalLoading] = useState<boolean>(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<number | undefined>();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
   // Rating via lateral toast, not dialog
   const [filters, setFilters] = useState<EventFiltersState>({
     name: "",
@@ -51,8 +87,8 @@ const Events = () => {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const response = await api.get("/eventos/filtrar");
-        const data = Array.isArray(response.data) ? response.data : [];
+        const response = await api.get("/events", { params: { limit: 100 } });
+        const data = readEventItems(response.data).map(normalizeEvent);
         setCarouselEvents(data);
         setAllEvents(data);
         // Inicialmente filteredEvents pode ser igual a allEvents, 
@@ -120,7 +156,8 @@ const Events = () => {
 
     // 5. Filtro por Status
     if (filters.status && filters.status !== "all") {
-      result = result.filter((e) => e.status === filters.status);
+      const wantedStatus = String(filters.status).toUpperCase();
+      result = result.filter((e) => String(e.status || "").toUpperCase() === wantedStatus);
     }
 
     setFilteredEvents(result);
@@ -131,7 +168,7 @@ const Events = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get("eventId");
-    const id = eventIdParam ? Number(eventIdParam) : undefined;
+    const id = eventIdParam || undefined;
     if (id) {
       // if (!isAuthenticated()) {
       //   redirectToLogin(`register_event:${id}`);
@@ -166,13 +203,13 @@ const Events = () => {
     setSearchQuery(q);
   }, [location.search]);
 
-  const handleRegister = (eventId: number) => {
+  const handleRegister = (eventId: string | number) => {
     // If not authenticated, redirect to login and store pending action
     // if (!isAuthenticated()) {
     //   redirectToLogin(`register_event:${eventId}`);
     //   return;
     // }
-    setSelectedEventId(eventId);
+    setSelectedEventId(String(eventId));
     setIsModalOpen(true);
   };
 

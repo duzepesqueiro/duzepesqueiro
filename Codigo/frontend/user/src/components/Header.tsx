@@ -151,12 +151,12 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
   const fetchEventSuggestions = async (q: string) => {
     try {
-      const { data } = await api.get("/eventos/filtrar", { params: { title: q } });
-      const arr = Array.isArray(data) ? data : [];
+      const { data } = await api.get("/events", { params: { name: q, limit: 8 } });
+      const arr = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
       return arr.slice(0, 8).map((e: any) => ({
-        id: Number(e.id),
+        id: String(e.id),
         name: String(e.title ?? "Evento"),
-        image: e.image ?? "https://placehold.co/64x64?text=E",
+        image: e.image ?? e.imageUrl ?? "https://placehold.co/64x64?text=E",
         type: "event" as const,
       }));
     } catch {

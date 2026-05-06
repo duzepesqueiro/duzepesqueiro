@@ -61,9 +61,31 @@ const formSchema = z.object({
 interface RegistrationFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialEventId?: number;
-  onRegistered?: (payload: { eventId: number; eventTitle?: string }) => void;
+  initialEventId?: string;
+  onRegistered?: (payload: { eventId: string; eventTitle?: string }) => void;
 }
+
+const readEventItems = (data: any) => {
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
+const normalizeEvent = (event: any) => {
+  const eventDate = event?.eventDate || event?.date || "";
+  const eventTime = event?.eventTime || event?.time || "";
+  const totalSlots = Number(event?.totalSlots ?? event?.totalCapacity ?? event?.capacity ?? 0);
+  const availableSlots = Number(event?.availableSlots ?? Math.max(0, totalSlots - Number(event?.currentAttendees ?? 0)));
+  return {
+    ...event,
+    id: String(event?.id ?? ""),
+    title: event?.title || "Evento",
+    date: eventDate ? new Date(eventDate).toLocaleDateString("pt-BR") : "",
+    time: eventTime,
+    totalCapacity: totalSlots,
+    currentAttendees: Number(event?.currentAttendees ?? Math.max(0, totalSlots - availableSlots)),
+  };
+};
 
 export const RegistrationFormModal = ({ 
   open, 
@@ -81,8 +103,8 @@ export const RegistrationFormModal = ({
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await api.get("/eventos");
-        setEvents(response.data);
+        const response = await api.get("/events", { params: { limit: 100 } });
+        setEvents(readEventItems(response.data).map(normalizeEvent));
       } catch (error) {
         console.error("Erro ao carregar eventos:", error);
       }
@@ -133,15 +155,11 @@ async function onSubmit(values: z.infer<typeof formSchema>) {
     //   return;
     // }
 
-    await api.post(`/eventos/${values.eventId}/inscrever`, {
-      nome: values.fullName,
-      telefone: values.phoneNumber,
-      idade: Number(values.age),
-    });
+    await api.post("/events/registrations", { eventId: values.eventId });
     toast.success("Inscrição realizada com sucesso!");
     onOpenChange(false);
     try {
-      onRegistered?.({ eventId: Number(values.eventId), eventTitle: selectedEvent?.title });
+      onRegistered?.({ eventId: values.eventId, eventTitle: selectedEvent?.title });
     } catch {}
   } catch (error) {
     toast.error("Erro ao realizar inscrição!");
@@ -227,7 +245,7 @@ async function onSubmit(values: z.infer<typeof formSchema>) {
                     <div>
                       <p className="font-medium">Capacidade</p>
                       <p className="text-muted-foreground">
-                        {selectedEvent.current_attendees} / {selectedEvent.total_capacity} inscritos
+                        {selectedEvent.currentAttendees} / {selectedEvent.totalCapacity} inscritos
                       </p>
                     </div>
                   </div>
