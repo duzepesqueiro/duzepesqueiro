@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, type MouseEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Users, PawPrint, Wifi, Snowflake, Tv, Coffee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,12 +9,12 @@ import { formatBRL } from '@/lib/currency';
 
 const MAX_IMAGES = 10;
 
-const amenityIcons: Record<string, ReactNode> = {
+const AMENITY_ICONS: Record<string, ReactNode> = {
   'Wi-Fi': <Wifi className="h-3.5 w-3.5" />,
   'Ar condicionado': <Snowflake className="h-3.5 w-3.5" />,
   'TV Smart': <Tv className="h-3.5 w-3.5" />,
   'TV Smart 65"': <Tv className="h-3.5 w-3.5" />,
-  Frigobar: <Coffee className="h-3.5 w-3.5" />,
+  'Frigobar': <Coffee className="h-3.5 w-3.5" />,
 };
 
 interface RoomCardProps {
@@ -28,38 +28,35 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
   const navigate = useNavigate();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const carouselImages: string[] = room.images.slice(0, MAX_IMAGES);
+  // Memoiza o array de imagens para evitar re-fatiamento constante
+  const carouselImages = useMemo(() => 
+    room.images.slice(0, MAX_IMAGES), 
+  [room.images]);
 
   const hasCarousel = carouselImages.length > 1;
   const activeImage = carouselImages[activeImageIndex] ?? null;
 
+  // Garante que o índice volte a 0 se o quarto mudar ou as imagens diminuírem
   useEffect(() => {
     if (activeImageIndex >= carouselImages.length) {
       setActiveImageIndex(0);
     }
-  }, [room.id, room.images.length, carouselImages.length, activeImageIndex]);
+  }, [room.id, carouselImages.length, activeImageIndex]);
 
   const handleSelect = () => {
     if (unavailable) return;
-
-    if (onSelect) {
-      onSelect(room);
-      return;
-    }
-
+    if (onSelect) return onSelect(room);
+    
     navigate(`/hospedagem/rooms/${room.id}`, { state: { room } });
   };
 
-  const goToPreviousImage = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
+  const updateImageIndex = (e: MouseEvent, step: number) => {
+    e.stopPropagation();
     if (!hasCarousel) return;
-    setActiveImageIndex((current) => (current - 1 + carouselImages.length) % carouselImages.length);
-  };
-
-  const goToNextImage = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (!hasCarousel) return;
-    setActiveImageIndex((current) => (current + 1) % carouselImages.length);
+    
+    setActiveImageIndex((prev) => 
+      (prev + step + carouselImages.length) % carouselImages.length
+    );
   };
 
   return (
@@ -74,6 +71,7 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
       )}
       onClick={handleSelect}
     >
+      {/* Área da Imagem / Carousel */}
       <div className="relative overflow-hidden aspect-[4/3]">
         <AnimatePresence mode="wait">
           {activeImage ? (
@@ -90,11 +88,9 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
             />
           ) : (
             <motion.div
-              key={`${room.id}-${activeImageIndex}-placeholder`}
-              initial={{ opacity: 0, scale: 1.02 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.01 }}
-              transition={{ duration: 0.35 }}
+              key="placeholder"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="flex h-full w-full items-center justify-center bg-[#F2F2F2]"
             >
               <div className="text-center space-y-2">
@@ -107,23 +103,23 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
           )}
         </AnimatePresence>
 
-        <div className="absolute inset-0 bg-[#024059]/25" />
+        <div className="absolute inset-0 bg-[#024059]/25 pointer-events-none" />
 
         {hasCarousel && (
           <>
             <button
               type="button"
-              onClick={goToPreviousImage}
-              className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-sm font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
-              aria-label="Imagem anterior"
+              onClick={(e) => updateImageIndex(e, -1)}
+              className="absolute left-3 top-1/2 z-10 h-9 w-9 -translate-y-1/2 flex items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-[#F2F2F2] transition hover:bg-[#024059]"
+              aria-label="Anterior"
             >
               &lt;
             </button>
             <button
               type="button"
-              onClick={goToNextImage}
-              className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-sm font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
-              aria-label="Próxima imagem"
+              onClick={(e) => updateImageIndex(e, 1)}
+              className="absolute right-3 top-1/2 z-10 h-9 w-9 -translate-y-1/2 flex items-center justify-center rounded-full border border-[#F2F2F2]/40 bg-[#024059]/75 text-[#F2F2F2] transition hover:bg-[#024059]"
+              aria-label="Próxima"
             >
               &gt;
             </button>
@@ -140,6 +136,7 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
         )}
       </div>
 
+      {/* Conteúdo Informativo */}
       <div className="p-5">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-display text-lg font-semibold text-[#024059]">{room.name}</h3>
@@ -152,12 +149,12 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
         <p className="mb-4 line-clamp-2 text-sm text-[#024059]/78">{room.description}</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {room.amenities.slice(0, 4).map((a) => (
+          {room.amenities.slice(0, 4).map((amenity) => (
             <span
-              key={a}
+              key={amenity}
               className="inline-flex items-center gap-1 rounded-md bg-[#F2BF27]/20 px-2 py-1 text-xs text-[#284003]"
             >
-              {amenityIcons[a] || null} {a}
+              {AMENITY_ICONS[amenity] || null} {amenity}
             </span>
           ))}
         </div>
@@ -168,15 +165,15 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
             <span className="text-sm text-[#284003]/75"> /noite</span>
           </div>
           <button
+            disabled={unavailable}
             className={cn(
               'rounded-lg border px-4 py-2 text-sm font-semibold transition-colors',
               unavailable
                 ? 'cursor-not-allowed border-[#284003]/20 bg-[#F2F2F2] text-[#284003]/55'
                 : 'border-[#F2AB27] bg-[#F2AB27] text-[#024059] hover:bg-[#F2BF27]'
             )}
-            disabled={unavailable}
-            onClick={(event) => {
-              event.stopPropagation();
+            onClick={(e) => {
+              e.stopPropagation();
               handleSelect();
             }}
           >
