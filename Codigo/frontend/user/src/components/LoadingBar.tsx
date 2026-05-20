@@ -11,15 +11,16 @@ const LoadingBar = ({ duration, onComplete }: LoadingBarProps) => {
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress((prev) => {
-        const newProgress = prev + (100 / (duration / 16)); // 60fps approximation
+        const step = 1600 / duration;
+        const newProgress = prev + step;
         if (newProgress >= 100) {
           clearInterval(interval);
           onComplete();
-          return 0; // Reset for next cycle
+          return 0;
         }
         return newProgress;
       });
-    }, 16); // ~60fps
+    }, 16);
 
     return () => clearInterval(interval);
   }, [duration, onComplete]);

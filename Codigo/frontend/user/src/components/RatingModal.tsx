@@ -22,6 +22,13 @@ export const RatingModal = ({ open, onOpenChange, subjectType, subjectName, onSu
     product: "Avalie o produto",
   } as const;
 
+  const handleSubmit = () => {
+    try {
+      onSubmit?.(rating, comment.trim() || undefined);
+    } catch {}
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -45,12 +52,7 @@ export const RatingModal = ({ open, onOpenChange, subjectType, subjectName, onSu
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Agora não</Button>
-            <Button
-              onClick={() => {
-                try { onSubmit?.(rating, comment.trim() || undefined); } catch {}
-                onOpenChange(false);
-              }}
-            >
+            <Button onClick={handleSubmit}>
               Enviar avaliação
             </Button>
           </div>
