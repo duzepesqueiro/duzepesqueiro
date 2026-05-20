@@ -37,11 +37,18 @@ export const EventCard = ({
   return (
     <Card className="overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full bg-card">
       <div className="relative aspect-video overflow-hidden">
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-        />
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <div className="w-full h-full bg-muted flex items-center justify-center">
+            <span className="text-muted-foreground text-sm">Sem imagem</span>
+          </div>
+        )}
         <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold shadow-sm">
            {availableSpaces > 0 ? `${availableSpaces} vagas` : 'Esgotado'}
         </div>

@@ -153,38 +153,25 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
         {/* Horário */}
         <div className="space-y-2">
           <Label htmlFor="time-filter">Horário</Label>
-          <Select
-            value={filters.time || ""}
-            onValueChange={(value) => {
-              // Radix SelectItem não permite valor vazio; usamos "all" para limpar
-              if (value === "all") {
-                updateFilter("time", "");
-              } else {
-                updateFilter("time", value);
-              }
-            }}
-          >
-            <SelectTrigger id="time-filter" className="justify-start">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder="Todos os horários" />
-              </div>
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="all">Todos os horários</SelectItem>
-              <SelectItem value="08:00">08:00</SelectItem>
-              <SelectItem value="09:00">09:00</SelectItem>
-              <SelectItem value="10:00">10:00</SelectItem>
-              <SelectItem value="11:00">11:00</SelectItem>
-              <SelectItem value="13:00">13:00</SelectItem>
-              <SelectItem value="14:00">14:00</SelectItem>
-              <SelectItem value="15:00">15:00</SelectItem>
-              <SelectItem value="16:00">16:00</SelectItem>
-              <SelectItem value="18:00">18:00</SelectItem>
-              <SelectItem value="19:00">19:00</SelectItem>
-              <SelectItem value="20:00">20:00</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="relative">
+            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              id="time-filter"
+              placeholder="00:00"
+              inputMode="numeric"
+              maxLength={5}
+              className="pl-9"
+              value={filters.time}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                let masked = digits;
+                if (digits.length >= 3) {
+                  masked = digits.slice(0, 2) + ":" + digits.slice(2);
+                }
+                updateFilter("time", masked);
+              }}
+            />
+          </div>
         </div>
 
         {/* Status */}
