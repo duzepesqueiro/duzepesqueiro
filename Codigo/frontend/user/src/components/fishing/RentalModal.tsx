@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, DollarSign, CheckCircle, Package, Clock, Phone } from "lucide-react";
+import { Calendar as CalendarIcon, DollarSign, CheckCircle, Package, Clock, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatPhoneBR, unmaskPhone } from "@/lib/phone";
 import { RentalItem } from "@/pages/FishingGear";
 import { api, getUserProfile } from "@/lib/api";
@@ -36,6 +36,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
   const [renterName, setRenterName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [imageIndex, setImageIndex] = useState<number>(0);
 
   // Deriva objeto Date da string para o Calendar sem deslocamento de fuso (local midday)
   const startDateObj = startDate
@@ -69,9 +70,15 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
     return () => { mounted = false; };
   }, [open]);
 
+  useEffect(() => {
+    setImageIndex(0);
+  }, [item?.id, open]);
+
   // Evita renderização do modal quando não há item selecionado
   if (!item) return null;
 
+  const galleryImages = (item.images?.length ? item.images : [item.image]).filter(Boolean).slice(0, 10);
+  const currentImage = galleryImages[imageIndex] || item.image;
   const totalPrice = (item.hourlyPrice * (hours > 0 ? hours : 0) * (quantity > 0 ? quantity : 0)).toFixed(2);
 
   const formatDateTimeForBackend = (localValue: string) => {
@@ -170,8 +177,49 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
         <div className="grid md:grid-cols-2 gap-6">
           {/* Coluna Esquerda - Imagem e Descrição */}
           <div className="space-y-4">
-            <div className="rounded-lg overflow-hidden">
-              <img src={item.image} alt={item.name} className="w-full h-64 object-cover" />
+            <div className="space-y-3">
+              <div className="relative rounded-lg overflow-hidden bg-muted/20">
+                <img src={currentImage} alt={item.name} className="w-full h-64 object-contain p-4" />
+                {galleryImages.length > 1 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2"
+                      onClick={() => setImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}
+                      aria-label="Imagem anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
+                      onClick={() => setImageIndex((current) => (current + 1) % galleryImages.length)}
+                      aria-label="Próxima imagem"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              {galleryImages.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {galleryImages.map((src, index) => (
+                    <button
+                      key={`${src}-${index}`}
+                      type="button"
+                      className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border bg-muted/20 ${index === imageIndex ? "border-primary" : "border-border"}`}
+                      onClick={() => setImageIndex(index)}
+                      aria-label={`Ver imagem ${index + 1}`}
+                    >
+                      <img src={src} alt={`${item.name} ${index + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <h3 className="font-semibold mb-2">Descrição</h3>

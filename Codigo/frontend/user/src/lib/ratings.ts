@@ -1,7 +1,7 @@
 export type RatingSubjectType = "event" | "rental" | "product";
 
 export interface RatingPrompt {
-  id: string | number;
+  id: string | number; // subject id
   type: RatingSubjectType;
   name: string;
 }
