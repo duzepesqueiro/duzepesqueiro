@@ -2,15 +2,17 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, XCircle, Eye, UserPen, Clock } from 'lucide-react';
+import { CalendarDays, XCircle, Eye, Clock, Star } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/common/layout/Header';
-import { api } from '@/lib/api';
+import { api, createReview } from '@/lib/api';
 import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ReservationDetailDialog from '@/components/common/reservation/ReservationDetailDialog';
 import CancelReservationDialog from '@/components/common/reservation/CancelReservationDialog';
+import ReviewModal from '@/components/reviews/ReviewModal';
+import { toast } from '@/hooks/use-toast';
 import type { Reservation, PaymentData } from '@/types/booking';
 import type { Room } from '@/types/booking';
 import { formatBRL } from '@/lib/currency';
@@ -121,6 +123,7 @@ const mapPaymentMethodLabel = (method?: string | null): string => {
 const MyReservationsPage = () => {
   const [detailRes, setDetailRes] = useState<Reservation | null>(null);
   const [cancelRes, setCancelRes] = useState<Reservation | null>(null);
+  const [reviewRes, setReviewRes] = useState<Reservation | null>(null);
 
   const {
     data: reservations = [],
@@ -180,6 +183,38 @@ const MyReservationsPage = () => {
     [reservations],
   );
 
+  const completedReservationIds = useMemo(
+    () => reservations.filter((r) => r.status === 'completed').map((r) => r.id),
+    [reservations],
+  );
+
+  const { data: hasReviewByReservationId = {}, refetch: refetchReviewFlags } = useQuery<
+    Record<string, boolean>
+  >({
+    queryKey: ['my-reservations-has-review', completedReservationIds.join('|')],
+    enabled: completedReservationIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        completedReservationIds.map(async (reservationId) => {
+          try {
+            await api.get(`/api/reviews/subject/HOSTING/${reservationId}`);
+            return [reservationId, true] as const;
+          } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 404) {
+              return [reservationId, false] as const;
+            }
+            return [reservationId, false] as const;
+          }
+        }),
+      );
+      return Object.fromEntries(responses);
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+
   const { data: roomById = {} } = useQuery<Record<string, Room>>({
     queryKey: ['my-reservations-rooms', reservationRoomIds.join('|')],
     enabled: reservationRoomIds.length > 0,
@@ -236,6 +271,7 @@ const MyReservationsPage = () => {
               {reservations.map((res, i) => {
                 const room = roomById[res.bookingData.roomId];
                 const countdown = res.bookingData.checkIn ? getCountdown(res.bookingData.checkIn) : null;
+                const canReview = res.status === 'completed' && hasReviewByReservationId[res.id] === false;
 
                 return (
                   <motion.div
@@ -311,27 +347,28 @@ const MyReservationsPage = () => {
                         </div>
 
                         <div className="mt-auto flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                          <Button 
+                          <Button
                             onClick={() => setDetailRes(res)}
                             className="flex-1 h-12 bg-slate-900 hover:bg-blue-900 text-white transition-all duration-300 rounded-xl font-bold shadow-lg"
                           >
                             <Eye className="h-4 w-4 mr-2" /> Detalhes
                           </Button>
+
+                          {canReview ? (
+                            <Button
+                              onClick={() => setReviewRes(res)}
+                              variant="outline"
+                              className="h-12 rounded-xl border-[#F2AB27]/60 bg-[#F2BF27]/25 text-[#284003] hover:bg-[#F2BF27]/35 hover:border-[#F2AB27] font-bold shadow-sm"
+                              title="Avaliar reserva"
+                            >
+                              <Star className="h-4 w-4 mr-2" /> Avaliar
+                            </Button>
+                          ) : null}
                           
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="h-12 w-12 rounded-xl border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
-                              onClick={() => setEditRes(res)}
-                              title="Editar hóspedes"
-                            >
-                              <UserPen className="h-4 w-4" />
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
+                            <Button
+                              variant="outline"
+                              size="icon"
                               className="h-12 w-12 rounded-xl border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-all shadow-sm"
                               onClick={() => setCancelRes(res)}
                               title="Cancelar reserva"
@@ -366,6 +403,31 @@ const MyReservationsPage = () => {
           reservationId={cancelRes.id}
         />
       )}
+
+      {reviewRes ? (
+        <ReviewModal
+          open={!!reviewRes}
+          onOpenChange={(o) => !o && setReviewRes(null)}
+          title="Avaliar sua estadia"
+          description={`Conte como foi sua experiência em "${roomById[reviewRes.bookingData.roomId]?.name ?? 'este chalé'}".`}
+          onSubmit={async ({ rating, comment }) => {
+            try {
+              await createReview({
+                domain: 'HOSTING',
+                subjectId: reviewRes.id,
+                rating,
+                comment,
+              });
+              toast({ title: 'Avaliação enviada', description: 'Obrigado por compartilhar sua experiência.' });
+              await refetchReviewFlags();
+            } catch (err: any) {
+              const message = err?.response?.data?.message;
+              const text = Array.isArray(message) ? message.join(', ') : String(message || 'Não foi possível enviar sua avaliação.');
+              toast({ title: 'Erro ao enviar', description: text, variant: 'destructive' });
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 };

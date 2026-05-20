@@ -29,6 +29,13 @@ enum PaymentDomain {
   EVENT
 }
 
+enum ReviewDomain {
+  SALES
+  RENTAL
+  HOSTING
+  EVENT
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -321,6 +328,7 @@ model User {
   hostingNotificationLogs   HostingNotificationLog[] @relation("HostingNotificationLogUser")
   hostingCreatedCancellationPolicies HostingCancellationPolicy[] @relation("HostingCancellationPolicyCreatedBy")
   notifications        Notification[]                @relation("UserNotifications")
+  reviews              Review[]                      @relation("ReviewUser")
 
   @@map("users")
 }
@@ -807,6 +815,8 @@ model HostingChalet {
   unitType       ChaleType               @map("tipo_unidade")
   status         ChaleStatus             @default(AVAILABLE) @map("status")
   basePrice      Decimal                 @map("preco_base") @db.Decimal(12, 2)
+  averageRating  Decimal                 @default(0) @map("average_rating") @db.Decimal(5, 2)
+  reviewsCount   Int                     @default(0) @map("reviews_count")
   maxGuests      Int                     @default(2) @map("max_hospedes")
   isActive       Boolean                 @default(true) @map("ativo")
   createdAt      DateTime                @default(now()) @map("created_at")
@@ -1164,6 +1174,38 @@ model HostingReservationReview {
   @@index([chaletId], map: "idx_avaliacoes_chale_id")
   @@index([userId], map: "idx_avaliacoes_user_id")
   @@map("hosting_reservation_reviews")
+}
+
+model Review {
+  id         String       @id @default(uuid())
+  domain     ReviewDomain @map("domain")
+  subjectId  String       @map("subject_id")
+  targetId   String       @map("target_id")
+  targetName String?      @map("target_name") @db.VarChar(255)
+  userId     String       @map("user_id")
+  rating     Int          @map("rating")
+  comment    String?      @map("comment") @db.Text
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  user       User         @relation("ReviewUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([domain, subjectId], map: "uk_reviews_domain_subject")
+  @@index([domain, targetId, createdAt(sort: Desc)], map: "idx_reviews_domain_target_created")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_reviews_user_created")
+  @@map("reviews")
+}
+
+model ReviewAggregate {
+  id            String       @id @default(uuid())
+  domain        ReviewDomain @map("domain")
+  targetId      String       @map("target_id")
+  averageRating Decimal      @default(0) @map("average_rating") @db.Decimal(5, 2)
+  reviewsCount  Int          @default(0) @map("reviews_count")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@unique([domain, targetId], map: "uk_review_aggregates_domain_target")
+  @@index([domain, targetId], map: "idx_review_aggregates_domain_target")
+  @@map("review_aggregates")
 }
 
 model HostingAuditLog {

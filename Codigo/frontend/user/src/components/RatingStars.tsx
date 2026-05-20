@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 interface RatingStarsProps {
   value: number;
   onChange: (rating: number) => void;
   max?: number;
+  min?: number;
   className?: string;
   size?: number; // pixel size for star icons
 }
@@ -11,6 +12,7 @@ interface RatingStarsProps {
 // Simple star icon using SVG, filled based on fraction
 const Star = ({ fill, size = 24 }: { fill: number; size?: number }) => {
   const clamped = Math.max(0, Math.min(1, fill));
+  const id = useId();
   return (
     <svg
       width={size}
@@ -20,14 +22,14 @@ const Star = ({ fill, size = 24 }: { fill: number; size?: number }) => {
       className="inline-block"
     >
       <defs>
-        <linearGradient id="grad">
+        <linearGradient id={id}>
           <stop offset={`${clamped * 100}%`} stopColor="currentColor" />
           <stop offset={`${clamped * 100}%`} stopColor="transparent" />
         </linearGradient>
       </defs>
       <path
         d="M12 .587l3.668 7.431 8.2 1.193-5.934 5.787 1.402 8.172L12 18.896l-7.336 4.274 1.402-8.172L.132 9.211l8.2-1.193L12 .587z"
-        fill={clamped === 0 ? "transparent" : "url(#grad)"}
+        fill={clamped === 0 ? "transparent" : `url(#${id})`}
         stroke="currentColor"
         strokeWidth="1"
       />
@@ -35,9 +37,17 @@ const Star = ({ fill, size = 24 }: { fill: number; size?: number }) => {
   );
 };
 
-export const RatingStars = ({ value, onChange, max = 5, className, size = 24 }: RatingStarsProps) => {
+export const RatingStars = ({
+  value,
+  onChange,
+  max = 5,
+  min = 0,
+  className,
+  size = 24,
+}: RatingStarsProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stars = useMemo(() => Array.from({ length: max }, (_, i) => i + 1), [max]);
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   useEffect(() => {
     // Ensure integer steps and start empty
@@ -49,39 +59,43 @@ export const RatingStars = ({ value, onChange, max = 5, className, size = 24 }: 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === "ArrowUp") {
       e.preventDefault();
-      onChange(Math.min(max, Math.round(value + 1)));
+      onChange(Math.min(max, Math.max(min, Math.round(value + 1))));
     } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
       e.preventDefault();
-      onChange(Math.max(0, Math.round(value - 1)));
+      onChange(Math.max(min, Math.round(value - 1)));
     } else if (e.key === "Home") {
       e.preventDefault();
-      onChange(0);
+      onChange(min);
     } else if (e.key === "End") {
       e.preventDefault();
       onChange(max);
     }
   };
 
+  const displayValue = hoverValue !== null ? hoverValue : value;
+
   return (
     <div
       ref={containerRef}
       role="slider"
       aria-label="Avaliação de estrelas"
-      aria-valuemin={0}
+      aria-valuemin={min}
       aria-valuemax={max}
-      aria-valuenow={value}
+      aria-valuenow={displayValue}
       tabIndex={0}
       onKeyDown={onKeyDown}
+      onMouseLeave={() => setHoverValue(null)}
       className={className}
     >
       {stars.map((i) => {
-        const fill = value >= i ? 1 : 0;
+        const fill = displayValue >= i ? 1 : 0;
         return (
           <button
             key={i}
             type="button"
             aria-label={`${i} estrela${i > 1 ? "s" : ""}`}
             className="text-yellow-500 hover:text-yellow-400 focus:outline-none rounded-sm"
+            onMouseEnter={() => setHoverValue(i)}
             onClick={(e) => {
               onChange(i);
             }}

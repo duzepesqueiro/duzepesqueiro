@@ -2,25 +2,53 @@ import { useState, useMemo, useEffect } from "react";
 import { format as formatDate } from "date-fns";
 import { useLocation } from "react-router-dom";
 import { EventCard } from "@/components/EventCard";
-import { EventsCarousel } from "@/components/EventsCarousel";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { RegistrationFormModal } from "@/components/RegistrationFormModal";
 import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { showRatingToast } from "@/components/RatingToast";
 import { EventFilters, EventFiltersState } from "@/components/EventFilters";
-import { api, submitUserRating, getPendingRequests } from "@/lib/api";
+import { api, submitUserRating } from "@/lib/api";
 import { toast } from "sonner";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import Header from "@/components/Header";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PAGE_SIZE = 9;
+
+interface PaginatedEventsResponse {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const mapCapacityToApi = (value: string): number | undefined => {
+  if (value === "small") return 50;
+  if (value === "medium") return 150;
+  if (value === "large") return 200;
+  return undefined;
+};
+
+const mapStatusToApi = (value: string): "ALL" | "UPCOMING" | "CANCELLED" => {
+  if (value === "cancelled") return "CANCELLED";
+  if (value === "scheduled") return "UPCOMING";
+  return "ALL";
+};
 
 const Events = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [carouselEvents, setCarouselEvents] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [allEvents, setAllEvents] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
-  const [globalLoading, setGlobalLoading] = useState<boolean>(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | undefined>();
@@ -47,90 +75,61 @@ const Events = () => {
     );
   }, [searchQuery, filters]);
 
-  // Carrega todos os eventos na montagem (para carrossel e base de busca)
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
+
+  useEffect(() => {
+    let mounted = true;
     const loadEvents = async () => {
       try {
-        const response = await api.get("/events");
-        const raw: any[] = response.data?.items ?? (Array.isArray(response.data) ? response.data : []);
+        setIsLoadingEvents(true);
+        const nameFilter = filters.name.trim();
+        const globalQuery = searchQuery.trim();
+        const response = await api.get<PaginatedEventsResponse>("/events", {
+          params: {
+            name: nameFilter || globalQuery || undefined,
+            date: filters.date ? formatDate(filters.date, "dd/MM/yyyy") : undefined,
+            capacity: mapCapacityToApi(filters.capacity),
+            time: filters.time || undefined,
+            status: mapStatusToApi(filters.status),
+            page: currentPage,
+            limit: PAGE_SIZE,
+          },
+        });
+
+        if (!mounted) return;
+        const raw = Array.isArray(response.data?.items) ? response.data.items : [];
         const data = raw.map((e: any) => ({
           ...e,
-          image: e.imageUrl ?? '',
-          date: e.eventDate ? formatDate(new Date(e.eventDate), 'dd/MM/yyyy') : '',
-          time: e.eventTime ?? '',
+          image: e.imageUrl ?? "",
+          date: e.eventDate ? formatDate(new Date(e.eventDate), "dd/MM/yyyy") : "",
+          time: e.eventTime ?? "",
           currentAttendees: (e.totalSlots ?? 0) - (e.availableSlots ?? 0),
           totalCapacity: e.totalSlots ?? 0,
-          description: e.description ?? '',
-          rules: e.rules ?? '',
+          description: e.description ?? "",
+          rules: e.rules ?? "",
         }));
-        setCarouselEvents(data);
-        setAllEvents(data);
+
+        setEvents(data);
+        setTotalItems(Number(response.data?.total ?? 0));
+        setPageSize(Number(response.data?.pageSize ?? PAGE_SIZE));
       } catch (error) {
-        console.error("Erro ao buscar eventos", error);
-        setCarouselEvents([]);
-        setAllEvents([]);
-        setFilteredEvents([]);
+        console.error("Erro ao buscar eventos paginados", error);
+        if (!mounted) return;
+        setEvents([]);
+        setTotalItems(0);
+        setPageSize(PAGE_SIZE);
+      } finally {
+        if (mounted) setIsLoadingEvents(false);
       }
     };
+
     loadEvents();
-  }, []);
-
-  // Lógica de filtragem CLIENT-SIDE (replicando padrão de Aluguel/Vendas)
-  useEffect(() => {
-    let result = [...allEvents];
-
-    // 1. Filtro por Busca Global (Header) ou Nome (Filtro Local)
-    // Se houver searchQuery (Header), ela tem prioridade ou soma-se? 
-    // O padrão geralmente é: se o usuário digitou no header, filtra por isso.
-    // Se digitou no filtro local, filtra por isso.
-    // Vamos considerar ambos combinados (AND) ou priorizar um? 
-    // O código anterior usava um "effectiveTitle". Vamos manter a lógica de que ambos filtram o título.
-    
-    const query = searchQuery.trim().toLowerCase();
-    const filterName = filters.name?.trim().toLowerCase();
-
-    if (query) {
-      result = result.filter((e) => String(e.title || "").toLowerCase().includes(query));
-    }
-    if (filterName) {
-      result = result.filter((e) => String(e.title || "").toLowerCase().includes(filterName));
-    }
-
-    // 2. Filtro por Data
-    if (filters.date) {
-      const filterDateStr = formatDate(filters.date, "dd/MM/yyyy");
-      result = result.filter((e) => {
-        if (!e.date) return false;
-        return String(e.date) === filterDateStr;
-      });
-    }
-
-    // 3. Filtro por Capacidade
-    if (filters.capacity && filters.capacity !== "all") {
-      result = result.filter((e) => {
-        const cap = Number(e?.totalCapacity ?? e?.capacity ?? 0);
-        if (filters.capacity === "small") return cap < 150;
-        if (filters.capacity === "medium") return cap >= 150 && cap <= 500;
-        if (filters.capacity === "large") return cap > 500;
-        return true;
-      });
-    }
-
-    // 4. Filtro por Horário
-    if (filters.time && filters.time !== "all") {
-      const t = String(filters.time).trim().toLowerCase();
-      if (t) {
-        result = result.filter((e) => String(e.time || "").toLowerCase().includes(t));
-      }
-    }
-
-    // 5. Filtro por Status
-    if (filters.status && filters.status !== "all") {
-      result = result.filter((e) => String(e.status ?? "").toLowerCase() === filters.status.toLowerCase());
-    }
-
-    setFilteredEvents(result);
-  }, [allEvents, filters, searchQuery]);
+    return () => {
+      mounted = false;
+    };
+  }, [searchQuery, filters, currentPage]);
 
   // Abre modal via parâmetro de query (eventId)
   const location = useLocation();
@@ -148,29 +147,22 @@ const Events = () => {
     }
   }, [location.search]);
 
-  // Ouve o estado global de loading emitido pelo cliente de API
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const pending = (e as CustomEvent)?.detail?.pending ?? 0;
-      setGlobalLoading(pending > 0);
-    };
-    setGlobalLoading(getPendingRequests() > 0);
-    if (typeof window !== 'undefined') {
-      window.addEventListener('global-loading', handler);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('global-loading', handler);
-      }
-    };
-  }, []);
-
   // Atualiza apenas a busca do carrossel pelo parâmetro (?q), sem mexer nos filtros
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get("q") || "";
     setSearchQuery(q);
   }, [location.search]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(totalItems / Math.max(1, pageSize)));
+  }, [totalItems, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleRegister = (eventId: number) => {
     // If not authenticated, redirect to login and store pending action
@@ -212,16 +204,18 @@ const Events = () => {
       {/* Events Carousel or Grid Section */}
       <section className="py-12 px-4 md:px-8">
         <div className="max-w-7xl mx-auto">
-          {globalLoading ? (
+          {isLoadingEvents ? (
             <div className="py-24">
               <LoadingSpinner />
             </div>
-          ) : hasActiveFilters ? (
+          ) : (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Resultados da busca</h2>
-              {filteredEvents.length > 0 ? (
+              <h2 className="text-2xl font-bold">
+                {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
+              </h2>
+              {events.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredEvents.map((event) => (
+                  {events.map((event) => (
                     <EventCard 
                       key={event.id} 
                       {...event} 
@@ -234,9 +228,44 @@ const Events = () => {
                   Nenhum evento encontrado para os filtros selecionados.
                 </div>
               )}
+              {events.length > 0 && totalPages > 1 && (
+                <Pagination className="mt-2">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage((page) => Math.max(1, page - 1));
+                        }}
+                        className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          isActive={page === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage((page) => Math.min(totalPages, page + 1));
+                        }}
+                        className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
-          ) : (
-            <EventsCarousel onRegister={handleRegister} events={carouselEvents} />
           )}
         </div>
       </section>

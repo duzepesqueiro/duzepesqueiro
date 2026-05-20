@@ -217,3 +217,35 @@ export const submitUserRating = async (params: {
   });
   return res.data;
 };
+
+export type ReviewDomain = 'HOSTING' | 'EVENT' | 'RENTAL' | 'SALES';
+
+export const createReview = async (params: {
+  domain: ReviewDomain;
+  subjectId: string;
+  rating: number;
+  comment: string;
+}) => {
+  const res = await api.post('/api/reviews', params);
+  return res.data;
+};
+
+export const getReviewBySubject = async (params: { domain: ReviewDomain; subjectId: string }) => {
+  const res = await api.get(`/api/reviews/subject/${params.domain}/${params.subjectId}`);
+  return res.data;
+};
+
+export const listReviewsByTarget = async (params: {
+  domain: ReviewDomain;
+  targetId: string;
+  page?: number;
+  limit?: number;
+}) => {
+  const res = await api.get('/api/reviews', { params });
+  return res.data;
+};
+
+export const getReviewsSummary = async (params: { domain: ReviewDomain; targetId: string }) => {
+  const res = await api.get('/api/reviews/summary', { params });
+  return res.data;
+};

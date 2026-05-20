@@ -4,6 +4,7 @@ import { Users, PawPrint, Wifi, Snowflake, Tv, Coffee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Room } from '@/types/booking';
 import { Badge } from '@/components/ui/badge';
+import RatingStarsDisplay from '@/components/reviews/RatingStarsDisplay';
 import { cn } from '@/lib/utils';
 import { formatBRL } from '@/lib/currency';
 
@@ -147,6 +148,18 @@ const RoomCard = ({ room, index, unavailable = false, onSelect }: RoomCardProps)
             <Users className="h-4 w-4" />
             <span className="text-sm">até {room.capacity}</span>
           </div>
+        </div>
+
+        <div className="mb-4 flex items-center gap-2 text-[#284003]/80">
+          {room.reviewsCount && room.reviewsCount > 0 ? (
+            <>
+              <RatingStarsDisplay value={Number(room.averageRating ?? 0)} className="flex gap-1" />
+              <span className="text-sm font-semibold">{Number(room.averageRating ?? 0).toFixed(1)}</span>
+              <span className="text-xs text-[#284003]/70">({room.reviewsCount} avaliações)</span>
+            </>
+          ) : (
+            <span className="text-xs text-[#284003]/60">Sem avaliações</span>
+          )}
         </div>
 
         <p className="mb-4 line-clamp-2 text-sm text-[#024059]/78">{room.description}</p>
