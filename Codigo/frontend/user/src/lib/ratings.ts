@@ -1,7 +1,7 @@
 export type RatingSubjectType = "event" | "rental" | "product";
 
 export interface RatingPrompt {
-  id: number; // subject id
+  id: string | number;
   type: RatingSubjectType;
   name: string;
 }
@@ -38,7 +38,7 @@ export function peekRatingPrompt(): RatingPrompt | undefined {
   return q[0];
 }
 
-export function dequeueRatingPrompt(id: number) {
+export function dequeueRatingPrompt(id: string | number) {
   const q = readQueue().filter((p) => p.id !== id);
   writeQueue(q);
 }

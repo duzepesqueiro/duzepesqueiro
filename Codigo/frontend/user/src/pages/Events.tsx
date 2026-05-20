@@ -23,7 +23,8 @@ const Events = () => {
   const [globalLoading, setGlobalLoading] = useState<boolean>(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<number | undefined>();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
+  const [selectedEventTitle, setSelectedEventTitle] = useState<string | undefined>();
   // Rating via lateral toast, not dialog
   const [filters, setFilters] = useState<EventFiltersState>({
     name: "",
@@ -137,16 +138,13 @@ const Events = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get("eventId");
-    const id = eventIdParam ? Number(eventIdParam) : undefined;
-    if (id) {
-      // if (!isAuthenticated()) {
-      //   redirectToLogin(`register_event:${id}`);
-      //   return;
-      // }
-      setSelectedEventId(id);
+    if (eventIdParam) {
+      const event = allEvents.find((e) => String(e.id) === eventIdParam);
+      setSelectedEventId(eventIdParam);
+      setSelectedEventTitle(event?.title);
       setIsModalOpen(true);
     }
-  }, [location.search]);
+  }, [location.search, allEvents]);
 
   // Ouve o estado global de loading emitido pelo cliente de API
   useEffect(() => {
@@ -172,13 +170,10 @@ const Events = () => {
     setSearchQuery(q);
   }, [location.search]);
 
-  const handleRegister = (eventId: number) => {
-    // If not authenticated, redirect to login and store pending action
-    // if (!isAuthenticated()) {
-    //   redirectToLogin(`register_event:${eventId}`);
-    //   return;
-    // }
+  const handleRegister = (eventId: string) => {
+    const event = allEvents.find((e) => String(e.id) === eventId);
     setSelectedEventId(eventId);
+    setSelectedEventTitle(event?.title);
     setIsModalOpen(true);
   };
 
@@ -246,6 +241,7 @@ const Events = () => {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         initialEventId={selectedEventId}
+        initialEventTitle={selectedEventTitle}
         onRegistered={({ eventId, eventTitle }) => {
           const name = eventTitle || "Evento";
           const prompt = { type: "event" as const, id: eventId, name };
