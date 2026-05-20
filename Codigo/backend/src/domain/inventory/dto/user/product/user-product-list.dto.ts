@@ -1,4 +1,14 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
+import { PaginationDto } from '../../../../../shared/dto';
+import { ProductCategory, ProductStatus, UnitMeasure } from '../../../enums';
 
+export class UserProductListFilterDto extends PaginationDto {
+  @ApiPropertyOptional({ description: 'Busca por nome ou SKU' })
+  @IsOptional()
+  @IsString({ message: 'O campo de busca deve ser um texto.' })
+  search?: string;
+}
 
 export class UserProductListItemDto {
   @ApiProperty()
