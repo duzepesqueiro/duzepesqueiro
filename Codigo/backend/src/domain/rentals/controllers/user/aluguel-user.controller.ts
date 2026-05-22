@@ -39,7 +39,7 @@ class RentalSearchQueryDto {
   q?: string;
 }
 
-@Controller('rentals')
+@Controller(['rentals', 'api/rentals'])
 @ApiTags('Aluguel - Usuário')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

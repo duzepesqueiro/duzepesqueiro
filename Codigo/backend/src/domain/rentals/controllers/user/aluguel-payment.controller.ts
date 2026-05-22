@@ -34,7 +34,7 @@ class ExtendBookingDto {
   newEndDate: string;
 }
 
-@Controller('rentals/bookings')
+@Controller(['rentals/bookings', 'api/rentals/bookings'])
 @ApiTags('Aluguel - Reservas Usuário')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

@@ -424,17 +424,19 @@ export class InventoryAdminFacadeService {
   }
 
   async createRentalItem(payload: UiRentalPayload, user: User): Promise<InventoryItemDto> {
+    const hourlyPrice = this.requirePositiveNumber(payload.hourlyPrice, 'Preço por hora');
+    const available = this.requireNonNegativeNumber(payload.available, 'Quantidade disponível');
     const supplierId = await this.resolveSupplierId(payload.supplierId, payload.supplier);
     const dto: CreateProductDto = {
       name: this.requireText(payload.name, 'Nome do item de aluguel'),
       status: ProductStatus.RENTAL,
       category: DomainProductCategory.RENTAL_EQUIPMENT,
       unitMeasure: UnitMeasure.UNIT,
-      stockQuantity: Number(payload.available ?? 0),
+      stockQuantity: available,
       minimumLimit: 0,
       suggestedQuantity: 0,
-      costPrice: Number(payload.hourlyPrice ?? 0),
-      salePrice: Number(payload.hourlyPrice ?? 0),
+      costPrice: hourlyPrice,
+      salePrice: hourlyPrice,
       supplierId,
       description: payload.fullDescription ?? undefined,
     };
@@ -620,6 +622,32 @@ export class InventoryAdminFacadeService {
       throw new BadRequestException(message);
     }
     return value.trim();
+  }
+
+  private requirePositiveNumber(value: unknown, fieldName: string): number {
+    if (value === undefined || value === null || value === '') {
+      throw new BadRequestException(`${fieldName} é obrigatório.`);
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      throw new BadRequestException(`${fieldName} deve ser maior que zero.`);
+    }
+
+    return numericValue;
+  }
+
+  private requireNonNegativeNumber(value: unknown, fieldName: string): number {
+    if (value === undefined || value === null || value === '') {
+      throw new BadRequestException(`${fieldName} é obrigatória.`);
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      throw new BadRequestException(`${fieldName} não pode ser negativa.`);
+    }
+
+    return numericValue;
   }
 
   private async resolveSupplierId(supplierId?: string, supplierName?: string): Promise<string> {

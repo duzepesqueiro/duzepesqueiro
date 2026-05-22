@@ -50,8 +50,8 @@ import {
     RentalAdminController,
     RentalAdminFacadeController,
     RentalKpiController,
-    RentalUserController,
     RentalBookingController,
+    RentalUserController,
   ],
   providers: [
     RentalRepository,
