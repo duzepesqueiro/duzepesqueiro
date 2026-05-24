@@ -4,10 +4,12 @@ import { useLocation } from "react-router-dom";
 import { EventCard } from "@/components/EventCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { RegistrationFormModal } from "@/components/RegistrationFormModal";
+import { MyEventsModal } from "@/components/MyEventsModal";
 import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { showRatingToast } from "@/components/RatingToast";
 import { EventFilters, EventFiltersState } from "@/components/EventFilters";
 import { api, submitUserRating } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import {
@@ -45,6 +47,7 @@ const Events = () => {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const [isMyEventsOpen, setIsMyEventsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
   const [selectedEventTitle, setSelectedEventTitle] = useState<string | undefined>();
@@ -189,9 +192,19 @@ const Events = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">
-                {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
-              </h2>
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-bold">
+                  {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
+                </h2>
+                {isAuthenticated() && (
+                  <button
+                    onClick={() => setIsMyEventsOpen(true)}
+                    className="shrink-0 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Meus eventos
+                  </button>
+                )}
+              </div>
               {events.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {events.map((event) => (
@@ -248,6 +261,13 @@ const Events = () => {
           )}
         </div>
       </section>
+
+      {/* My Events Modal */}
+      <MyEventsModal
+        open={isMyEventsOpen}
+        onOpenChange={setIsMyEventsOpen}
+        onRegistrationCancelled={() => setRefreshKey((k) => k + 1)}
+      />
 
       {/* Registration Modal */}
       <RegistrationFormModal
