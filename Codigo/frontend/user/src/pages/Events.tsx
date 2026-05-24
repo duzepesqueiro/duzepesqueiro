@@ -65,6 +65,8 @@ const Events = () => {
   // Busca vinda da barra de pesquisa (Header), via parâmetro ?q
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
   const hasActiveFilters = useMemo(() => {
     return !!(
       (searchQuery && searchQuery.trim()) ||
