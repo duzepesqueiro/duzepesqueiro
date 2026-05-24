@@ -169,7 +169,7 @@ export class EventRepository implements IEventRepository {
           deletedAt: null,
           eventDate: { gte: startOfDay, lte: endOfDay },
           eventTime: { gte: time },
-          status: { in: ['SCHEDULED', 'UPCOMING', 'IN_PROGRESS'] },
+          status: { not: 'CANCELLED' },
         },
         orderBy: [{ eventDate: 'asc' }, { eventTime: 'asc' }],
         include: {
@@ -221,11 +221,11 @@ export class EventRepository implements IEventRepository {
       const prisma = this.prisma as any;
       await prisma.event.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { status: 'CANCELLED' },
       });
-      this.logger.warn(`Evento removido logicamente id=${id}`);
+      this.logger.warn(`Evento cancelado id=${id}`);
     } catch (error) {
-      this.logger.error(`Falha no soft delete do evento id=${id}`, error as Error);
+      this.logger.error(`Falha ao cancelar evento id=${id}`, error as Error);
       throw error;
     }
   }
@@ -248,10 +248,7 @@ export class EventRepository implements IEventRepository {
     try {
       const prisma = this.prisma as any;
       return prisma.event.count({
-        where: {
-          status,
-          deletedAt: null,
-        },
+        where: { ...this.buildStatusCondition(status), deletedAt: null },
       });
     } catch (error) {
       this.logger.error(`Falha ao contar eventos por status=${status}`, error as Error);
@@ -353,6 +350,19 @@ export class EventRepository implements IEventRepository {
     };
   }
 
+  private buildStatusCondition(status: IEvent['status']): Record<string, unknown> {
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const in3Days = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+    switch (status) {
+      case 'CANCELLED': return { status: 'CANCELLED' };
+      case 'COMPLETED': return { eventDate: { lt: today }, status: { not: 'CANCELLED' } };
+      case 'UPCOMING': return { eventDate: { gte: today, lte: in3Days }, status: { not: 'CANCELLED' } };
+      case 'SCHEDULED': return { eventDate: { gt: in3Days }, status: { not: 'CANCELLED' } };
+      default: return { status };
+    }
+  }
+
   private buildWhere(filters: IEventFilter): Record<string, unknown> {
     const where: Record<string, unknown> = {
       deletedAt: filters.includeDeleted ? undefined : null,
@@ -365,17 +375,8 @@ export class EventRepository implements IEventRepository {
         { location: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
-    if (filters.statuses?.length) {
-      where.status = { in: filters.statuses };
-    }
     if (typeof filters.isPaid === 'boolean') {
       where.isPaid = filters.isPaid;
-    }
-    if (filters.fromDate || filters.toDate) {
-      where.eventDate = {
-        ...(filters.fromDate ? { gte: filters.fromDate } : {}),
-        ...(filters.toDate ? { lte: filters.toDate } : {}),
-      };
     }
     if (typeof filters.minPrice === 'number' || typeof filters.maxPrice === 'number') {
       where.price = {
@@ -385,6 +386,24 @@ export class EventRepository implements IEventRepository {
     }
     if (filters.hasAvailableSlots) {
       where.availableSlots = { gt: 0 };
+    }
+
+    // Status e data ficam em AND para evitar conflito de eventDate entre os dois filtros
+    const andConditions: Record<string, unknown>[] = [];
+    if (filters.statuses?.length) {
+      const conds = filters.statuses.map((s) => this.buildStatusCondition(s));
+      andConditions.push(conds.length === 1 ? conds[0] : { OR: conds });
+    }
+    if (filters.fromDate || filters.toDate) {
+      andConditions.push({
+        eventDate: {
+          ...(filters.fromDate ? { gte: filters.fromDate } : {}),
+          ...(filters.toDate ? { lte: filters.toDate } : {}),
+        },
+      });
+    }
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     return where;

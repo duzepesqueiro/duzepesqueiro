@@ -106,12 +106,10 @@ export class EventUserService {
   }
 
   private mapUserStatusToDomainStatuses(status: UserStatusFilter): IEvent['status'][] | undefined {
-    if (status === 'ALL') {
-      return undefined;
-    }
     if (status === 'CANCELLED') {
       return ['CANCELLED'];
     }
+    // ALL e UPCOMING: só eventos futuros (exclui COMPLETED e CANCELLED)
     return ['UPCOMING', 'SCHEDULED'];
   }
 
