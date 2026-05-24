@@ -76,9 +76,9 @@ mkdirSync(eventsUploadDir, { recursive: true });
     }),
   ],
   controllers: [
-    EventUserController,
     EventRegistrationController,
     EventPaymentController,
+    EventUserController,
     EventKpiController,
     EventChartController,
     EventAdminController,

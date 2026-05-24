@@ -10,6 +10,8 @@ import { showRatingToast } from "@/components/RatingToast";
 import { EventFilters, EventFiltersState } from "@/components/EventFilters";
 import { api, submitUserRating } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { Ticket } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import {
@@ -197,12 +199,13 @@ const Events = () => {
                   {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
                 </h2>
                 {isAuthenticated() && (
-                  <button
+                  <Button
                     onClick={() => setIsMyEventsOpen(true)}
-                    className="shrink-0 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    className="shrink-0 bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold gap-2"
                   >
+                    <Ticket className="w-4 h-4" />
                     Meus eventos
-                  </button>
+                  </Button>
                 )}
               </div>
               {events.length > 0 ? (
