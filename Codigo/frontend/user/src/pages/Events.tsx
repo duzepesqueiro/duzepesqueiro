@@ -43,6 +43,8 @@ const Events = () => {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
   const [selectedEventTitle, setSelectedEventTitle] = useState<string | undefined>();
@@ -122,7 +124,7 @@ const Events = () => {
     return () => {
       mounted = false;
     };
-  }, [searchQuery, filters, currentPage]);
+  }, [searchQuery, filters, currentPage, refreshKey]);
 
   // Abre modal via parâmetro de query (eventId)
   const location = useLocation();
@@ -254,6 +256,7 @@ const Events = () => {
         initialEventId={selectedEventId}
         initialEventTitle={selectedEventTitle}
         onRegistered={({ eventId, eventTitle }) => {
+          setRefreshKey((k) => k + 1);
           const name = eventTitle || "Evento";
           const prompt = { type: "event" as const, id: eventId, name };
           enqueueRatingPrompt(prompt);
