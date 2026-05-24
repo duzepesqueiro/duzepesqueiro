@@ -138,12 +138,12 @@ const Events = () => {
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get("eventId");
     if (eventIdParam) {
-      const event = allEvents.find((e) => String(e.id) === eventIdParam);
+      const event = events.find((e) => String(e.id) === eventIdParam);
       setSelectedEventId(eventIdParam);
       setSelectedEventTitle(event?.title);
       setIsModalOpen(true);
     }
-  }, [location.search, allEvents]);
+  }, [location.search, events]);
 
   // Atualiza apenas a busca do carrossel pelo parâmetro (?q), sem mexer nos filtros
   useEffect(() => {
@@ -153,7 +153,7 @@ const Events = () => {
   }, [location.search]);
 
   const handleRegister = (eventId: string) => {
-    const event = allEvents.find((e) => String(e.id) === eventId);
+    const event = events.find((e) => String(e.id) === eventId);
     setSelectedEventId(eventId);
     setSelectedEventTitle(event?.title);
     setIsModalOpen(true);
