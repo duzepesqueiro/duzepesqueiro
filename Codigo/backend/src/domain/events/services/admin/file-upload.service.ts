@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import { join, dirname } from 'path';
 
 type UploadResult = {
   url: string;
@@ -11,6 +13,7 @@ export class FileUploadService {
   private readonly logger = new Logger(FileUploadService.name);
   private readonly maxFileSizeBytes = 5 * 1024 * 1024;
   private readonly maxFilesPerEvent = 10;
+  private readonly uploadRoot = join(process.cwd(), 'uploads');
   private readonly allowedMimeTypes = new Set([
     'image/jpeg',
     'image/png',
@@ -22,10 +25,19 @@ export class FileUploadService {
     this.validateFile(file);
     const extension = this.extractExtension(file.originalname);
     const key = `events/${new Date().getFullYear()}/${randomUUID()}.${extension}`;
-    const baseUrl = process.env.EVENTS_IMAGE_BASE_URL ?? 'https://storage.duzepesqueiro.local';
-    const url = `${baseUrl.replace(/\/$/, '')}/${key}`;
+    const baseUrl = (process.env.EVENTS_IMAGE_BASE_URL ?? '/uploads').replace(/\/$/, '');
+    const url = `${baseUrl}/${key}`;
 
-    this.logger.log(`Imagem de evento processada key=${key}`);
+    const destPath = join(this.uploadRoot, key);
+    await fs.mkdir(dirname(destPath), { recursive: true });
+
+    if (file.path) {
+      await fs.rename(file.path, destPath);
+    } else if (file.buffer) {
+      await fs.writeFile(destPath, file.buffer);
+    }
+
+    this.logger.log(`Imagem de evento salva key=${key}`);
     return { url, key };
   }
 
@@ -39,10 +51,13 @@ export class FileUploadService {
   }
 
   async deleteFile(key?: string | null): Promise<void> {
-    if (!key) {
-      return;
+    if (!key) return;
+    try {
+      await fs.unlink(join(this.uploadRoot, key));
+      this.logger.log(`Arquivo removido key=${key}`);
+    } catch {
+      this.logger.warn(`Arquivo não encontrado para remoção key=${key}`);
     }
-    this.logger.log(`Remoção lógica de arquivo solicitada key=${key}`);
   }
 
   private validateFile(file?: Express.Multer.File): void {
