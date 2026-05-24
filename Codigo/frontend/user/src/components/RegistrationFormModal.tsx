@@ -80,7 +80,7 @@ export const RegistrationFormModal = ({
           const profile = await getUserProfile();
           if (mounted && profile) {
             if (profile.nome) form.setValue("fullName", profile.nome);
-            if (profile.telefone) form.setValue("phoneNumber", formatPhoneBR(profile.telefone));
+            if (profile.telefone) form.setValue("phoneNumber", unmaskPhone(profile.telefone));
           }
         } catch (error) {
           console.warn("Erro ao buscar dados do usuário para o modal de eventos", error);
