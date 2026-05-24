@@ -45,6 +45,20 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const computeStatus = (eventDate, eventTime, currentStatus) => {
+  if (currentStatus === "CANCELLED") return "CANCELLED";
+  if (!eventDate) return "SCHEDULED";
+  const dateStr = eventTime ? `${eventDate}T${eventTime}:00` : `${eventDate}T00:00:00`;
+  const eventDateTime = new Date(dateStr);
+  if (isNaN(eventDateTime.getTime())) return "SCHEDULED";
+  const diffMs = eventDateTime.getTime() - Date.now();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  if (diffMs < 0) return "COMPLETED";
+  if (diffDays <= 3) return "UPCOMING";
+  return "SCHEDULED";
+};
+
+
 const createEmptyEvent = () => ({
   id: "",
   title: "",
@@ -222,15 +236,10 @@ const EventsDataTable = ({ onDataChanged }) => {
   };
 
   const applySelectedImages = (selectedFiles) => {
-    const files = Array.from(selectedFiles || []);
-    if (!files.length) {
-      return;
-    }
-    if (files.length > 10) {
-      alert("Você pode adicionar no máximo 10 imagens.");
-      return;
-    }
-    for (const file of files) {
+    const newFiles = Array.from(selectedFiles || []);
+    if (!newFiles.length) return;
+
+    for (const file of newFiles) {
       if (!file.type?.startsWith("image/")) {
         alert("Selecione apenas arquivos de imagem válidos.");
         return;
@@ -240,13 +249,16 @@ const EventsDataTable = ({ onDataChanged }) => {
         return;
       }
     }
-    eventImagePreviews.forEach((preview) => {
-      if (preview?.startsWith("blob:")) {
-        URL.revokeObjectURL(preview);
-      }
-    });
-    setEventImageFiles(files);
-    setEventImagePreviews(files.map((file) => URL.createObjectURL(file)));
+
+    const combined = [...eventImageFiles, ...newFiles];
+    if (combined.length > 10) {
+      alert("Você pode adicionar no máximo 10 imagens no total.");
+      return;
+    }
+
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+    setEventImageFiles(combined);
+    setEventImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const removeSelectedImage = (indexToRemove) => {
@@ -301,6 +313,11 @@ const EventsDataTable = ({ onDataChanged }) => {
         throw new Error("Preço deve ser maior ou igual a zero.");
       }
       setSaving(true);
+      const autoStatus = computeStatus(
+        modalEvent.eventDate,
+        modalEvent.eventTime,
+        modalEvent.status
+      );
       const payload = {
         title: modalEvent.title,
         description: modalEvent.description,
@@ -311,7 +328,7 @@ const EventsDataTable = ({ onDataChanged }) => {
         eventTime: modalEvent.eventTime,
         isPaid: Boolean(modalEvent.isPaid),
         price: Boolean(modalEvent.isPaid) ? toNumber(modalEvent.price, 0) : 0,
-        status: modalEvent.status,
+        status: autoStatus,
       };
       if (modalType === "create") {
         await createEvent(payload, eventImageFiles);
@@ -554,35 +571,47 @@ const EventsDataTable = ({ onDataChanged }) => {
                 readOnly={modalType === "view"}
               />
 
-              <Input
-                label="Descrição"
-                value={modalEvent.description || ""}
-                onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, description: e.target.value }))}
-                readOnly={modalType === "view"}
-              />
+              <div className="md:col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-foreground">Descrição</label>
+                <textarea
+                  rows={3}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
+                  value={modalEvent.description || ""}
+                  onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, description: e.target.value }))}
+                  readOnly={modalType === "view"}
+                  placeholder="Descreva o evento..."
+                />
+              </div>
 
-              <Input
-                label="Regras"
-                value={modalEvent.rules || ""}
-                onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, rules: e.target.value }))}
-                readOnly={modalType === "view"}
-              />
+              <div className="md:col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-foreground">Regras</label>
+                <textarea
+                  rows={4}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
+                  value={modalEvent.rules || ""}
+                  onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, rules: e.target.value }))}
+                  readOnly={modalType === "view"}
+                  placeholder="Informe as regras do evento (use Enter para quebrar linhas)..."
+                />
+              </div>
 
               <Input
                 label="Total de Vagas"
                 type="number"
                 min="1"
-                value={modalEvent.totalSlots || 1}
-                onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, totalSlots: e.target.value }))}
+                value={modalEvent.totalSlots === 0 ? "" : (modalEvent.totalSlots ?? "")}
+                onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, totalSlots: e.target.value === "" ? "" : Number(e.target.value) }))}
                 readOnly={modalType === "view"}
               />
 
-              <Input
-                label="Participantes Inscritos"
-                type="number"
-                value={modalEvent.participantsCount || 0}
-                readOnly
-              />
+              {modalType !== "create" && (
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-muted-foreground">Participantes Inscritos</label>
+                  <div className="px-3 py-2 border border-border rounded-md bg-muted/30 text-foreground text-sm">
+                    {modalEvent.participantsCount || 0}
+                  </div>
+                </div>
+              )}
 
               <Select
                 label="Evento Pago?"
@@ -602,24 +631,34 @@ const EventsDataTable = ({ onDataChanged }) => {
                 disabled={modalType === "view"}
               />
 
-              <Input
-                label="Preço"
-                type="number"
-                min="0"
-                step="0.01"
-                value={modalEvent.price ?? 0}
-                onChange={(e) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, price: e.target.value }))}
-                readOnly={modalType === "view" || !modalEvent.isPaid}
-              />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-foreground">Preço</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">R$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full pl-9 pr-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
+                    value={modalEvent.price ?? 0}
+                    onChange={(e) => {
+                      if (modalType === "view" || !modalEvent.isPaid) return;
+                      setModalEvent((prev) => ({ ...prev, price: e.target.value }));
+                    }}
+                    readOnly={modalType === "view" || !modalEvent.isPaid}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
 
-              <Select
-                label="Status"
-                options={statusOptions.filter((opt) => opt.value !== "ALL")}
-                value={modalEvent.status}
-                onChange={(value) => modalType !== "view" && setModalEvent((prev) => ({ ...prev, status: value }))}
-                className="w-full"
-                disabled={modalType === "view"}
-              />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-foreground">Status</label>
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(computeStatus(modalEvent.eventDate, modalEvent.eventTime, modalEvent.status))}`}>
+                  <Icon name={getStatusIcon(computeStatus(modalEvent.eventDate, modalEvent.eventTime, modalEvent.status))} size={12} className="mr-1" />
+                  {statusOptions.find((opt) => opt.value === computeStatus(modalEvent.eventDate, modalEvent.eventTime, modalEvent.status))?.label || "—"}
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">Calculado automaticamente pela data do evento</p>
+              </div>
 
               <div className="md:col-span-2 rounded-xl border border-dashed border-border bg-muted/20 p-4">
                 <div
