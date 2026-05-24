@@ -139,6 +139,8 @@ export class EventUserService {
     return {
       id: event.id,
       title: event.title,
+      description: event.description,
+      rules: event.rules,
       imageUrl: event.imageUrl,
       location: event.location,
       eventDate: event.eventDate,
