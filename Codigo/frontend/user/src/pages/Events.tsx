@@ -104,7 +104,7 @@ const Events = () => {
         const data = raw.map((e: any) => ({
           ...e,
           image: e.imageUrl ?? "",
-          date: e.eventDate ? formatDate(new Date(e.eventDate), "dd/MM/yyyy") : "",
+          date: e.eventDate ? (() => { const [y, m, d] = String(e.eventDate).split("T")[0].split("-"); return `${d}/${m}/${y}`; })() : "",
           time: e.eventTime ?? "",
           currentAttendees: (e.totalSlots ?? 0) - (e.availableSlots ?? 0),
           totalCapacity: e.totalSlots ?? 0,

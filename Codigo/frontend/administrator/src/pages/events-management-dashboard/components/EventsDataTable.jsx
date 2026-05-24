@@ -22,16 +22,18 @@ const itemsPerPageOptions = [
 
 const toInputDate = (value) => {
   if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
+  const datePart = String(value).split("T")[0];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return "";
+  return datePart;
 };
 
 const toBrDate = (value) => {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("pt-BR");
+  const datePart = String(value).split("T")[0];
+  const parts = datePart.split("-");
+  if (parts.length !== 3) return "-";
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year}`;
 };
 
 const toBrDateFilter = (value) => {
