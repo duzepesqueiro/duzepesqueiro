@@ -305,6 +305,20 @@ export class EventRepository implements IEventRepository {
     }
   }
 
+  private computeStatus(eventDate: Date, eventTime: string | null, storedStatus: string): IEvent['status'] {
+    if (storedStatus === 'CANCELLED') return 'CANCELLED';
+    if (!eventDate) return 'SCHEDULED';
+    const datePart = eventDate.toISOString().split('T')[0];
+    const dateStr = eventTime ? `${datePart}T${eventTime}:00` : `${datePart}T00:00:00`;
+    const eventDateTime = new Date(dateStr);
+    if (isNaN(eventDateTime.getTime())) return 'SCHEDULED';
+    const diffMs = eventDateTime.getTime() - Date.now();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffMs < 0) return 'COMPLETED';
+    if (diffDays <= 3) return 'UPCOMING';
+    return 'SCHEDULED';
+  }
+
   private mapEvent(row: any): IEvent {
     const mappedImages = Array.isArray(row?.eventImages)
       ? row.eventImages.map((image: any) => image.imageUrl)
@@ -330,7 +344,7 @@ export class EventRepository implements IEventRepository {
       availableSlots: row.availableSlots,
       eventDate: row.eventDate,
       eventTime: row.eventTime,
-      status: row.status,
+      status: this.computeStatus(row.eventDate, row.eventTime, row.status),
       price: row.price ? Number(row.price) : null,
       isPaid: row.isPaid,
       createdAt: row.createdAt,
