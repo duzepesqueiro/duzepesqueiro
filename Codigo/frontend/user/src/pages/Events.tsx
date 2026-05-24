@@ -29,13 +29,6 @@ interface PaginatedEventsResponse {
   pageSize: number;
 }
 
-const mapCapacityToApi = (value: string): number | undefined => {
-  if (value === "small") return 50;
-  if (value === "medium") return 150;
-  if (value === "large") return 200;
-  return undefined;
-};
-
 const mapStatusToApi = (value: string): "ALL" | "UPCOMING" | "CANCELLED" => {
   if (value === "cancelled") return "CANCELLED";
   if (value === "scheduled") return "UPCOMING";
@@ -57,7 +50,6 @@ const Events = () => {
   const [filters, setFilters] = useState<EventFiltersState>({
     name: "",
     date: undefined,
-    capacity: "all",
     time: "",
     status: "all",
   });
@@ -72,7 +64,6 @@ const Events = () => {
       (searchQuery && searchQuery.trim()) ||
       (filters.name && filters.name.trim()) ||
       filters.date ||
-      filters.capacity !== "all" ||
       (filters.time && filters.time !== "all") ||
       filters.status !== "all"
     );
@@ -93,7 +84,6 @@ const Events = () => {
           params: {
             name: nameFilter || globalQuery || undefined,
             date: filters.date ? formatDate(filters.date, "dd/MM/yyyy") : undefined,
-            capacity: mapCapacityToApi(filters.capacity),
             time: filters.time || undefined,
             status: mapStatusToApi(filters.status),
             page: currentPage,

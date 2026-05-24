@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
@@ -26,9 +24,8 @@ import { Clock } from "lucide-react";
 export interface EventFiltersState {
   name: string;
   date: Date | undefined;
-  capacity: string;
   time: string;
-  status: string
+  status: string;
 }
 
 interface EventFiltersProps {
@@ -37,8 +34,6 @@ interface EventFiltersProps {
 }
 
 export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) => {
-  const [loading, setLoading] = useState(false);
-
   const updateFilter = (key: keyof EventFiltersState, value: string | Date | undefined) => {
     onFiltersChange({ ...filters, [key]: value });
   };
@@ -47,14 +42,13 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
     onFiltersChange({
       name: "",
       date: undefined,
-      capacity: "all",
       time: "",
       status: "all",
     });
   };
 
   const hasActiveFilters =
-    filters.name || filters.date || filters.capacity !== "all" || (filters.time && filters.time !== "all") || filters.status !== "all";
+    filters.name || filters.date || (filters.time && filters.time !== "all") || filters.status !== "all";
 
   // Filtros são aplicados automaticamente via updateFilter
 
@@ -90,7 +84,7 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
       </div>
 
       {/* --- Filtros --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Nome */}
         <div className="space-y-2">
           <Label htmlFor="name-filter">Nome do Evento</Label>
@@ -129,25 +123,6 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
               />
             </PopoverContent>
           </Popover>
-        </div>
-
-        {/* Capacidade */}
-        <div className="space-y-2">
-          <Label htmlFor="capacity-filter">Capacidade</Label>
-          <Select
-            value={filters.capacity}
-            onValueChange={(value) => updateFilter("capacity", value)}
-          >
-            <SelectTrigger id="capacity-filter">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="small">Pequena (&lt; 150)</SelectItem>
-              <SelectItem value="medium">Média (150-500)</SelectItem>
-              <SelectItem value="large">Grande (&gt; 500)</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Horário */}
@@ -206,12 +181,6 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
             <Badge variant="outline" className="gap-1">
               Data: {format(filters.date, "dd/MM/yyyy")}
               <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => updateFilter("date", undefined)} />
-            </Badge>
-          )}
-          {filters.capacity !== "all" && (
-            <Badge variant="outline" className="gap-1">
-              Capacidade: {filters.capacity === "small" ? "Pequena" : filters.capacity === "medium" ? "Média" : "Grande"}
-              <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => updateFilter("capacity", "all")} />
             </Badge>
           )}
           {filters.time && filters.time !== "all" && (
