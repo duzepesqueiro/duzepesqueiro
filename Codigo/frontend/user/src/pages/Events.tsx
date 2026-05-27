@@ -165,7 +165,7 @@ const Events = () => {
       {/* Hero Section */}
       <section className="pt-24 pb-6 px-4 md:px-8">
         <div className="max-w-7xl mx-auto text-center space-y-4 animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-bold">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold">
             Próximos eventos
           </h1>
           <p>
@@ -194,8 +194,8 @@ const Events = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-2xl font-bold">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold">
                   {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
                 </h2>
                 {isAuthenticated() && (

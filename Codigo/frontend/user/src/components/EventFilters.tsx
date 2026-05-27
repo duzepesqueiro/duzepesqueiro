@@ -55,12 +55,12 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
   return (
     <div
       className="
-    w-full 
-    bg-[hsl(210_25%_97%)] 
-    dark:bg-[hsl(210_30%_10%)] 
-    border border-border/50 
-    rounded-lg p-6 space-y-6 
-    shadow-[0_2px_8px_rgba(0,0,0,0.05)] 
+    w-full
+    bg-[hsl(210_25%_97%)]
+    dark:bg-[hsl(210_30%_10%)]
+    border border-border/50
+    rounded-lg p-4 sm:p-6 space-y-4 sm:space-y-6
+    shadow-[0_2px_8px_rgba(0,0,0,0.05)]
     transition-colors duration-300
   "
     >

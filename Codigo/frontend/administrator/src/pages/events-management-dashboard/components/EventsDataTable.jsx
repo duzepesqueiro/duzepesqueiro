@@ -361,8 +361,8 @@ const EventsDataTable = ({ onDataChanged }) => {
 
   return (
     <div className="bg-card border border-border rounded-lg">
-      <div className="p-6 border-b border-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <h2 className="text-xl font-heading font-semibold text-foreground">
+      <div className="p-4 sm:p-6 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h2 className="text-lg sm:text-xl font-heading font-semibold text-foreground">
           Gerenciar Eventos
         </h2>
         <div className="flex flex-wrap gap-3">
@@ -375,7 +375,7 @@ const EventsDataTable = ({ onDataChanged }) => {
         </div>
       </div>
 
-      <div className="p-6 border-b border-border grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="p-4 sm:p-6 border-b border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <Input
           type="search"
           label="Título"
@@ -495,7 +495,7 @@ const EventsDataTable = ({ onDataChanged }) => {
         </table>
       </div>
 
-      <div className="flex items-center justify-between p-6 border-t border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-t border-border gap-3">
         <Select
           options={itemsPerPageOptions}
           value={itemsPerPage}
@@ -503,12 +503,12 @@ const EventsDataTable = ({ onDataChanged }) => {
             setItemsPerPage(Number(value) || 20);
             setCurrentPage(1);
           }}
-          className="w-32"
+          className="w-36"
         />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground text-center">
           Página {currentPage} de {Math.max(1, totalPages)}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -533,7 +533,7 @@ const EventsDataTable = ({ onDataChanged }) => {
       {modalEvent && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
-          <div className="relative bg-card border border-border rounded-lg p-6 w-full max-w-md sm:max-w-lg lg:max-w-3xl max-h-[90vh] overflow-y-auto mx-4">
+          <div className="relative bg-card border border-border rounded-lg p-4 sm:p-6 w-full max-w-md sm:max-w-lg lg:max-w-3xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
             <h3 className="text-lg font-heading font-semibold text-foreground mb-4">
               {modalType === "create"
                 ? "Novo Evento"
@@ -742,7 +742,7 @@ const EventsDataTable = ({ onDataChanged }) => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 mt-6">
+            <div className="flex flex-wrap items-center gap-2 mt-6">
               {modalType !== "view" && (
                 <Button variant="default" onClick={handleSaveEvent} disabled={saving}>
                   {saving ? "Salvando..." : "Salvar"}

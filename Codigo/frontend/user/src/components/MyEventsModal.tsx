@@ -230,13 +230,13 @@ const RegistrationCard = ({
         </div>
 
         {canCancel && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isConfirming ? (
               <>
                 <Button
                   size="sm"
                   variant="destructive"
-                  className="h-7 text-xs px-3"
+                  className="h-7 text-xs px-3 whitespace-nowrap"
                   disabled={isCancelling}
                   onClick={onCancelClick}
                 >
