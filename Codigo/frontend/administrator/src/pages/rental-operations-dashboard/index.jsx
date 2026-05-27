@@ -64,7 +64,7 @@ const RentalOperationsDashboard = () => {
                 <AlertNotificationCenter />
                 <ExportControlPanel 
                   onExport={handleExport}
-                  availableFormats={['pdf', 'excel', 'csv']}
+                  availableFormats={['excel', 'csv']}
                   title="Exportar Dados de Aluguéis"
                 />
               </div>
