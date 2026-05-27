@@ -63,9 +63,9 @@ const reservationStatusLabels: Record<Reservation['status'], string> = {
   confirmed: 'Confirmada',
   pending: 'Pendente',
   cancelled: 'Cancelada',
-  completed: 'Concluida',
+  completed: 'Concluída',
   occupied: 'Em hospedagem',
-  no_show: 'Nao compareceu',
+  no_show: 'Não compareceu',
 };
 
 const paymentStatusColors: Record<string, string> = {
@@ -111,15 +111,6 @@ const mapPaymentDataStatus = (status?: string | null): PaymentData['status'] => 
   return 'idle';
 };
 
-const mapPaymentMethodLabel = (method?: string | null): string => {
-  const value = String(method || '').toUpperCase();
-  if (value.includes('PIX')) return 'PIX';
-  if (value.includes('CREDIT')) return 'Cartao de credito';
-  if (value.includes('DEBIT')) return 'Cartao de debito';
-  if (value.includes('BOLETO')) return 'Boleto';
-  return 'Nao informado';
-};
-
 const MyReservationsPage = () => {
   const [detailRes, setDetailRes] = useState<Reservation | null>(null);
   const [cancelRes, setCancelRes] = useState<Reservation | null>(null);
@@ -134,7 +125,8 @@ const MyReservationsPage = () => {
     queryFn: async () => {
       const { data } = await api.get('/api/reservas/minhas');
       const items = Array.isArray(data) ? (data as ApiReservation[]) : [];
-      return items.map((item) => {
+      
+      const mappedItems = items.map((item) => {
         const paymentStatusValue = item.paymentStatus ? String(item.paymentStatus).toUpperCase() : null;
         return {
           id: item.id,
@@ -164,6 +156,22 @@ const MyReservationsPage = () => {
           createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
           totalPrice: Number(item.totalAmount ?? 0),
         } satisfies Reservation;
+      });
+
+      return mappedItems.sort((a, b) => {
+        const hoje = new Date().setHours(0, 0, 0, 0);
+        const checkInA = a.bookingData.checkIn ? a.bookingData.checkIn.getTime() : 0;
+        const checkInB = b.bookingData.checkIn ? b.bookingData.checkIn.getTime() : 0;
+
+        const aEPassada = checkInA < hoje;
+        const bEPassada = checkInB < hoje;
+
+        if (aEPassada && !bEPassada) return 1;
+        if (!aEPassada && bEPassada) return -1;
+
+        if (!aEPassada && !bEPassada) return checkInA - checkInB;
+
+        return checkInB - checkInA;
       });
     },
     staleTime: 0,
@@ -237,8 +245,9 @@ const MyReservationsPage = () => {
     refetchOnWindowFocus: true,
   });
 
-  const getCountdown = (checkInDate: string) => {
-    const diff = differenceInDays(new Date(checkInDate), new Date());
+  const getCountdown = (checkInDate: Date | null) => {
+    if (!checkInDate) return null;
+    const diff = differenceInDays(checkInDate, new Date());
     if (diff === 0) return "É hoje!";
     if (diff > 0) return `Faltam ${diff} dias`;
     return null;
@@ -270,7 +279,7 @@ const MyReservationsPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               {reservations.map((res, i) => {
                 const room = roomById[res.bookingData.roomId];
-                const countdown = res.bookingData.checkIn ? getCountdown(res.bookingData.checkIn) : null;
+                const countdown = getCountdown(res.bookingData.checkIn);
                 const canReview = res.status === 'completed' && hasReviewByReservationId[res.id] === false;
 
                 return (
@@ -294,8 +303,8 @@ const MyReservationsPage = () => {
                         )}
                         
                         <div className="absolute top-4 left-4">
-                          <Badge className="bg-[#10b981] hover:bg-[#10b981] text-white border-none px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg">
-                            Confirmada
+                          <Badge className={`${reservationStatusColors[res.status] || 'bg-slate-500'} text-white border-none px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg`}>
+                            {reservationStatusLabels[res.status] || 'Pendente'}
                           </Badge>
                         </div>
 
@@ -312,13 +321,14 @@ const MyReservationsPage = () => {
                           </div>
                         )}
                       </div>
-                      <div className="mb-3">
-                        <Badge className={paymentStatusColors[String(res.paymentStatus || 'PENDING')] || 'bg-muted text-foreground'}>
-                          {paymentStatusLabels[String(res.paymentStatus || 'PENDING')] || 'Pagamento pendente'}
-                        </Badge>
-                      </div>
 
                       <div className="p-7 flex-1 flex flex-col">
+                        <div className="mb-3">
+                          <Badge className={paymentStatusColors[String(res.paymentStatus || 'PENDING')] || 'bg-muted text-foreground'}>
+                            {paymentStatusLabels[String(res.paymentStatus || 'PENDING')] || 'Pagamento pendente'}
+                          </Badge>
+                        </div>
+
                         <div className="mb-5">
                           <h3 className="font-display font-extrabold text-2xl text-slate-800 mb-1 leading-tight group-hover:text-blue-900 transition-colors">
                             {room?.name || 'Carregando...'}
@@ -330,13 +340,13 @@ const MyReservationsPage = () => {
                           <div className="p-4 border-r border-slate-100">
                             <p className="text-[9px] uppercase text-slate-400 font-black tracking-widest mb-1">Check-in</p>
                             <p className="text-sm font-bold text-slate-700 uppercase leading-none">
-                              {res.bookingData.checkIn ? format(new Date(res.bookingData.checkIn), "dd MMM", { locale: ptBR }) : '—'}
+                              {res.bookingData.checkIn ? format(res.bookingData.checkIn, "dd MMM", { locale: ptBR }) : '—'}
                             </p>
                           </div>
                           <div className="p-4">
                             <p className="text-[9px] uppercase text-slate-400 font-black tracking-widest mb-1">Check-out</p>
                             <p className="text-sm font-bold text-slate-700 uppercase leading-none">
-                              {res.bookingData.checkOut ? format(new Date(res.bookingData.checkOut), "dd MMM", { locale: ptBR }) : '—'}
+                              {res.bookingData.checkOut ? format(res.bookingData.checkOut, "dd MMM", { locale: ptBR }) : '—'}
                             </p>
                           </div>
                           <div className="col-span-2 p-3 bg-white border-t border-slate-100 text-center">
