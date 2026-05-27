@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import LoadingBar from "./LoadingBar";
 import fishingPark1 from "@/assets/duzepesqueiro1.jpeg";
@@ -7,6 +8,7 @@ import fishingPark3 from "@/assets/duzepesqueiro3.jpeg";
 import fishingGuide from "@/assets/duzepesqueiro4.jpeg";
 
 const HeroCarousel = () => {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadingKey, setLoadingKey] = useState(0);
@@ -140,7 +142,10 @@ const HeroCarousel = () => {
               {currentSlide.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="btn-hero px-8 py-4 text-lg shadow-xl">
+              <button
+                className="btn-hero px-8 py-4 text-lg shadow-xl"
+                onClick={() => navigate("/hospedagem/home")}
+              >
                   Reserve Sua Aventura
                 </button>
                 <button className="px-8 py-4 text-lg border-2 border-white text-white hover:bg-white hover:text-primary transition-all duration-300 rounded-lg font-semibold shadow-xl">

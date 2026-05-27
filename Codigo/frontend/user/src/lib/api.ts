@@ -159,14 +159,36 @@ export const cancelRental = async (id: string | number) => {
 };
 
 export const getUserOrders = async (name?: string) => {
-  const params = name ? { name } : {};
-  const res = await api.get(`/user/loja/meus`, { params });
-  return res.data;
+  const params: any = {};
+  if (name) params.search = name;
+  params.page = 1;
+  params.limit = 10;
+  const res = await api.get(`/user/sales/orders`, { params });
+  return res.data?.data ?? res.data;
 };
 
 export const cancelOrder = async (id: string | number) => {
-  const res = await api.delete(`/user/loja/orders/${id}`);
-  return res.data;
+  const res = await api.patch(`/user/sales/orders/${id}/cancel`);
+  return res.data?.data ?? res.data;
+};
+
+export const createSalesOrder = async (params: {
+  items: Array<{ productId: string; quantity: number }>;
+  note?: string;
+}) => {
+  const res = await api.post('/user/sales/orders', params);
+  return res.data?.data ?? res.data;
+};
+
+export const listSalesOrdersPage = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  paymentStatus?: string;
+  search?: string;
+}) => {
+  const res = await api.get('/user/sales/orders', { params });
+  return res.data?.data ?? res.data;
 };
 
 export const updateRental = async (id: string | number, payload: any) => {
@@ -216,6 +238,142 @@ export const submitUserRating = async (params: {
     comment: params.comment,
   });
   return res.data;
+};
+
+export const getAllRentalProducts = async (params?: {
+  search?: string;
+  limit?: number;
+}): Promise<any[]> => {
+  const limit = Math.max(1, Math.min(Number(params?.limit ?? 100) || 100, 100));
+  let page = 1;
+  const all: any[] = [];
+
+  while (true) {
+    const res = await api.get('/user/products/rental', {
+      params: { page, limit, search: params?.search },
+    });
+    const data = res.data;
+
+    if (Array.isArray(data)) {
+      all.push(...data);
+      break;
+    }
+
+    const items = Array.isArray(data?.items) ? data.items : [];
+    all.push(...items);
+
+    const totalPages = Number(data?.totalPages ?? 1) || 1;
+    if (page >= totalPages) break;
+    page++;
+  }
+
+  return all;
+};
+
+export const getRentalProductsPage = async (params: {
+  page: number;
+  limit: number;
+  search?: string;
+}): Promise<{
+  items: any[];
+  total: number;
+  page: number;
+  itemsPerPage: number;
+  totalPages: number;
+}> => {
+  const page = Math.max(1, Number(params.page) || 1);
+  const limit = Math.max(1, Math.min(Number(params.limit) || 10, 100));
+  const res = await api.get('/user/products/rental', {
+    params: { page, limit, search: params.search },
+  });
+  const data = res.data;
+
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      itemsPerPage: data.length,
+      totalPages: 1,
+    };
+  }
+
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return {
+    items,
+    total: Number(data?.total ?? items.length) || 0,
+    page: Number(data?.page ?? page) || page,
+    itemsPerPage: Number(data?.itemsPerPage ?? limit) || limit,
+    totalPages: Number(data?.totalPages ?? 1) || 1,
+  };
+};
+
+export const getSaleProductsPage = async (params: {
+  page: number;
+  limit: number;
+  search?: string;
+}): Promise<{
+  items: any[];
+  total: number;
+  page: number;
+  itemsPerPage: number;
+  totalPages: number;
+}> => {
+  const page = Math.max(1, Number(params.page) || 1);
+  const limit = Math.max(1, Math.min(Number(params.limit) || 10, 100));
+  const res = await api.get('/user/products/sale', {
+    params: { page, limit, search: params.search },
+  });
+  const data = res.data;
+
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      itemsPerPage: data.length,
+      totalPages: 1,
+    };
+  }
+
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return {
+    items,
+    total: Number(data?.total ?? items.length) || 0,
+    page: Number(data?.page ?? page) || page,
+    itemsPerPage: Number(data?.itemsPerPage ?? limit) || limit,
+    totalPages: Number(data?.totalPages ?? 1) || 1,
+  };
+};
+
+export const getAllSaleProducts = async (params?: {
+  search?: string;
+  limit?: number;
+}): Promise<any[]> => {
+  const limit = Math.max(1, Math.min(Number(params?.limit ?? 100) || 100, 100));
+  let page = 1;
+  const all: any[] = [];
+
+  while (true) {
+    const res = await api.get('/user/products/sale', {
+      params: { page, limit, search: params?.search },
+    });
+    const data = res.data;
+
+    if (Array.isArray(data)) {
+      all.push(...data);
+      break;
+    }
+
+    const items = Array.isArray(data?.items) ? data.items : [];
+    all.push(...items);
+
+    const totalPages = Number(data?.totalPages ?? 1) || 1;
+    if (page >= totalPages) break;
+    page++;
+  }
+
+  return all;
 };
 
 export type ReviewDomain = 'HOSTING' | 'EVENT' | 'RENTAL' | 'SALES';

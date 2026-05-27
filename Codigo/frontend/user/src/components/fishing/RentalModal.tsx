@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, DollarSign, CheckCircle, Package, Clock, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, DollarSign, CheckCircle, Package, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatPhoneBR, unmaskPhone } from "@/lib/phone";
 import { RentalItem } from "@/pages/FishingGear";
 import { api, getUserProfile } from "@/lib/api";
@@ -19,7 +19,7 @@ import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 
 interface RentalModalProps {
   item: RentalItem | null;
@@ -30,8 +30,6 @@ interface RentalModalProps {
 
 export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalProps) => {
   const [startDate, setStartDate] = useState<string>(""); // yyyy-MM-dd
-  const [startTime, setStartTime] = useState<string>("06:00"); // HH:mm
-  const [hours, setHours] = useState<number>(1);
   const [quantity, setQuantity] = useState<number>(1);
   const [renterName, setRenterName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
@@ -79,14 +77,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
 
   const galleryImages = (item.images?.length ? item.images : [item.image]).filter(Boolean).slice(0, 10);
   const currentImage = galleryImages[imageIndex] || item.image;
-  const totalPrice = (item.hourlyPrice * (hours > 0 ? hours : 0) * (quantity > 0 ? quantity : 0)).toFixed(2);
-
-  const formatDateTimeForBackend = (localValue: string) => {
-    // input: yyyy-MM-ddTHH:mm -> output: yyyy-MM-dd HH:mm
-    if (!localValue) return "";
-    const [datePart, timePart] = localValue.split("T");
-    return `${datePart} ${timePart || "00:00"}`;
-  };
+  const totalPrice = (item.hourlyPrice * (quantity > 0 ? quantity : 0)).toFixed(2);
 
   const handleConfirmRental = async () => {
     try {
@@ -100,14 +91,6 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
         toast.error("Selecione a data.");
         return;
       }
-      if (!startTime) {
-        toast.error("Selecione o horário de início.");
-        return;
-      }
-      if (hours == null || hours <= 0) {
-        toast.error("Informe uma quantidade de horas válida (>= 1).");
-        return;
-      }
       if (quantity == null || quantity <= 0) {
         toast.error("Informe uma quantidade válida (>= 1).");
         return;
@@ -116,43 +99,32 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
         toast.error("Quantidade solicitada maior que disponível.");
         return;
       }
-      // Restrições de horário: 06:00 a 22:00 e término dentro do limite
-      const [sh, sm] = startTime.split(":").map(Number);
-      const startMinutes = sh * 60 + (sm || 0);
-      const minMinutes = 6 * 60;
-      const maxMinutes = 22 * 60;
-      if (startMinutes < minMinutes || startMinutes > maxMinutes) {
-        toast.error("Agendamentos apenas entre 06:00 e 22:00.");
-        return;
-      }
-      const endMinutes = startMinutes + (hours * 60);
-      if (endMinutes > maxMinutes) {
-        toast.error("O término ultrapassa 22:00. Ajuste as horas ou o início.");
-        return;
-      }
 
       setSubmitting(true);
 
-      const startLocal = `${startDate}T${startTime}`;
+      const returnDate = startDateObj ? format(addDays(startDateObj, 1), "yyyy-MM-dd") : "";
       const payload: any = {
-        rentalItemId: item.id,
+        productId: item.id,
+        rentalDate: startDate,
+        returnDate,
+        periodType: "DAILY",
+        periodValue: 1,
         quantity,
-        renterName,
-        startTime: formatDateTimeForBackend(startLocal),
-        durationHours: hours,
-        customerPhone: customerPhone?.trim() || undefined,
+        unitPrice: item.hourlyPrice,
+        notes:
+          [renterName?.trim() ? `Locatário: ${renterName.trim()}` : "", customerPhone?.trim() ? `Telefone: ${customerPhone.trim()}` : ""]
+            .filter(Boolean)
+            .join(" | ") || undefined,
       };
 
-      const res = await api.post("/user/alugueis/rent", payload);
-      const dto = res?.data;
+      const res = await api.post("/rentals/bookings", payload);
+      const dto = res?.data?.data ?? res?.data;
       toast.success("Aluguel confirmado com sucesso!", {
-        description: `${item.name} reservado por ${hours} hora(s).`,
+        description: `${item.name} reservado por 1 dia.`,
         icon: <CheckCircle className="h-4 w-4 text-green-600" />,
       });
       onOpenChange(false);
       setStartDate("");
-      setStartTime("06:00");
-      setHours(1);
       setQuantity(1);
       setRenterName("");
       setCustomerPhone("");
@@ -228,7 +200,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
             <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
               <div className="text-center">
                 <div className="text-3xl font-bold text-primary">R${item.hourlyPrice}</div>
-                <div className="text-sm text-muted-foreground">por hora</div>
+                <div className="text-sm text-muted-foreground">por dia</div>
               </div>
               <Separator orientation="vertical" className="h-12" />
               <div className="text-center">
@@ -278,34 +250,6 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                 </Popover>
               </div>
               <div>
-                <Label className="flex items-center gap-2 mb-3">
-                  <Clock className="h-4 w-4" />
-                  Horário de início
-                </Label>
-                <Input
-                  type="time"
-                  min="06:00"
-                  max="22:00"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <Clock className="h-4 w-4" />
-                  Quantidade de horas
-                </Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={hours}
-                  onChange={(e) => setHours(Number(e.target.value))}
-                />
-              </div>
-              <div>
                 <Label className="flex items-center gap-2 mb-2">
                   <Package className="h-4 w-4" />
                   Quantidade
@@ -348,12 +292,12 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
 
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Taxa por hora:</span>
+                <span className="text-muted-foreground">Taxa por dia:</span>
                 <span className="font-medium">R${item.hourlyPrice}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Total de horas:</span>
-                <span className="font-medium">{hours}</span>
+                <span className="text-muted-foreground">Período:</span>
+                <span className="font-medium">1 dia</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Quantidade:</span>

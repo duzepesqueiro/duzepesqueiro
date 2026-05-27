@@ -231,7 +231,7 @@ export class ReviewsService {
         select: {
           id: true,
           userId: true,
-          event: { select: { id: true, title: true, status: true } },
+          event: { select: { id: true, title: true, status: true, eventDate: true, eventTime: true } },
         },
       });
       if (!registration) {
@@ -240,8 +240,17 @@ export class ReviewsService {
       if (registration.userId !== userId) {
         throw new BadRequestException('Usuário não pode avaliar uma inscrição que não é sua.');
       }
-      if (registration.event.status !== EventStatus.COMPLETED) {
-        throw new BadRequestException('Avaliação só é permitida após o evento ser concluído.');
+      const eventMoment = new Date(registration.event.eventDate);
+      if (registration.event.eventTime) {
+        const [hh, mm] = registration.event.eventTime.split(':').map((v) => Number(v));
+        if (!Number.isNaN(hh) && !Number.isNaN(mm)) {
+          eventMoment.setHours(hh, mm, 0, 0);
+        }
+      } else {
+        eventMoment.setHours(23, 59, 59, 999);
+      }
+      if (eventMoment >= now) {
+        throw new BadRequestException('Avaliação só é permitida após a data do evento.');
       }
 
       return { targetId: registration.event.id, targetName: registration.event.title };

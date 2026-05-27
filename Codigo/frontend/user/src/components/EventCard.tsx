@@ -14,7 +14,11 @@ interface EventCardProps {
   currentAttendees: number;
   totalCapacity: number;
   image: string;
-  onRegister: () => void;
+  onRegister?: () => void;
+  onEvaluate?: () => void;
+  onOpenDetails?: () => void;
+  registerLabel?: string;
+  evaluateLabel?: string;
   disableExpand?: boolean;
 }
 
@@ -29,13 +33,26 @@ export const EventCard = ({
   totalCapacity,
   image,
   onRegister,
+  onEvaluate,
+  onOpenDetails,
+  registerLabel = "Inscrever-se",
+  evaluateLabel = "Avaliar",
   disableExpand = false
 }: EventCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const availableSpaces = totalCapacity - currentAttendees;
+  const showRegister = typeof onRegister === "function";
+  const showEvaluate = !showRegister && typeof onEvaluate === "function";
+  const canOpenDetails = typeof onOpenDetails === "function";
 
   return (
-    <Card className="overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full bg-card">
+    <Card
+      className={cn(
+        "overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full bg-card",
+        canOpenDetails ? "cursor-pointer" : undefined
+      )}
+      onClick={() => onOpenDetails?.()}
+    >
       <div className="relative aspect-video overflow-hidden">
         {image ? (
           <img
@@ -90,20 +107,40 @@ export const EventCard = ({
           )}
 
           <div className="grid grid-cols-2 gap-2">
-             <Button 
-               variant="outline" 
-               className="w-full"
-               onClick={() => setIsExpanded(!isExpanded)}
-             >
-               {isExpanded ? "Menos" : "Detalhes"}
-             </Button>
-             <Button 
-               className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
-               onClick={onRegister}
-               disabled={availableSpaces <= 0}
-             >
-               {availableSpaces > 0 ? "Inscrever-se" : "Lotado"}
-             </Button>
+            <Button
+              variant="outline"
+              className={cn(!showRegister && !showEvaluate ? "col-span-2" : undefined)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!disableExpand) setIsExpanded(!isExpanded);
+              }}
+              disabled={disableExpand}
+            >
+              {isExpanded ? "Menos" : "Detalhes"}
+            </Button>
+            {showRegister && (
+              <Button
+                className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRegister?.();
+                }}
+                disabled={availableSpaces <= 0}
+              >
+                {availableSpaces > 0 ? registerLabel : "Lotado"}
+              </Button>
+            )}
+            {showEvaluate && (
+              <Button
+                className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEvaluate?.();
+                }}
+              >
+                {evaluateLabel}
+              </Button>
+            )}
           </div>
         </div>
       </div>

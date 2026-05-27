@@ -16,6 +16,7 @@ import { ReviewsModule } from './application/reviews/reviews.module';
 import { AluguelModule } from './domain/rentals';
 import { EventsModule } from './domain/events';
 import { InventoryModule } from './domain/inventory';
+import { SalesModule } from './domain/sales';
 import { UsersModule } from './domain/users';
 import { HostingModule } from './domain/hosting';
 import { WebsocketModule } from './infrastructure/websocket/websocket.module';
@@ -49,6 +50,7 @@ import { WebsocketModule } from './infrastructure/websocket/websocket.module';
     AluguelModule,
     EventsModule,
     InventoryModule,
+    SalesModule,
     UsersModule,
     HostingModule,
     WebsocketModule,

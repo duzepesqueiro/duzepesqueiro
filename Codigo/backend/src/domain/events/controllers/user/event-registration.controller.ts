@@ -32,7 +32,7 @@ import {
 import { IEventRegistration, IUserEventRegistration } from '../../interfaces';
 import { EventRegistrationService } from '../../services/user';
 
-@Controller('events/registrations')
+@Controller(['events/registrations', 'api/events/registrations'])
 @ApiTags('Events - Registrations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)

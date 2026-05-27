@@ -40,7 +40,7 @@ import {
 import { IPaymentIntent, IPaymentStatus } from '../../interfaces';
 import { EventPaymentService } from '../../services/user';
 
-@Controller('events/payments')
+@Controller(['events/payments', 'api/events/payments'])
 @ApiTags('Events - Payments')
 @UseInterceptors(ClassSerializerInterceptor)
 @UsePipes(
