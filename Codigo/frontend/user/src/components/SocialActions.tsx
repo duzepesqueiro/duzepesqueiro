@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Instagram, Send } from "lucide-react";
 
+// Ícone isolado
 const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -16,21 +24,61 @@ const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
+// Subcomponente: Cabeçalho do Chat
+const ChatHeader = () => (
+  <div className="flex items-center gap-3 px-4 py-3 bg-[#1fa855] text-white">
+    <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-semibold">
+      DZ
+    </div>
+    <div className="flex-1">
+      <div className="text-sm font-semibold leading-tight">Du Zé Pesqueiro</div>
+      <div className="text-xs opacity-90">online agora</div>
+    </div>
+    <WhatsAppIcon className="w-5 h-5 opacity-90" />
+  </div>
+);
+
+// Subcomponente: Balão de Mensagem
+const ChatBubble = ({ text, isUser = false }: { text: string; isUser?: boolean }) => (
+  <div className={`mt-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div
+      className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+        isUser ? "bg-[#d7f8e5] text-[#093]" : "bg-muted text-foreground"
+      }`}
+    >
+      {text}
+    </div>
+  </div>
+);
+
 const SocialActions = () => {
   const [message, setMessage] = useState("");
-  const instagramUrl = (import.meta as any)?.env?.VITE_STORE_INSTAGRAM_URL || "https://instagram.com";
-  const storeWhatsappPhone = (import.meta as any)?.env?.VITE_STORE_WHATSAPP_PHONE || ""; // e.g. 5591999999999
 
-  const openWhatsApp = () => {
-    const text = message.trim();
-    const base = storeWhatsappPhone ? `https://wa.me/${storeWhatsappPhone}?text=` : `https://wa.me/?text=`;
-    const url = `${base}${encodeURIComponent(text)}`;
-    if (typeof window !== "undefined") window.open(url, "_blank");
+  // Organização das variáveis de ambiente
+  const env = (import.meta as any)?.env || {};
+  const instagramUrl = env.VITE_STORE_INSTAGRAM_URL || "https://instagram.com";
+  const storeWhatsappPhone = env.VITE_STORE_WHATSAPP_PHONE || "";
+
+  // Handlers isolados
+  const handleOpenWhatsApp = () => {
+    const text = encodeURIComponent(message.trim());
+    const baseUrl = storeWhatsappPhone ? `https://wa.me/${storeWhatsappPhone}` : "https://wa.me/";
+    const url = `${baseUrl}?text=${text}`;
+    
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleOpenInstagram = () => {
+    if (typeof window !== "undefined") {
+      window.open(instagramUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   return (
     <div className="fixed bottom-4 right-4 z-[70] flex flex-col gap-3">
-      {/* WhatsApp: abre dialog */}
+      {/* WhatsApp Action */}
       <Dialog>
         <DialogTrigger asChild>
           <Button
@@ -40,44 +88,31 @@ const SocialActions = () => {
             <WhatsAppIcon className="w-6 h-6" />
           </Button>
         </DialogTrigger>
+        
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>WhatsApp</DialogTitle>
-            <DialogDescription>Nós envie uma mensagem pelo WhatsApp</DialogDescription>
+            <DialogDescription>Nos envie uma mensagem pelo WhatsApp</DialogDescription>
           </DialogHeader>
 
-          {/* Área estilo chat/social */}
+          {/* Área do Chat */}
           <div className="rounded-xl border border-border/50 overflow-hidden">
-            {/* Top bar estilo app */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-[#1fa855] text-white">
-              <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-semibold">DZ</div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold leading-tight">Du Zé Pesqueiro</div>
-                <div className="text-xs opacity-90">online agora</div>
-              </div>
-              <WhatsAppIcon className="w-5 h-5 opacity-90" />
-            </div>
-
-            {/* Chat preview */}
-            <div className="px-4 py-3 bg-background">
-              <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-muted text-foreground shadow-sm">
-                Olá! Em que posso ajudar?
-              </div>
-              {message && (
-                <div className="mt-3 flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-[#d7f8e5] text-[#093] shadow-sm">
-                    {message}
-                  </div>
-                </div>
-              )}
+            <ChatHeader />
+            
+            <div className="px-4 py-3 bg-background flex flex-col justify-end">
+              <ChatBubble text="Olá! Em que posso ajudar?" />
+              {message && <ChatBubble text={message} isUser />}
             </div>
           </div>
 
-          {/* Campo de texto menor com destaque e botão interno */}
+          {/* Campo de Input */}
           <div className="py-3">
-            <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
+            <label htmlFor="whatsapp-input" className="text-xs font-medium text-muted-foreground">
+              Mensagem
+            </label>
             <div className="relative mt-1 rounded-xl border-2 border-[#25D366] p-2 focus-within:ring-2 focus-within:ring-[#25D366]/40">
               <Textarea
+                id="whatsapp-input"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
@@ -86,9 +121,10 @@ const SocialActions = () => {
               />
               <Button
                 size="icon"
-                onClick={openWhatsApp}
-                aria-label="Enviar"
-                className="absolute right-2 bottom-2 bg-[#25D366] text-white hover:brightness-110"
+                onClick={handleOpenWhatsApp}
+                aria-label="Enviar mensagem"
+                disabled={!message.trim()}
+                className="absolute right-2 bottom-2 bg-[#25D366] text-white hover:brightness-110 disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -97,12 +133,10 @@ const SocialActions = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Instagram: link direto */}
+      {/* Instagram Action */}
       <Button
         aria-label="Instagram da loja"
-        onClick={() => {
-          if (typeof window !== "undefined") window.open(instagramUrl, "_blank");
-        }}
+        onClick={handleOpenInstagram}
         className="h-12 w-12 rounded-full p-0 bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 text-white hover:brightness-110 shadow-lg"
       >
         <Instagram className="w-6 h-6" />
