@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, InternalServerErrorException, Logger }
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 
 @Injectable()
 export class ProductImageStorageService {
@@ -26,11 +28,18 @@ export class ProductImageStorageService {
     const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
     const bucket = 'product-images';
 
+    if (!supabaseServiceKey || (!databaseUrlBucket && !directUrlBucket)) {
+      return this.uploadLocally(file);
+    }
+
     if (!databaseUrlBucket && !directUrlBucket) {
       throw new InternalServerErrorException('Variáveis DATABASE_URL_BUCKET/DIRECT_URL_BUCKET não configuradas.');
     }
 
     const parsed = this.parseSupabaseFromDatabaseUrl(directUrlBucket || databaseUrlBucket || '');
+    if (!parsed?.url) {
+      return this.uploadLocally(file);
+    }
     if (!parsed?.url) {
       throw new InternalServerErrorException('Não foi possível derivar URL do projeto Supabase a partir do .env.');
     }
@@ -79,6 +88,23 @@ export class ProductImageStorageService {
     }
 
     return publicUrl;
+  }
+
+  private async uploadLocally(file: Express.Multer.File): Promise<string> {
+    if (!file.buffer?.length) {
+      throw new InternalServerErrorException('Arquivo recebido sem conteudo para salvar.');
+    }
+
+    const extension = this.extractExtension(file.originalname, file.mimetype);
+    const year = new Date().getFullYear().toString();
+    const fileName = `${randomUUID()}.${extension}`;
+    const relativePath = `products/${year}/${fileName}`;
+    const uploadsDir = join(process.cwd(), 'uploads', 'products', year);
+
+    await mkdir(uploadsDir, { recursive: true });
+    await writeFile(join(uploadsDir, fileName), file.buffer);
+
+    return `/api/uploads/${relativePath}`;
   }
 
   private extractExtension(fileName: string, mimeType: string): string {

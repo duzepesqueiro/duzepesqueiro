@@ -149,13 +149,13 @@ export const getUserRentals = async (name?: string, phone?: string) => {
   const params: any = {};
   if (name) params.name = name;
   if (phone) params.phone = phone;
-  const res = await api.get("/user/alugueis/meus", { params });
-  return res.data;
+  const res = await api.get("/rentals/bookings", { params });
+  return Array.isArray(res.data?.data) ? res.data.data : res.data;
 };
 
 export const cancelRental = async (id: string | number) => {
-  const res = await api.post(`/user/alugueis/${id}/cancel`);
-  return res.data;
+  const res = await api.patch(`/rentals/bookings/${id}/cancel`);
+  return res.data?.data ?? res.data;
 };
 
 export const getUserOrders = async (name?: string) => {
@@ -170,8 +170,15 @@ export const cancelOrder = async (id: string | number) => {
 };
 
 export const updateRental = async (id: string | number, payload: any) => {
-  const res = await api.put(`/user/alugueis/${id}`, payload);
-  return res.data;
+  const startSource = String(payload?.startTime || payload?.startDate || "");
+  const durationHours = Number(payload?.durationHours || 1);
+  const normalizedStart = startSource.includes(" ")
+    ? startSource.replace(" ", "T")
+    : startSource;
+  const start = normalizedStart ? new Date(normalizedStart) : new Date();
+  const newEndDate = new Date(start.getTime() + Math.max(1, durationHours) * 60 * 60 * 1000).toISOString();
+  const res = await api.patch(`/rentals/bookings/${id}/extend`, { newEndDate });
+  return res.data?.data ?? res.data;
 };
 
 export const getUserProfile = async (): Promise<{

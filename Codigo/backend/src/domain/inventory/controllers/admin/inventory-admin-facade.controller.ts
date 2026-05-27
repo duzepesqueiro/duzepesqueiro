@@ -109,6 +109,10 @@ class RentalItemPayloadDto {
 
   @IsOptional()
   @IsString()
+  description?: string | null;
+
+  @IsOptional()
+  @IsString()
   fullDescription?: string | null;
 
   @IsOptional()
@@ -201,5 +205,16 @@ export class InventoryAdminFacadeController {
   @ApiOperation({ summary: 'Create rental inventory item from admin dashboard payload' })
   async createRentalItem(@Body() payload: RentalItemPayloadDto, @CurrentUser() user: User) {
     return this.facade.createRentalItem(payload, user);
+  }
+
+  @Put('alugueis/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update rental inventory item from admin dashboard payload' })
+  async updateRentalItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() payload: RentalItemPayloadDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.facade.updateRentalItem(id, payload, user);
   }
 }

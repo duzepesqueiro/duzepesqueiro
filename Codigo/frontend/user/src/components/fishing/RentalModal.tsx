@@ -81,11 +81,10 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
   const currentImage = galleryImages[imageIndex] || item.image;
   const totalPrice = (item.hourlyPrice * (hours > 0 ? hours : 0) * (quantity > 0 ? quantity : 0)).toFixed(2);
 
-  const formatDateTimeForBackend = (localValue: string) => {
-    // input: yyyy-MM-ddTHH:mm -> output: yyyy-MM-dd HH:mm
-    if (!localValue) return "";
-    const [datePart, timePart] = localValue.split("T");
-    return `${datePart} ${timePart || "00:00"}`;
+  const buildLocalDate = (date: string, time: string) => {
+    const [year, month, day] = date.split("-").map(Number);
+    const [hour, minute] = time.split(":").map(Number);
+    return new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, 0, 0);
   };
 
   const handleConfirmRental = async () => {
@@ -133,18 +132,25 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
 
       setSubmitting(true);
 
-      const startLocal = `${startDate}T${startTime}`;
+      const rentalStart = buildLocalDate(startDate, startTime);
+      const rentalEnd = new Date(rentalStart.getTime() + hours * 60 * 60 * 1000);
       const payload: any = {
-        rentalItemId: item.id,
+        productId: item.id,
+        rentalDate: rentalStart.toISOString(),
+        returnDate: rentalEnd.toISOString(),
         quantity,
-        renterName,
-        startTime: formatDateTimeForBackend(startLocal),
-        durationHours: hours,
-        customerPhone: customerPhone?.trim() || undefined,
+        unitPrice: Number(item.hourlyPrice),
+        periodType: "DAILY",
+        periodValue: hours,
+        notes: [
+          renterName?.trim() ? `Nome: ${renterName.trim()}` : null,
+          customerPhone?.trim() ? `Telefone: ${customerPhone.trim()}` : null,
+          `Duração: ${hours} hora(s)`,
+        ].filter(Boolean).join(" | "),
       };
 
-      const res = await api.post("/user/alugueis/rent", payload);
-      const dto = res?.data;
+      const res = await api.post("/rentals/bookings", payload);
+      const dto = res?.data?.data ?? res?.data;
       toast.success("Aluguel confirmado com sucesso!", {
         description: `${item.name} reservado por ${hours} hora(s).`,
         icon: <CheckCircle className="h-4 w-4 text-green-600" />,

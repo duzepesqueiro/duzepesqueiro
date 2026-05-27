@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>DuZePesqueiro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Web site created using create-react-app" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="manifest" href="/manifest.json" />
+  <script type="module" crossorigin src="/assets/index-B2KNTBCJ.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Cy0bc3mO.css">
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div class="dhiwise-code" id="root"></div>
+  <!-- Shim global compatível com ESM: cria binding var fetchHeatmap e window.fetchHeatmap -->
+  <script>
+    (function(){
+      // Não reescreve se já houver shim definido em index.jsx
+      if (!window.fetchHeatmap) {
+        window.fetchHeatmap = function(){
+          console.warn('Shim index.html: window.fetchHeatmap() chamado. Emitindo "inventory:fetchHeatmap"');
+          try {
+            const ev = new CustomEvent('inventory:fetchHeatmap', { detail: { source: 'index.html-shim' } });
+            window.dispatchEvent(ev);
+          } catch (err) {
+            console.warn('Falha ao emitir evento inventory:fetchHeatmap', err);
+          }
+        };
+      }
+      // Importante: criar binding global var acessível em módulos ESM
+      try {
+        // var no escopo global cria binding consultável em módulos
+        // eslint-disable-next-line no-var
+        var fetchHeatmap = window.fetchHeatmap;
+        // expor também em globalThis por consistência
+        globalThis.fetchHeatmap = window.fetchHeatmap;
+      } catch (_) {}
+    })();
+  </script>
+  <script>
+    (function(){
+      // Shims globais no-op para identificadores usados em ReorderSuggestions
+      try {
+        if (typeof selectedCategory === 'undefined') { window.selectedCategory = 'all'; }
+        if (typeof selectedLocation === 'undefined') { window.selectedLocation = 'all'; }
+        if (typeof categories === 'undefined') { window.categories = ['all']; }
+        if (typeof locations === 'undefined') { window.locations = ['all']; }
+      } catch (_) {}
+      if (typeof setSelectedCategory === 'undefined') {
+        window.setSelectedCategory = function(v){
+          try { window.selectedCategory = v; } catch (_) {}
+          console.warn('Shim setSelectedCategory (no-op)', v);
+        };
+      }
+      if (typeof setSelectedLocation === 'undefined') {
+        window.setSelectedLocation = function(v){
+          try { window.selectedLocation = v; } catch (_) {}
+          console.warn('Shim setSelectedLocation (no-op)', v);
+        };
+      }
+      try {
+        if (typeof filteredData === 'undefined') { window.filteredData = []; }
+      } catch (_) {}
+      if (typeof getStatusColor === 'undefined') {
+        window.getStatusColor = function(){ return 'bg-muted text-muted-foreground'; };
+      }
+      if (typeof getStatusIcon === 'undefined') {
+        window.getStatusIcon = function(){ return 'Minus'; };
+      }
+      if (typeof getStockPercentage === 'undefined') {
+        window.getStockPercentage = function(stock, threshold){
+          const s = Number(stock) || 0; const t = Number(threshold) || 0;
+          if (t <= 0) return 0;
+          const pct = Math.max(0, Math.min(100, (s / t) * 100));
+          return pct;
+        };
+      }
+    })();
+  </script>
+</body>
+
+</html>
