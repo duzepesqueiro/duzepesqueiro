@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { createSaleItem, updateSaleItem, deleteSaleItem, listSuppliers, createSupplier, uploadProductImages } from '../../../utils/inventoryService';
-import { createRentalItem } from '../../../utils/rentalService';
+import { createRentalItem, updateRentalItem } from '../../../utils/rentalService';
 
 const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange, onRefresh }) => {
   const [sortField, setSortField] = useState('product');
@@ -74,6 +74,36 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
       'Material de Limpeza': 'CLEANING_MATERIAL',
       'Outros': 'OTHER',
     },
+  };
+
+  const normalizeDateInput = (value) => {
+    const normalized = String(value || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
+  };
+
+  const buildRentalPayload = (product) => {
+    const name = String(product?.product || '').trim();
+    const hourlyPrice = Number(product?.hourlyPrice);
+    const available = Number(product?.available);
+    if (!name) {
+      throw new Error('Nome do produto é obrigatório.');
+    }
+    if (!Number.isFinite(hourlyPrice) || hourlyPrice <= 0) {
+      throw new Error('Preço por hora deve ser maior que zero.');
+    }
+    if (!Number.isInteger(available) || available < 0) {
+      throw new Error('Disponíveis para aluguel deve ser um número inteiro maior ou igual a zero.');
+    }
+    return {
+      name,
+      description: product.description || '',
+      hourlyPrice,
+      available,
+      image: null,
+      fullDescription: product.fullDescription || product.description || null,
+      supplierId: product.supplierId || undefined,
+      supplier: product.supplier || undefined,
+    };
   };
 
   const supplierOptions = useMemo(
@@ -368,10 +398,11 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
         supplierId: matchedSupplier?.id ?? product?.supplierId ?? '',
         supplier: matchedSupplier?.name ?? product?.supplier ?? '',
         description: product?.description || '',
-        hourlyPrice: '',
-        available: '',
+        hourlyPrice: product?.hourlyPrice ?? product?.sellingPrice ?? product?.unitCost ?? '',
+        available: product?.available ?? product?.stock ?? product?.currentStock ?? '',
         image: product.image || '',
-        fullDescription: ''
+        images: Array.isArray(product?.images) ? product.images : [],
+        fullDescription: product?.fullDescription ?? product?.description ?? ''
       });
       const existingImages = Array.isArray(product?.images) && product.images.length
         ? product.images
@@ -423,14 +454,7 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
       let savedProductId = null;
       if (modalType === 'create') {
         if (modalProduct.registrationType === 'Aluguel') {
-          const rentalPayload = {
-            name: modalProduct.product,
-            description: modalProduct.description || '',
-            hourlyPrice: Number(modalProduct.hourlyPrice) || 0,
-            available: Number(modalProduct.available) || 0,
-            image: null,
-            fullDescription: modalProduct.fullDescription || null,
-          };
+          const rentalPayload = buildRentalPayload(modalProduct);
           console.debug('create rental payload', rentalPayload);
           const created = await createRentalItem(rentalPayload);
           console.debug('create rental response', created);
@@ -459,7 +483,7 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
             sellingPrice: Number(modalProduct.sellingPrice) || 0,
             supplierId: modalProduct.supplierId || undefined,
             supplier: selectedSupplier?.name || modalProduct.supplier || undefined,
-            lastRestocked: modalProduct.lastRestocked || null,
+            lastRestocked: normalizeDateInput(modalProduct.lastRestocked),
           };
           console.debug('create sale payload', payload);
           const created = await createSaleItem(payload);
@@ -468,6 +492,13 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
           await onRefresh();
         }
       } else if (modalType === 'edit') {
+        if (modalProduct.registrationType === 'Aluguel') {
+          const rentalPayload = buildRentalPayload(modalProduct);
+          console.debug('update rental payload', rentalPayload);
+          await updateRentalItem(modalProduct.id, rentalPayload);
+          savedProductId = modalProduct.id;
+          await onRefresh();
+        } else {
         if (!modalProduct.supplierId) {
           throw new Error('Fornecedor é obrigatório.');
         }
@@ -484,12 +515,13 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
           sellingPrice: Number(modalProduct.sellingPrice) || 0,
           supplierId: modalProduct.supplierId || undefined,
           supplier: selectedSupplier?.name || modalProduct.supplier || undefined,
-          lastRestocked: modalProduct.lastRestocked || null,
+          lastRestocked: normalizeDateInput(modalProduct.lastRestocked),
         };
         console.debug('update payload', payload);
         await updateSaleItem(modalProduct.id, payload);
         savedProductId = modalProduct.id;
         await onRefresh();
+        }
       }
       if (productImageFiles.length && savedProductId) {
         await uploadProductImages(savedProductId, productImageFiles);

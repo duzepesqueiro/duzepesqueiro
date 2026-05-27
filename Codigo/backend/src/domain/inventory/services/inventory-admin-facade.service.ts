@@ -72,6 +72,7 @@ type UiRentalPayload = {
   hourlyPrice?: number;
   available?: number;
   image?: string | null;
+  description?: string | null;
   fullDescription?: string | null;
   supplier?: string;
   supplierId?: string;
@@ -436,7 +437,7 @@ export class InventoryAdminFacadeService {
       costPrice: Number(payload.hourlyPrice ?? 0),
       salePrice: Number(payload.hourlyPrice ?? 0),
       supplierId,
-      description: payload.fullDescription ?? undefined,
+      description: payload.fullDescription ?? payload.description ?? undefined,
     };
     const created = await this.productService.create(dto, user);
     const product = await this.findByIdForUi(created.id);
@@ -446,10 +447,49 @@ export class InventoryAdminFacadeService {
     return product;
   }
 
+  async updateRentalItem(id: string, payload: UiRentalPayload, user: User): Promise<InventoryItemDto> {
+    const current = await this.prisma.product.findUnique({
+      where: { id },
+      select: { id: true, status: true, deletedAt: true },
+    });
+    if (!current || current.deletedAt) {
+      throw new NotFoundException('Item de aluguel nao encontrado');
+    }
+    if (current.status !== ProductStatus.RENTAL) {
+      throw new BadRequestException('O produto informado nao e um item de aluguel.');
+    }
+
+    const hourlyPrice = this.requirePositiveNumber(payload.hourlyPrice, 'Preco por hora');
+    const available = this.requireNonNegativeNumber(payload.available, 'Quantidade disponivel');
+    const supplierId = await this.resolveSupplierId(payload.supplierId, payload.supplier);
+    const dto: UpdateProductDto = {
+      name: this.requireText(payload.name, 'Nome do item de aluguel'),
+      status: ProductStatus.RENTAL,
+      category: DomainProductCategory.RENTAL_EQUIPMENT,
+      stockQuantity: available,
+      costPrice: hourlyPrice,
+      salePrice: hourlyPrice,
+      supplierId,
+      description: payload.fullDescription ?? payload.description ?? undefined,
+    };
+    await this.productService.update(id, dto, user, user.role === UserRole.ADMIN);
+    const product = await this.findByIdForUi(id);
+    if (!product) {
+      throw new NotFoundException('Item de aluguel nao encontrado apos atualizacao');
+    }
+    return product;
+  }
+
   private async findBySkuForUi(sku: string): Promise<InventoryItemDto> {
     const product = await this.prisma.product.findUnique({
       where: { sku },
-      include: { supplier: { select: { id: true, name: true } } },
+      include: {
+        supplier: { select: { id: true, name: true } },
+        productImages: {
+          orderBy: { createdAt: 'asc' },
+          select: { imageUrl: true },
+        },
+      },
     });
     if (!product || product.deletedAt) {
       throw new NotFoundException('Produto não encontrado');
@@ -485,7 +525,13 @@ export class InventoryAdminFacadeService {
   private async findByIdForUi(id: string): Promise<InventoryItemDto | null> {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { supplier: { select: { id: true, name: true } } },
+      include: {
+        supplier: { select: { id: true, name: true } },
+        productImages: {
+          orderBy: { createdAt: 'asc' },
+          select: { imageUrl: true },
+        },
+      },
     });
     if (!product || product.deletedAt) {
       return null;
@@ -620,6 +666,22 @@ export class InventoryAdminFacadeService {
       throw new BadRequestException(message);
     }
     return value.trim();
+  }
+
+  private requirePositiveNumber(value: number | undefined, message: string): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      throw new BadRequestException(`${message} deve ser maior que zero`);
+    }
+    return numeric;
+  }
+
+  private requireNonNegativeNumber(value: number | undefined, message: string): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      throw new BadRequestException(`${message} deve ser maior ou igual a zero`);
+    }
+    return numeric;
   }
 
   private async resolveSupplierId(supplierId?: string, supplierName?: string): Promise<string> {

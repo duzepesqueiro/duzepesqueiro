@@ -54,11 +54,7 @@ export const updateSaleItem = async (id, item) => {
 export const uploadProductImage = async (productId, file) => {
   const formData = new FormData();
   formData.append('image', file);
-  const response = await api.post(`/products/${productId}/image`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post(`/products/${productId}/image`, formData);
   return response.data;
 };
 
@@ -67,11 +63,7 @@ export const uploadProductImages = async (productId, files) => {
   Array.from(files || []).forEach((file) => {
     formData.append('images', file);
   });
-  const response = await api.post(`/products/${productId}/images`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post(`/products/${productId}/images`, formData);
   return response.data;
 };
 

@@ -44,3 +44,24 @@ export const createRentalItem = async (item) => {
     throw error;
   }
 };
+
+export const updateRentalItem = async (id, item) => {
+  try {
+    console.group('[rentalService] updateRentalItem');
+    console.debug('id', id);
+    console.debug('payload', item);
+    const response = await api.put(`/admin/alugueis/${id}`, item);
+    console.debug('response status', response?.status);
+    console.debug('response data', response?.data);
+    console.groupEnd();
+    return response.data;
+  } catch (error) {
+    console.group('[rentalService] updateRentalItem ERROR');
+    console.error('message', error?.message);
+    console.error('status', error?.response?.status);
+    console.error('data', error?.response?.data);
+    console.error('config', error?.config);
+    console.groupEnd();
+    throw error;
+  }
+};
