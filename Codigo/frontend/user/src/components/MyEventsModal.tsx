@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { Calendar, MapPin, Clock } from "lucide-react";
-import { api } from "@/lib/api";
+import { useMemo, useState, useEffect } from "react";
+import { Calendar, MapPin, Clock, Star } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api, createReview, getReviewBySubject } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
 import { toast } from "sonner";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ReviewModal from "@/components/reviews/ReviewModal";
 
 interface EventRegistration {
   registrationId: string;
@@ -51,6 +53,23 @@ const formatDate = (iso: string) => {
   return `${d}/${m}/${y}`;
 };
 
+const isEventPast = (dateValue?: string | Date, timeValue?: string): boolean => {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return false;
+
+  if (timeValue && /^\d{2}:\d{2}/.test(timeValue)) {
+    const [hh, mm] = timeValue.split(":").map((v) => Number(v));
+    if (!Number.isNaN(hh) && !Number.isNaN(mm)) {
+      date.setHours(hh, mm, 0, 0);
+    }
+  } else {
+    date.setHours(23, 59, 59, 999);
+  }
+
+  return date.getTime() < Date.now();
+};
+
 export const MyEventsModal = ({
   open,
   onOpenChange,
@@ -60,6 +79,7 @@ export const MyEventsModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [reviewReg, setReviewReg] = useState<EventRegistration | null>(null);
 
   useEffect(() => {
     if (!open || !isAuthenticated()) return;
@@ -113,6 +133,40 @@ export const MyEventsModal = ({
 
   const active = registrations.filter((r) => r.status !== "CANCELLED");
   const cancelled = registrations.filter((r) => r.status === "CANCELLED");
+  const completedRegistrationIds = useMemo(
+    () =>
+      active
+        .filter((r) => isEventPast(r.event?.eventDate, r.event?.eventTime))
+        .map((r) => r.registrationId),
+    [active]
+  );
+
+  const { data: hasReviewByRegistrationId = {}, refetch: refetchReviewFlags } = useQuery<
+    Record<string, boolean>
+  >({
+    queryKey: ["my-events-has-review", completedRegistrationIds.join("|")],
+    enabled: open && isAuthenticated() && completedRegistrationIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        completedRegistrationIds.map(async (registrationId) => {
+          try {
+            await getReviewBySubject({ domain: "EVENT", subjectId: registrationId });
+            return [registrationId, true] as const;
+          } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 404) {
+              return [registrationId, false] as const;
+            }
+            return [registrationId, false] as const;
+          }
+        })
+      );
+      return Object.fromEntries(responses);
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setConfirmingId(null); onOpenChange(v); }}>
@@ -135,6 +189,15 @@ export const MyEventsModal = ({
                   Inscrições ativas ({active.length})
                 </p>
                 {active.map((reg) => (
+                  (() => {
+                    const didOccur = isEventPast(reg.event?.eventDate, reg.event?.eventTime);
+                    const hasReviewInfo = Object.prototype.hasOwnProperty.call(
+                      hasReviewByRegistrationId,
+                      reg.registrationId
+                    );
+                    const alreadyReviewed = hasReviewInfo ? hasReviewByRegistrationId[reg.registrationId] : false;
+                    const canReview = didOccur && hasReviewInfo && !alreadyReviewed;
+                    return (
                   <RegistrationCard
                     key={reg.registrationId}
                     reg={reg}
@@ -142,7 +205,11 @@ export const MyEventsModal = ({
                     isCancelling={cancellingId === reg.registrationId}
                     onCancelClick={() => handleCancelClick(reg.registrationId)}
                     onDismissConfirm={() => setConfirmingId(null)}
+                    canReview={canReview}
+                    onReviewClick={() => setReviewReg(reg)}
                   />
+                    );
+                  })()
                 ))}
               </div>
             )}
@@ -160,6 +227,8 @@ export const MyEventsModal = ({
                     isCancelling={false}
                     onCancelClick={() => {}}
                     onDismissConfirm={() => {}}
+                    canReview={false}
+                    onReviewClick={() => {}}
                   />
                 ))}
               </div>
@@ -167,6 +236,33 @@ export const MyEventsModal = ({
           </div>
         )}
       </DialogContent>
+
+      {reviewReg ? (
+        <ReviewModal
+          open={!!reviewReg}
+          onOpenChange={(next) => !next && setReviewReg(null)}
+          title="Avaliar evento"
+          description={`Conte como foi sua experiência em "${reviewReg.event.title}".`}
+          onSubmit={async ({ rating, comment }) => {
+            try {
+              await createReview({
+                domain: "EVENT",
+                subjectId: reviewReg.registrationId,
+                rating,
+                comment,
+              });
+              toast.success("Avaliação enviada com sucesso!");
+              await refetchReviewFlags();
+            } catch (err: any) {
+              const message = err?.response?.data?.message;
+              const text = Array.isArray(message)
+                ? message.join(", ")
+                : String(message || "Não foi possível enviar sua avaliação.");
+              toast.error(text);
+            }
+          }}
+        />
+      ) : null}
     </Dialog>
   );
 };
@@ -177,6 +273,8 @@ interface RegistrationCardProps {
   isCancelling: boolean;
   onCancelClick: () => void;
   onDismissConfirm: () => void;
+  canReview: boolean;
+  onReviewClick: () => void;
 }
 
 const RegistrationCard = ({
@@ -185,6 +283,8 @@ const RegistrationCard = ({
   isCancelling,
   onCancelClick,
   onDismissConfirm,
+  canReview,
+  onReviewClick,
 }: RegistrationCardProps) => {
   const canCancel = reg.status !== "CANCELLED";
 
@@ -229,8 +329,23 @@ const RegistrationCard = ({
           </div>
         </div>
 
-        {canCancel && (
+        {(canReview || canCancel) && (
           <div className="flex flex-wrap items-center gap-2">
+            {canReview ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs px-3 border-[#F2AB27]/60 bg-[#F2BF27]/25 text-[#284003] hover:bg-[#F2BF27]/35 hover:border-[#F2AB27] font-bold shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReviewClick();
+                }}
+                title="Avaliar evento"
+              >
+                <Star className="h-4 w-4 mr-2" /> Avaliar
+              </Button>
+            ) : null}
+
             {isConfirming ? (
               <>
                 <Button

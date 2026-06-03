@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
 
 type UploadResult = {
   url: string;
@@ -13,7 +13,7 @@ export class FileUploadService {
   private readonly logger = new Logger(FileUploadService.name);
   private readonly maxFileSizeBytes = 5 * 1024 * 1024;
   private readonly maxFilesPerEvent = 10;
-  private readonly uploadRoot = join(process.cwd(), 'uploads');
+  private readonly bucket = 'event-images';
   private readonly allowedMimeTypes = new Set([
     'image/jpeg',
     'image/png',
@@ -21,24 +21,38 @@ export class FileUploadService {
     'image/gif',
   ]);
 
+  constructor(private readonly configService: ConfigService) {}
+
   async uploadEventImage(file: Express.Multer.File): Promise<UploadResult> {
     this.validateFile(file);
+    if (!file.buffer) {
+      throw new BadRequestException('Arquivo sem buffer. Verifique a configuração do upload.');
+    }
     const extension = this.extractExtension(file.originalname);
     const key = `events/${new Date().getFullYear()}/${randomUUID()}.${extension}`;
-    const baseUrl = (process.env.EVENTS_IMAGE_BASE_URL ?? '/uploads').replace(/\/$/, '');
-    const url = `${baseUrl}/${key}`;
+    const client = this.createSupabaseClient();
+    await this.ensureBucket(client);
 
-    const destPath = join(this.uploadRoot, key);
-    await fs.mkdir(dirname(destPath), { recursive: true });
+    const { error: uploadError } = await client.storage.from(this.bucket).upload(key, file.buffer, {
+      contentType: file.mimetype,
+      upsert: false,
+    });
 
-    if (file.path) {
-      await fs.rename(file.path, destPath);
-    } else if (file.buffer) {
-      await fs.writeFile(destPath, file.buffer);
+    if (uploadError) {
+      this.logger.error(`Upload Supabase falhou (${uploadError.message}).`);
+      throw new InternalServerErrorException(`Falha no upload da imagem: ${uploadError.message}`);
+    }
+
+    const {
+      data: { publicUrl },
+    } = client.storage.from(this.bucket).getPublicUrl(key);
+
+    if (!publicUrl) {
+      throw new InternalServerErrorException('Não foi possível gerar URL pública da imagem.');
     }
 
     this.logger.log(`Imagem de evento salva key=${key}`);
-    return { url, key };
+    return { url: publicUrl, key };
   }
 
   async uploadEventImages(files: Express.Multer.File[] = []): Promise<UploadResult[]> {
@@ -52,11 +66,13 @@ export class FileUploadService {
 
   async deleteFile(key?: string | null): Promise<void> {
     if (!key) return;
-    try {
-      await fs.unlink(join(this.uploadRoot, key));
+    const client = this.createSupabaseClient();
+    await this.ensureBucket(client);
+    const { error } = await client.storage.from(this.bucket).remove([key]);
+    if (error) {
+      this.logger.warn(`Falha ao remover imagem do bucket key=${key} (${error.message}).`);
+    } else {
       this.logger.log(`Arquivo removido key=${key}`);
-    } catch {
-      this.logger.warn(`Arquivo não encontrado para remoção key=${key}`);
     }
   }
 
@@ -80,5 +96,62 @@ export class FileUploadService {
       return 'jpg';
     }
     return parts[parts.length - 1].toLowerCase();
+  }
+
+  private createSupabaseClient() {
+    const databaseUrlBucket =
+      this.configService.get<string>('DATABASE_URL_BUCKET') ?? this.configService.get<string>('DATABASE_URL');
+    const directUrlBucket =
+      this.configService.get<string>('DIRECT_URL_BUCKET') ?? this.configService.get<string>('DIRECT_URL');
+    const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!databaseUrlBucket && !directUrlBucket) {
+      throw new InternalServerErrorException('Variáveis DATABASE_URL_BUCKET/DIRECT_URL_BUCKET não configuradas.');
+    }
+
+    const parsed = this.parseSupabaseFromDatabaseUrl(directUrlBucket || databaseUrlBucket || '');
+    if (!parsed?.url) {
+      throw new InternalServerErrorException('Não foi possível derivar URL do projeto Supabase a partir do .env.');
+    }
+
+    if (!supabaseServiceKey) {
+      throw new InternalServerErrorException(
+        'SUPABASE_SERVICE_ROLE_KEY não configurada. As URLs do banco (DATABASE_URL/DIRECT_URL) não autenticam no Storage.',
+      );
+    }
+
+    return createClient(parsed.url, supabaseServiceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+
+  private async ensureBucket(client: any): Promise<void> {
+    const { data: currentBucket, error: bucketCheckError } = await client.storage.getBucket(this.bucket);
+    if (bucketCheckError || !currentBucket) {
+      const { error: createBucketError } = await client.storage.createBucket(this.bucket, { public: true });
+      if (createBucketError) {
+        throw new InternalServerErrorException(
+          `Bucket '${this.bucket}' inexistente e não foi possível criar automaticamente: ${createBucketError.message}`,
+        );
+      }
+    }
+  }
+
+  private parseSupabaseFromDatabaseUrl(rawUrl: string): { url: string } | null {
+    try {
+      const parsed = new URL(rawUrl);
+      const user = decodeURIComponent(parsed.username || '');
+      const password = decodeURIComponent(parsed.password || '');
+      const refMatch = user.match(/^postgres\.([a-z0-9]+)/i);
+      if (!refMatch?.[1] || !password) {
+        return null;
+      }
+      const projectRef = refMatch[1];
+      return {
+        url: `https://${projectRef}.supabase.co`,
+      };
+    } catch {
+      return null;
+    }
   }
 }

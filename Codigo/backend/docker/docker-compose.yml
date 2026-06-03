@@ -32,7 +32,6 @@ services:
       NODE_ENV: development
       PORT: 3000
       RUN_PRISMA_SEED: "true"
-      EVENTS_IMAGE_BASE_URL: /uploads
 
     env_file:
       - ../.env.qa
@@ -40,7 +39,6 @@ services:
     volumes:
       - ../src:/app/src
       - ../prisma:/app/prisma
-      - ../uploads:/app/uploads
 
     depends_on:
       postgres:

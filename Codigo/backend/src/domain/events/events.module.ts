@@ -1,9 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { extname, join } from 'path';
-import { mkdirSync } from 'fs';
-import { diskStorage } from 'multer';
-import { Request } from 'express';
+import { memoryStorage } from 'multer';
 import { AuthModule } from '../../application/auth/auth.module';
 import { MailModule } from '../../application/mail/mail.module';
 import { PaymentModule } from '../../application/payment/payment.module';
@@ -50,9 +47,6 @@ const imageFileFilter = (
   callback(allowed ? null : new Error('Tipo de arquivo inválido'), allowed);
 };
 
-const eventsUploadDir = join(process.cwd(), 'uploads', 'events');
-mkdirSync(eventsUploadDir, { recursive: true });
-
 @Module({
   imports: [
     PrismaModule,
@@ -60,17 +54,7 @@ mkdirSync(eventsUploadDir, { recursive: true });
     MailModule,
     PaymentModule,
     MulterModule.register({
-      storage: diskStorage({
-        destination: eventsUploadDir,
-        filename: (
-          _req: Request,
-          file: Express.Multer.File,
-          callback: (error: Error | null, filename: string) => void,
-        ) => {
-          const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          callback(null, `${suffix}${extname(file.originalname).toLowerCase()}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: imageFileFilter,
     }),

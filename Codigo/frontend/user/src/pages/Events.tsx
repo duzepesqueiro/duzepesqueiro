@@ -22,18 +22,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { isAuthenticated } from "@/lib/auth";
-import ReviewModal from "@/components/reviews/ReviewModal";
 
 const PAGE_SIZE = 9;
-const MY_EVENTS_PAGE_SIZE = 3;
 
 interface PaginatedEventsResponse {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,17 +83,6 @@ const Events = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isMyEventsOpen, setIsMyEventsOpen] = useState(false);
-  const [myEventsPage, setMyEventsPage] = useState(1);
-  const [isLoadingMyEvents, setIsLoadingMyEvents] = useState(false);
-  const [myRegistrations, setMyRegistrations] = useState<UserEventRegistration[]>([]);
-  const [eventDetailsById, setEventDetailsById] = useState<Record<string, any>>({});
-  const [reviewByRegistrationId, setReviewByRegistrationId] = useState<Record<string, boolean>>({});
-  const [reviewTarget, setReviewTarget] = useState<{ registrationId: string; title: string } | null>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-
   const hasActiveFilters = useMemo(() => {
     return !!(
       (searchQuery && searchQuery.trim()) ||
@@ -118,7 +97,6 @@ const Events = () => {
     const params = new URLSearchParams(location.search);
     const nextOpen = params.get("myEvents") === "1";
     setIsMyEventsOpen(nextOpen);
-    if (nextOpen) setMyEventsPage(1);
   }, [location.search]);
 
   useEffect(() => {
@@ -147,7 +125,7 @@ const Events = () => {
         const raw = Array.isArray(response.data?.items) ? response.data.items : [];
         const data = raw.map((e: any) => ({
           ...e,
-          image: e.imageUrl ?? "",
+          images: Array.isArray(e.images) ? e.images : e.imageUrl ? [e.imageUrl] : [],
           date: e.eventDate ? (() => { const [y, m, d] = String(e.eventDate).split("T")[0].split("-"); return `${d}/${m}/${y}`; })() : "",
           time: e.eventTime ?? "",
           currentAttendees: (e.totalSlots ?? 0) - (e.availableSlots ?? 0),
@@ -210,115 +188,6 @@ const Events = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header searchScope="events" />
-
-      <Sheet open={isMyEventsOpen} onOpenChange={handleMyEventsOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Meus eventos</SheetTitle>
-            <SheetDescription>Eventos em que você está inscrito.</SheetDescription>
-          </SheetHeader>
-
-          <div className="mt-6 space-y-6">
-            {!isAuthenticated() ? (
-              <div className="text-sm text-muted-foreground">
-                Faça login para visualizar seus eventos inscritos.
-              </div>
-            ) : isLoadingMyEvents ? (
-              <div className="py-12">
-                <LoadingSpinner />
-              </div>
-            ) : myRegistrations.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                Você ainda não possui inscrições em eventos.
-              </div>
-            ) : (
-              <>
-                <div className="space-y-6">
-                  {pagedRegistrations.map((registration) => {
-                    const eventId = String(registration?.event?.id ?? "");
-                    const details = eventId ? (eventDetailsById[eventId] ?? registration.event) : registration.event;
-                    const didOccur = isEventPast(details?.eventDate, details?.eventTime);
-                    const hasReviewInfo = Object.prototype.hasOwnProperty.call(
-                      reviewByRegistrationId,
-                      registration.registrationId,
-                    );
-                    const alreadyReviewed = hasReviewInfo ? reviewByRegistrationId[registration.registrationId] : false;
-                    const canEvaluate = didOccur && hasReviewInfo && !alreadyReviewed;
-
-                    const mapped = {
-                      ...details,
-                      image: details?.imageUrl ?? "",
-                      date: details?.eventDate ? formatDate(new Date(details.eventDate), "dd/MM/yyyy") : "",
-                      time: details?.eventTime ?? "",
-                      currentAttendees: (details?.totalSlots ?? 0) - (details?.availableSlots ?? 0),
-                      totalCapacity: details?.totalSlots ?? 0,
-                      description: details?.description ?? "",
-                      rules: details?.rules ?? "",
-                    };
-
-                    return (
-                      <EventCard
-                        key={registration.registrationId}
-                        {...mapped}
-                        onEvaluate={
-                          canEvaluate
-                            ? () => {
-                                setReviewTarget({
-                                  registrationId: registration.registrationId,
-                                  title: String(details?.title ?? "Evento"),
-                                });
-                                setIsReviewModalOpen(true);
-                              }
-                            : undefined
-                        }
-                        onOpenDetails={eventId ? () => handleOpenDetails(eventId) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-
-                {myRegistrations.length > 0 && myEventsTotalPages > 1 && (
-                  <Pagination className="mt-2">
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setMyEventsPage((page) => Math.max(1, page - 1));
-                          }}
-                          className={myEventsPage <= 1 ? "pointer-events-none opacity-50" : ""}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: myEventsTotalPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            isActive={page === myEventsPage}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setMyEventsPage(page);
-                            }}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setMyEventsPage((page) => Math.min(myEventsTotalPages, page + 1));
-                          }}
-                          className={myEventsPage >= myEventsTotalPages ? "pointer-events-none opacity-50" : ""}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* Hero Section */}
       <section className="pt-24 pb-6 px-4 md:px-8">
@@ -457,13 +326,7 @@ const Events = () => {
               },
               onClose: () => dequeueRatingPrompt(prompt.id),
             });
-            setReviewByRegistrationId((prev) => ({ ...prev, [reviewTarget.registrationId]: true }));
-            toast.success("Avaliação enviada com sucesso!");
-          } catch (err: any) {
-            const msg = err?.response?.data?.message;
-            toast.error(msg || "Não foi possível enviar sua avaliação.");
-            throw err;
-          }
+          }, 150);
         }}
       />
 

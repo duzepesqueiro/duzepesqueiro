@@ -317,11 +317,15 @@ export class EventRepository implements IEventRepository {
   }
 
   private mapEvent(row: any): IEvent {
-    const mappedImages = Array.isArray(row?.eventImages)
+    const mappedImagesRaw = Array.isArray(row?.eventImages)
       ? row.eventImages.map((image: any) => image.imageUrl)
       : row?.imageUrl
-      ? [row.imageUrl]
-      : [];
+        ? [row.imageUrl]
+        : [];
+    const mappedImages = mappedImagesRaw
+      .map((value: any) => String(value ?? '').trim())
+      .filter((value: string) => /^https?:\/\//i.test(value))
+      .filter((value: string) => !value.includes('storage.duzepesqueiro.local'));
     const mappedImageKeys = Array.isArray(row?.eventImages)
       ? row.eventImages.map((image: any) => image.imageKey)
       : row?.imageKey
@@ -333,7 +337,7 @@ export class EventRepository implements IEventRepository {
       description: row.description,
       rules: row.rules,
       location: row.location,
-      imageUrl: row.imageUrl,
+      imageUrl: mappedImages[0] ?? '',
       imageKey: row.imageKey,
       images: mappedImages,
       imageKeys: mappedImageKeys,
