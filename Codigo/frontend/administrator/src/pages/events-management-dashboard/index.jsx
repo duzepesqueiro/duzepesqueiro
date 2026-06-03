@@ -213,19 +213,19 @@ const EventsManagementDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="pt-16 pb-8 max-w mx-auto px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+      <div className="pt-16 pb-8 max-w mx-auto px-4 lg:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Painel de Gerenciamento de Eventos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Painel de Gerenciamento de Eventos</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Acompanhe estatísticas de participantes e eventos com filtros por semana, mês e ano.
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3">
             <AlertNotificationCenter />
             <ExportControlPanel
               onExport={handleExport}
-              availableFormats={['pdf', 'excel', 'csv', 'png']}
+              availableFormats={['excel', 'csv']}
               title="Exportar Relatório de Eventos"
             />
             <Button

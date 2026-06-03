@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { Calendar, MapPin, Clock, Users, AlertCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
+import { Calendar, MapPin, Users, AlertCircle } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface EventCardProps {
   title: string;
@@ -85,24 +84,32 @@ export const EventCard = ({
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-grow">
-          {description}
-        </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          <Users className="w-4 h-4 text-primary shrink-0" />
+          <span>{currentAttendees} / {totalCapacity} participantes</span>
+        </div>
 
         <div className="mt-auto space-y-3">
           {isExpanded && (
-            <div className="bg-muted/50 p-3 rounded-lg text-sm animate-in fade-in zoom-in-95 duration-200">
-               <div className="flex items-start gap-2 mb-2">
+            <div className="bg-muted/50 p-3 rounded-lg text-sm animate-in fade-in zoom-in-95 duration-200 space-y-3">
+              {description && (
+                <div>
+                  <span className="font-semibold block text-foreground mb-1">Descrição:</span>
+                  <span className="text-muted-foreground">{description}</span>
+                </div>
+              )}
+              {rules && (
+                <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <div>
-                    <span className="font-semibold block text-foreground">Regras:</span>
+                    <span className="font-semibold block text-foreground mb-1">Regras:</span>
                     <span className="text-muted-foreground">{rules}</span>
                   </div>
-               </div>
-               <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="w-4 h-4" />
-                  <span>{currentAttendees} / {totalCapacity} participantes</span>
-               </div>
+                </div>
+              )}
+              {!description && !rules && (
+                <span className="text-muted-foreground">Sem detalhes adicionais.</span>
+              )}
             </div>
           )}
 
