@@ -99,17 +99,15 @@ export class FileUploadService {
   }
 
   private createSupabaseClient() {
-    const databaseUrlBucket =
-      this.configService.get<string>('DATABASE_URL_BUCKET') ?? this.configService.get<string>('DATABASE_URL');
-    const directUrlBucket =
-      this.configService.get<string>('DIRECT_URL_BUCKET') ?? this.configService.get<string>('DIRECT_URL');
+    const databaseUrl = this.configService.get<string>('DATABASE_URL');
+    const directUrl = this.configService.get<string>('DIRECT_URL');
     const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!databaseUrlBucket && !directUrlBucket) {
-      throw new InternalServerErrorException('Variáveis DATABASE_URL_BUCKET/DIRECT_URL_BUCKET não configuradas.');
+    if (!databaseUrl && !directUrl) {
+      throw new InternalServerErrorException('Variáveis DATABASE_URL/DIRECT_URL não configuradas.');
     }
 
-    const parsed = this.parseSupabaseFromDatabaseUrl(directUrlBucket || databaseUrlBucket || '');
+    const parsed = this.parseSupabaseFromDatabaseUrl(directUrl || databaseUrl || '');
     if (!parsed?.url) {
       throw new InternalServerErrorException('Não foi possível derivar URL do projeto Supabase a partir do .env.');
     }
