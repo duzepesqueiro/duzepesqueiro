@@ -1,9 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Clock, Package, Info } from "lucide-react";
+import { Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { RentalItem } from "@/pages/FishingGear";
 
 interface RentalCardProps {
@@ -12,14 +11,58 @@ interface RentalCardProps {
 }
 
 export const RentalCard = ({ item, onSelect }: RentalCardProps) => {
+  const galleryImages = (item.images?.length ? item.images : [item.image]).filter(Boolean).slice(0, 10);
+  const [imageIndex, setImageIndex] = useState<number>(0);
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [item.id]);
+
+  const currentImage = galleryImages[imageIndex] || item.image;
+
   return (
     <Card className="overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full bg-card">
       <div className="relative aspect-square overflow-hidden bg-muted/20">
         <img
-          src={item.image}
+          src={currentImage}
           alt={item.name}
           className="w-full h-full object-contain p-4 transition-transform duration-500 hover:scale-105"
         />
+        {galleryImages.length > 1 && (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2"
+              onClick={() => setImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}
+              aria-label="Imagem anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
+              onClick={() => setImageIndex((current) => (current + 1) % galleryImages.length)}
+              aria-label="Próxima imagem"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1">
+              {galleryImages.map((src, index) => (
+                <button
+                  key={`${src}-${index}`}
+                  type="button"
+                  className={`h-2 w-2 rounded-full ${index === imageIndex ? "bg-primary" : "bg-muted-foreground/40"}`}
+                  onClick={() => setImageIndex(index)}
+                  aria-label={`Ver imagem ${index + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
         {item.available <= 0 && (
           <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-[1px]">
              <Badge variant="secondary" className="text-sm font-bold">Esgotado</Badge>
@@ -39,7 +82,7 @@ export const RentalCard = ({ item, onSelect }: RentalCardProps) => {
            <div className="flex items-baseline gap-1">
              <span className="text-xs text-muted-foreground self-start">R$</span>
              <span className="text-2xl font-bold text-foreground">{item.hourlyPrice}</span>
-             <span className="text-xs text-muted-foreground">/hora</span>
+             <span className="text-xs text-muted-foreground">/dia</span>
            </div>
 
            {item.available > 0 ? (

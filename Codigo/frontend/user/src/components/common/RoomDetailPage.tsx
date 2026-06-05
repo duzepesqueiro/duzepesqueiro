@@ -17,6 +17,17 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { formatBRL } from '@/lib/currency';
+import RatingStarsDisplay from '@/components/reviews/RatingStarsDisplay';
+import type { ReviewDTO, ReviewSummaryDTO } from '@/types/reviews';
+import { User as UserIcon } from 'lucide-react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 type RoomLocationState = {
   room?: Room;
@@ -47,6 +58,7 @@ type ChaletCalendarDTO = {
 };
 
 const MAX_IMAGES = 10;
+const REVIEWS_PAGE_SIZE = 5;
 const ROOM_TYPE_LABEL: Record<Room['type'], string> = {
   standard: 'Standard',
   deluxe: 'Deluxe',
@@ -111,6 +123,46 @@ const RoomDetailPage = () => {
     },
     enabled: Boolean(id),
     staleTime: 1000 * 60 * 5,
+  });
+
+  const [reviewsPage, setReviewsPage] = useState(1);
+
+  const { data: reviewsSummary } = useQuery<ReviewSummaryDTO>({
+    queryKey: ['reviews-summary', 'HOSTING', id],
+    queryFn: async () => {
+      const { data } = await api.get('/api/reviews/summary', {
+        params: { domain: 'HOSTING', targetId: id },
+      });
+      return {
+        averageRating: Number(data?.averageRating ?? 0),
+        reviewsCount: Number(data?.reviewsCount ?? 0),
+      };
+    },
+    enabled: Boolean(id),
+    staleTime: 1000 * 60,
+  });
+
+  const totalReviewPages = useMemo(() => {
+    const total = Number(reviewsSummary?.reviewsCount ?? 0);
+    return Math.max(1, Math.ceil(total / REVIEWS_PAGE_SIZE));
+  }, [reviewsSummary?.reviewsCount]);
+
+  useEffect(() => {
+    setReviewsPage((prev) => Math.min(Math.max(1, prev), totalReviewPages));
+  }, [totalReviewPages]);
+
+  const { data: reviews = [], isLoading: isLoadingReviews } = useQuery<ReviewDTO[]>({
+    queryKey: ['reviews-list', 'HOSTING', id, reviewsPage],
+    queryFn: async () => {
+      const { data } = await api.get('/api/reviews', {
+        params: { domain: 'HOSTING', targetId: id, page: reviewsPage, limit: REVIEWS_PAGE_SIZE },
+      });
+      return Array.isArray(data) ? (data as ReviewDTO[]) : [];
+    },
+    enabled: Boolean(id),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const unavailableDateSet = useMemo(
@@ -385,6 +437,99 @@ const RoomDetailPage = () => {
                       </li>
                     ))}
                   </ul>
+
+                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Avaliações</h3>
+                  <div className="mb-8 rounded-2xl border border-[#024059]/18 bg-white p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <RatingStarsDisplay value={Number(reviewsSummary?.averageRating ?? 0)} className="flex gap-1" />
+                        <div className="flex flex-col leading-tight">
+                          <span className="text-lg font-extrabold text-[#024059]">
+                            {Number(reviewsSummary?.averageRating ?? 0).toFixed(1)}
+                          </span>
+                          <span className="text-xs font-medium text-[#284003]/70">
+                            {Number(reviewsSummary?.reviewsCount ?? 0)} avaliações
+                          </span>
+                        </div>
+                      </div>
+                      {Number(reviewsSummary?.reviewsCount ?? 0) > 0 ? (
+                        <span className="text-xs text-[#284003]/70">Mais recentes primeiro</span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-5 space-y-4">
+                      {isLoadingReviews ? (
+                        <div className="space-y-3">
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
+                        </div>
+                      ) : reviews.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                          <p className="text-sm font-medium text-slate-600">Ainda não há avaliações para este chalé.</p>
+                        </div>
+                      ) : (
+                        reviews.map((review) => (
+                          <div
+                            key={review.id}
+                            className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                                <UserIcon className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-bold text-slate-800">{review.authorName}</p>
+                                    <p className="text-[11px] text-slate-500">
+                                      {review.createdAt ? format(new Date(review.createdAt), 'dd/MM/yyyy') : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <RatingStarsDisplay value={Number(review.rating ?? 0)} className="flex gap-1" />
+                                  </div>
+                                </div>
+                                {review.comment ? (
+                                  <p className="mt-2 text-sm text-slate-700">"{review.comment}"</p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {totalReviewPages > 1 ? (
+                      <div className="mt-5 flex justify-center">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious
+                                onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                                className={reviewsPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+                              />
+                            </PaginationItem>
+                            {Array.from({ length: totalReviewPages }, (_, idx) => idx + 1)
+                              .slice(Math.max(0, reviewsPage - 2), Math.max(0, reviewsPage - 2) + 3)
+                              .map((p) => (
+                                <PaginationItem key={p}>
+                                  <PaginationLink isActive={p === reviewsPage} onClick={() => setReviewsPage(p)}>
+                                    {p}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              ))}
+                            <PaginationItem>
+                              <PaginationNext
+                                onClick={() => setReviewsPage((p) => Math.min(totalReviewPages, p + 1))}
+                                className={reviewsPage === totalReviewPages ? 'pointer-events-none opacity-50' : undefined}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    ) : null}
+                  </div>
                 </motion.div>
               </div>
 

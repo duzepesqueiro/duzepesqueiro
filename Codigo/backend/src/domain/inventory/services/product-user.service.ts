@@ -24,18 +24,25 @@ export class ProductUserService {
     } as ProductListFilterDto);
 
     return {
-      items: result.items.map((item) => ({
-        id: item.id,
-        sku: item.sku,
-        name: item.name,
-        description: (item as any).description ?? undefined,
-        image: (item as any).image ?? undefined,
-        status: item.status as any,
-        category: item.category as any,
-        unitMeasure: item.unitMeasure as any,
-        salePrice: Number(item.salePrice),
-        stockQuantity: Number(item.stockQuantity),
-      })),
+      items: result.items.map((item) => {
+        const images = ((item as any).productImages ?? [])
+          .map((image: any) => image.imageUrl)
+          .filter(Boolean);
+
+        return {
+          id: item.id,
+          sku: item.sku,
+          name: item.name,
+          description: (item as any).description ?? undefined,
+          image: (item as any).image ?? images[0] ?? undefined,
+          images,
+          status: item.status as any,
+          category: item.category as any,
+          unitMeasure: item.unitMeasure as any,
+          salePrice: Number(item.salePrice),
+          stockQuantity: Number(item.stockQuantity),
+        };
+      }),
       total: result.total,
       page: result.page,
       itemsPerPage: result.limit,

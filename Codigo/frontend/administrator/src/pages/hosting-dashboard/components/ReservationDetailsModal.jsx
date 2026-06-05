@@ -39,6 +39,23 @@ const formatCurrency = (value) =>
     currency: 'BRL',
   }).format(Number(value || 0));
 
+const toDateOnly = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const canStartCheckIn = (reservation) => {
+  const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+  if (!checkInDate) {
+    return true;
+  }
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return today.getTime() >= checkInDate.getTime();
+};
+
 const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onCheckIn, processingAction }) => {
   const portalElement = useMemo(() => {
     if (typeof document === 'undefined') {
@@ -68,6 +85,7 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
     reservation.status !== 'Cancelada' &&
     reservation.status !== 'Finalizada' &&
     reservation.status !== 'No-show';
+  const isCheckInAllowed = canStartCheckIn(reservation);
   const isProcessingCurrent = processingAction?.reservationId === reservation.id;
   const isProcessingCheckIn = isProcessingCurrent && processingAction?.type === 'checkin';
   const isProcessingCheckOut = isProcessingCurrent && processingAction?.type === 'checkout';
@@ -202,7 +220,13 @@ const ReservationDetailsModal = ({ isOpen, reservation, onClose, onCheckOut, onC
             Fechar
           </Button>
           {showCheckIn ? (
-            <Button type="button" onClick={() => onCheckIn(reservation)} disabled={isProcessingCurrent} loading={isProcessingCheckIn}>
+            <Button
+              type="button"
+              onClick={() => onCheckIn(reservation)}
+              disabled={isProcessingCurrent || !isCheckInAllowed}
+              loading={isProcessingCheckIn}
+              title={isCheckInAllowed ? 'Fazer check-in' : 'Check-in disponível apenas na data da reserva'}
+            >
               {isProcessingCheckIn ? 'Processando Check-in...' : 'Fazer Check-in'}
             </Button>
           ) : null}

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShopCard } from "./ShopCard";
 import { CartSummary } from "./CartSummary";
 import { ShopItem, CartItem } from "@/pages/FishingGear";
-import { api } from "@/lib/api";
+import { getSaleProductsPage } from "@/lib/api";
 import { toast } from "sonner";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -11,12 +12,10 @@ import { ArrowUpAZ, Package, DollarSign, ArrowDown, ArrowUp } from "lucide-react
 
 interface ShoppingSectionProps {
   cartItems: CartItem[];
-  onAddToCart: (item: ShopItem) => void;
-  onUpdateQuantity: (id: number, quantity: number) => void;
-  initialProductId?: number;
+  onAddToCart: (item: ShopItem, quantity?: number) => void;
+  onUpdateQuantity: (id: string, quantity: number) => void;
+  initialProductId?: string;
 }
-
-import { ProductDetailModal } from "./ProductDetailModal";
 
 export const ShoppingSection = ({
   cartItems,
@@ -24,33 +23,46 @@ export const ShoppingSection = ({
   onUpdateQuantity,
   initialProductId,
 }: ShoppingSectionProps) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<ShopItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [sortMode, setSortMode] = useState<"stock" | "alpha" | "price_asc" | "price_desc">("stock");
   const [priceRange, setPriceRange] = useState<number[]>([0, 0]);
-  const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
-  const itemsPerPage = 8;
+  const requestLimit = 10;
 
   useEffect(() => {
     const fetchItems = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/user/loja");
-        const data: ShopItem[] = (res.data || []).map((i: any) => ({
-          id: i.id,
-          name: i.name,
-          description: i.description,
-          price: i.price,
-          stock: i.stock,
-          image: i.image || "https://placehold.co/500x500?text=Fishing+Item",
-        }));
+        const pageData = await getSaleProductsPage({ page: currentPage, limit: requestLimit });
+        const data: ShopItem[] = pageData.items.map((i: any) => {
+          const images = Array.isArray(i.images)
+            ? i.images.filter(Boolean).slice(0, 10)
+            : [];
+          const image = i.image || images[0] || "https://placehold.co/500x500?text=Fishing+Item";
+
+          return {
+            id: String(i.id),
+            name: String(i.name || ""),
+            description: String(i.description || ""),
+            price: Number(i.salePrice ?? i.price ?? 0),
+            stock: Number(i.stockQuantity ?? i.stock ?? 0),
+            image,
+            images: images.length ? images : [image],
+          };
+        });
         // Default: ordenar por estoque (itens sem estoque por último)
         const sorted = [...data].sort((a, b) => {
           if (b.stock !== a.stock) return b.stock - a.stock;
           return a.name.localeCompare(b.name);
         });
         setItems(sorted);
+        setTotalPages(Math.max(1, Number(pageData.totalPages || 1)));
+        if (currentPage > Number(pageData.totalPages || 1)) {
+          setCurrentPage(Math.max(1, Number(pageData.totalPages || 1)));
+        }
       } catch (err: any) {
         console.error("Erro ao carregar itens da loja", err);
         toast.error("Não foi possível carregar os produtos da loja.");
@@ -59,11 +71,7 @@ export const ShoppingSection = ({
       }
     };
     fetchItems();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [items.length]);
+  }, [currentPage]);
 
   // Atualiza faixa de preço ao carregar itens
   useEffect(() => {
@@ -76,7 +84,7 @@ export const ShoppingSection = ({
   useEffect(() => {
     if (!initialProductId) return;
     const target = items.find((i) => i.id === initialProductId);
-    if (target) setSelectedItem(target);
+    if (target) navigate(`/store/product/${target.id}`);
   }, [initialProductId, items]);
 
   const formatCurrency = (v: number) =>
@@ -101,10 +109,6 @@ export const ShoppingSection = ({
     });
     return sorted;
   }, [items, priceRange, sortMode]);
-
-  const totalPages = Math.ceil(visibleItems.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedItems = visibleItems.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-8">
@@ -161,12 +165,11 @@ export const ShoppingSection = ({
         {!loading && items.length === 0 && (
           <div className="col-span-full text-center text-muted-foreground">Nenhum produto disponível.</div>
         )}
-        {!loading && paginatedItems.map((item) => (
+        {!loading && visibleItems.map((item) => (
           <ShopCard
             key={item.id}
             item={item}
-            onAddToCart={onAddToCart}
-            onSelect={() => setSelectedItem(item)}
+            onSelect={(it, presetQuantity) => navigate(`/store/product/${it.id}`, { state: { presetQuantity } })}
           />
         ))}
       </div>
@@ -200,16 +203,6 @@ export const ShoppingSection = ({
 
       {/* Carrinho agora é exibido via modal no FishingGear */}
       {/* Removido o render inline de <CartSummary /> para manter um único ponto de exibição */}
-
-      <ProductDetailModal
-        item={selectedItem}
-        open={!!selectedItem}
-        onOpenChange={(open) => !open && setSelectedItem(null)}
-        onAddToCart={(i) => {
-          onAddToCart(i);
-          setSelectedItem(null);
-        }}
-      />
     </div>
   );
 };

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
@@ -26,9 +24,8 @@ import { Clock } from "lucide-react";
 export interface EventFiltersState {
   name: string;
   date: Date | undefined;
-  capacity: string;
   time: string;
-  status: string
+  status: string;
 }
 
 interface EventFiltersProps {
@@ -37,8 +34,6 @@ interface EventFiltersProps {
 }
 
 export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) => {
-  const [loading, setLoading] = useState(false);
-
   const updateFilter = (key: keyof EventFiltersState, value: string | Date | undefined) => {
     onFiltersChange({ ...filters, [key]: value });
   };
@@ -47,26 +42,25 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
     onFiltersChange({
       name: "",
       date: undefined,
-      capacity: "all",
       time: "",
       status: "all",
     });
   };
 
   const hasActiveFilters =
-    filters.name || filters.date || filters.capacity !== "all" || (filters.time && filters.time !== "all") || filters.status !== "all";
+    filters.name || filters.date || (filters.time && filters.time !== "all") || filters.status !== "all";
 
   // Filtros são aplicados automaticamente via updateFilter
 
   return (
     <div
       className="
-    w-full 
-    bg-[hsl(210_25%_97%)] 
-    dark:bg-[hsl(210_30%_10%)] 
-    border border-border/50 
-    rounded-lg p-6 space-y-6 
-    shadow-[0_2px_8px_rgba(0,0,0,0.05)] 
+    w-full
+    bg-[hsl(210_25%_97%)]
+    dark:bg-[hsl(210_30%_10%)]
+    border border-border/50
+    rounded-lg p-4 sm:p-6 space-y-4 sm:space-y-6
+    shadow-[0_2px_8px_rgba(0,0,0,0.05)]
     transition-colors duration-300
   "
     >
@@ -90,7 +84,7 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
       </div>
 
       {/* --- Filtros --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Nome */}
         <div className="space-y-2">
           <Label htmlFor="name-filter">Nome do Evento</Label>
@@ -131,60 +125,28 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
           </Popover>
         </div>
 
-        {/* Capacidade */}
-        <div className="space-y-2">
-          <Label htmlFor="capacity-filter">Capacidade</Label>
-          <Select
-            value={filters.capacity}
-            onValueChange={(value) => updateFilter("capacity", value)}
-          >
-            <SelectTrigger id="capacity-filter">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="small">Pequena (&lt; 150)</SelectItem>
-              <SelectItem value="medium">Média (150-500)</SelectItem>
-              <SelectItem value="large">Grande (&gt; 500)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Horário */}
         <div className="space-y-2">
           <Label htmlFor="time-filter">Horário</Label>
-          <Select
-            value={filters.time || ""}
-            onValueChange={(value) => {
-              // Radix SelectItem não permite valor vazio; usamos "all" para limpar
-              if (value === "all") {
-                updateFilter("time", "");
-              } else {
-                updateFilter("time", value);
-              }
-            }}
-          >
-            <SelectTrigger id="time-filter" className="justify-start">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder="Todos os horários" />
-              </div>
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="all">Todos os horários</SelectItem>
-              <SelectItem value="08:00">08:00</SelectItem>
-              <SelectItem value="09:00">09:00</SelectItem>
-              <SelectItem value="10:00">10:00</SelectItem>
-              <SelectItem value="11:00">11:00</SelectItem>
-              <SelectItem value="13:00">13:00</SelectItem>
-              <SelectItem value="14:00">14:00</SelectItem>
-              <SelectItem value="15:00">15:00</SelectItem>
-              <SelectItem value="16:00">16:00</SelectItem>
-              <SelectItem value="18:00">18:00</SelectItem>
-              <SelectItem value="19:00">19:00</SelectItem>
-              <SelectItem value="20:00">20:00</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="relative">
+            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              id="time-filter"
+              placeholder="00:00"
+              inputMode="numeric"
+              maxLength={5}
+              className="pl-9"
+              value={filters.time}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                let masked = digits;
+                if (digits.length >= 3) {
+                  masked = digits.slice(0, 2) + ":" + digits.slice(2);
+                }
+                updateFilter("time", masked);
+              }}
+            />
+          </div>
         </div>
 
         {/* Status */}
@@ -219,12 +181,6 @@ export const EventFilters = ({ filters, onFiltersChange }: EventFiltersProps) =>
             <Badge variant="outline" className="gap-1">
               Data: {format(filters.date, "dd/MM/yyyy")}
               <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => updateFilter("date", undefined)} />
-            </Badge>
-          )}
-          {filters.capacity !== "all" && (
-            <Badge variant="outline" className="gap-1">
-              Capacidade: {filters.capacity === "small" ? "Pequena" : filters.capacity === "medium" ? "Média" : "Grande"}
-              <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => updateFilter("capacity", "all")} />
             </Badge>
           )}
           {filters.time && filters.time !== "all" && (

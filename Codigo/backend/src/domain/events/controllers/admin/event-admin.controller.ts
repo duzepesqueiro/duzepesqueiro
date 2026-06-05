@@ -29,6 +29,7 @@ import {
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { CurrentUser } from '../../../../application/auth/decorators/current-user.decorator';
 import { Roles } from '../../../../application/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../../application/auth/guards/jwt-auth.guard';
@@ -70,7 +71,16 @@ export class EventAdminController {
   ) {}
 
   @Post()
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowed = /\/(jpg|jpeg|png|webp|gif)$/i.test(file.mimetype);
+        callback(allowed ? null : new Error('Tipo de arquivo inválido'), allowed);
+      },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -141,7 +151,16 @@ export class EventAdminController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowed = /\/(jpg|jpeg|png|webp|gif)$/i.test(file.mimetype);
+        callback(allowed ? null : new Error('Tipo de arquivo inválido'), allowed);
+      },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

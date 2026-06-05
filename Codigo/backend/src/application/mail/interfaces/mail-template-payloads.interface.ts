@@ -1,3 +1,5 @@
+import { ReviewDomain } from '@prisma/client';
+
 export interface OrderConfirmationItem {
   name: string;
   quantity: number;
@@ -196,4 +198,12 @@ export interface HostingPaymentReminderMailPayload {
   valorDiaria?: string | number;
   checkIn: string;
   checkOut: string;
+}
+
+export interface ReviewPublishedMailPayload {
+  email: string;
+  name: string;
+  domain: ReviewDomain;
+  targetName: string | null;
+  rating: number;
 }

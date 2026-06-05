@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../../components/ui/Header';
 import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter';
-import { getEventAlerts } from '../../utils/notificationService';
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import EventsKPICards from './components/EventsKPICards';
 import EventsChart from './components/EventsChart';
@@ -20,7 +19,6 @@ const EventsManagementDashboard = () => {
   const [chartData, setChartData] = useState([]);
   const [chartError, setChartError] = useState(null);
   const [chartView, setChartView] = useState('weekly');
-  const [pageAlerts, setPageAlerts] = useState([]);
 
   const handleChartFiltersChange = useCallback(({ view }) => {
     if (typeof view !== 'undefined') setChartView(view || 'weekly');
@@ -198,20 +196,6 @@ const EventsManagementDashboard = () => {
     return () => { mounted = false; };
   }, [chartView]);
 
-  // Notificações de eventos: em breve e agendados
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const alerts = await getEventAlerts();
-        if (mounted) setPageAlerts(alerts);
-      } catch (err) {
-        if (mounted) setPageAlerts([{ id: 'events-alert-error', type: 'error', title: 'Erro ao carregar alertas', message: 'Falha ao consultar eventos.', category: 'events', timestamp: new Date(), isRead: false }]);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [kpis]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -229,19 +213,19 @@ const EventsManagementDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="pt-16 pb-8 max-w mx-auto px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+      <div className="pt-16 pb-8 max-w mx-auto px-4 lg:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Painel de Gerenciamento de Eventos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Painel de Gerenciamento de Eventos</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Acompanhe estatísticas de participantes e eventos com filtros por semana, mês e ano.
             </p>
           </div>
-          <div className="flex items-center space-x-4">
-            <AlertNotificationCenter alerts={pageAlerts} />
+          <div className="flex flex-wrap items-center gap-3">
+            <AlertNotificationCenter />
             <ExportControlPanel
               onExport={handleExport}
-              availableFormats={['pdf', 'excel', 'csv', 'png']}
+              availableFormats={['excel', 'csv']}
               title="Exportar Relatório de Eventos"
             />
             <Button

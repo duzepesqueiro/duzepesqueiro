@@ -40,11 +40,33 @@ const formatCurrency = (value) =>
     currency: 'BRL',
   }).format(Number(value || 0));
 
+const toDateOnly = (value) => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const canStartCheckIn = (reservation) => {
+  const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+  if (!checkInDate) {
+    return true;
+  }
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return today.getTime() >= checkInDate.getTime();
+};
+
 const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCancel, onNoShow, processingAction }) => {
   const isFinal = reservation.status === 'Finalizada' || reservation.status === 'Cancelada' || reservation.status === 'No-show';
   const isProcessingCurrent = processingAction?.reservationId === reservation.id;
   const isProcessingCheckIn = isProcessingCurrent && processingAction?.type === 'checkin';
   const isProcessingCheckOut = isProcessingCurrent && processingAction?.type === 'checkout';
+  const isCheckInAllowed = canStartCheckIn(reservation);
 
   if (isFinal) {
     return (
@@ -82,8 +104,8 @@ const ReservationActions = ({ reservation, onView, onCheckIn, onCheckOut, onCanc
           size="icon"
           onClick={() => onCheckIn(reservation)}
           aria-label={`Check-in ${reservation.code}`}
-          title="Realizar check-in"
-          disabled={isProcessingCurrent}
+          title={isCheckInAllowed ? 'Realizar check-in' : 'Check-in disponível apenas na data da reserva'}
+          disabled={isProcessingCurrent || !isCheckInAllowed}
           loading={isProcessingCheckIn}
         >
           <Icon name="ClipboardCheck" size={16} />

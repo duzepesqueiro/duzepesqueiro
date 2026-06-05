@@ -5,6 +5,7 @@ import { Toaster as SonnerToaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BookingProvider } from "@/contexts/BookingContext";
 import { lazy, Suspense } from "react";
+import Header from "@/components/Header";
 
 const Index = lazy(() => import("../components/common/Index"));
 const RoomsPage = lazy(() => import("../components/common/RoomsPage"));
@@ -30,6 +31,7 @@ const Hosting = () => (
     <div className="hosting-theme">
       <TooltipProvider>
         <BookingProvider>
+            <Header searchScope="home" />
             <Toaster />
             <SonnerToaster position="top-right" richColors />
             <Suspense fallback={<PageLoader />}>

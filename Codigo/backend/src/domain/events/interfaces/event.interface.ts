@@ -82,7 +82,10 @@ export interface IEventFilter {
 export interface IEventCard {
   id: string;
   title: string;
+  description: string;
+  rules: string;
   imageUrl: string;
+  images: string[];
   location: string;
   eventDate: Date;
   eventTime: string;

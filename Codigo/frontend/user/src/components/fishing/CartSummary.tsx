@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,33 +10,17 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Minus, Plus, Trash2, ShoppingBag, Info, ChevronDown, Package2 } from "lucide-react";
 import { CartItem } from "@/pages/FishingGear";
 import { toast } from "sonner";
-import { api, getUserProfile } from "@/lib/api";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
+import { createSalesOrder } from "@/lib/api";
 
 interface CartSummaryProps {
   cartItems: CartItem[];
-  onUpdateQuantity: (id: number, quantity: number) => void;
+  onUpdateQuantity: (id: string, quantity: number) => void;
   onPurchased?: (buyerName: string, items: CartItem[]) => void;
 }
 
 export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSummaryProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
-  const [buyerName, setBuyerName] = useState("");
-
-  // Prefill buyer name when authenticated
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        if (isAuthenticated()) {
-          const profile = await getUserProfile();
-          if (profile?.nome && mounted && !buyerName) setBuyerName(profile.nome);
-        }
-      } catch {}
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -50,37 +34,22 @@ export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSu
     //   return;
     // }
 
-    if (!buyerName.trim()) {
-      toast.error("Informe seu nome para registrar a compra.");
-      return;
-    }
-
     setIsSubmitting(true);
     const purchasedSnapshot = cartItems.map((i) => ({ ...i }));
     try {
-      const results = await Promise.allSettled(
-        cartItems.map((item) =>
-          api.post("/user/loja/purchase", {
-            saleItemId: item.id,
-            quantity: item.quantity,
-            buyerName: buyerName.trim(),
-          })
-        )
-      );
+      await createSalesOrder({
+        items: cartItems.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+      });
 
-      const failed = results.filter((r) => r.status === "rejected");
-      if (failed.length > 0) {
-        toast.error(`Falha ao registrar ${failed.length} item(s). Tente novamente.`);
-      } else {
-        toast.success("Pedido registrado!", {
-          description:
-            "Sua compra foi registrada. Faça o pagamento presencialmente na loja Fish and Pay.",
-        });
-        // Clear cart
-        cartItems.forEach((item) => onUpdateQuantity(item.id, 0));
-        setBuyerName("");
-        try { onPurchased?.(buyerName.trim(), purchasedSnapshot); } catch {}
-      }
+      toast.success("Pedido registrado!", {
+        description: "Seu pedido foi registrado. Em breve será possível pagar online via Mercado Pago.",
+      });
+
+      cartItems.forEach((item) => onUpdateQuantity(item.id, 0));
+      try { onPurchased?.("", purchasedSnapshot); } catch {}
     } catch (err) {
       toast.error("Não foi possível processar o pedido.");
     } finally {
@@ -192,16 +161,6 @@ export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSu
             </ScrollArea>
 
             <Separator />
-
-            {/* Buyer Name */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Seu nome</label>
-              <Input
-                value={buyerName}
-                onChange={(e) => setBuyerName(e.target.value)}
-                placeholder="Ex: João Silva"
-              />
-            </div>
 
             {/* Total */}
             <div className="space-y-3 p-4 rounded-lg bg-muted/30">

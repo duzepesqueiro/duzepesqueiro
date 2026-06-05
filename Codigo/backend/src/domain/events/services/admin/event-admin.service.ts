@@ -215,6 +215,8 @@ export class EventAdminService {
       throw new NotFoundException('Evento não encontrado');
     }
 
+    const keys = await this.eventRepository.listImageKeys(id);
+    await Promise.all(keys.map((key) => this.fileUploadService.deleteFile(key)));
     await this.eventRepository.softDelete(id);
     this.eventEmitter.emit(EventEvents.DELETED, {
       eventId: id,
