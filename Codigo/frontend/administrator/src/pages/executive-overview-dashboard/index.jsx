@@ -4,172 +4,176 @@ import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import KPICard from './components/KPICard';
 import RevenueChart from './components/RevenueChart';
-import TopProductsList from './components/TopProductsList';
-import AlertsPanel from './components/AlertsPanel';
+import TopChalesList from './components/TopChalesList';
 import CategoryPerformance from './components/CategoryPerformance';
 import QuickActions from '../../components/ui/QuickActions';
 import Icon from '../../components/AppIcon';
 import { exportAdminData } from '../../utils/exportService';
 import api from '../../utils/api';
-import { syncAlertsWithReadStatus } from '../../utils/notificationService';
 
 const ExecutiveOverviewDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [kpiData, setKpiData] = useState([]);
   const [revenueData, setRevenueData] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
+  const [topChales, setTopChales] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [timeframe, setTimeframe] = useState('weekly');
-  const [dashboardAlerts, setDashboardAlerts] = useState([]);
+  const [reloadTick, setReloadTick] = useState(0);
 
-  // Generate dynamic alerts based on dashboard data
-  const generateDashboardAlerts = (kpis, categories) => {
-    const alerts = [];
-
-    // 1. Active Rentals Alert
-    const rentalKpi = kpis.find(k => k.title.toLowerCase().includes('aluguéis') || k.title.toLowerCase().includes('ativos'));
-    if (rentalKpi) {
-      alerts.push({
-        id: 'dashboard-rentals-active',
-        type: "info",
-        priority: "medium",
-        title: "Status de Aluguéis",
-        message: `${rentalKpi.value} Aluguéis ativos no momento`,
-        details: `O número de aluguéis ativos é ${rentalKpi.value}. Acompanhe o painel de operações para mais detalhes.`,
-        timestamp: new Date()
-      });
-    }
-
-    // 2. Revenue Alert
-    const revenueKpi = kpis.find(k => k.title.toLowerCase().includes('receita') || k.title.toLowerCase().includes('faturamento'));
-    if (revenueKpi) {
-      const isIncrease = revenueKpi.changeType === 'positive' || revenueKpi.changeType === 'increase';
-      alerts.push({
-        id: 'dashboard-revenue-status',
-        type: isIncrease ? "success" : "warning",
-        priority: "high",
-        title: "Atualização de Receita",
-        message: `Receita Total ${isIncrease ? 'aumentou' : 'diminuiu'} ${revenueKpi.change}`,
-        details: `A receita total registrada é de ${revenueKpi.value}, representando uma ${isIncrease ? 'alta' : 'baixa'} de ${revenueKpi.change} em relação ao período anterior.`,
-        timestamp: new Date()
-      });
-    }
-
-    // 3. Category Performance Alerts
-    if (categories && categories.length > 0) {
-      // Find category with highest change (positive or negative)
-      // Since change is currently 0, we'll just check if there's any non-zero change
-      // Or we can just pick the top category as a "performance" highlight if no change data
-      
-      const topCategory = categories.reduce((prev, current) => (prev.value > current.value) ? prev : current, categories[0]);
-      
-      if (topCategory) {
-         alerts.push({
-          id: 'dashboard-cat-top',
-          type: "info",
-          priority: "low",
-          title: "Desempenho de Categoria",
-          message: `Categoria destaque: ${topCategory.name}`,
-          details: `${topCategory.name} representa ${topCategory.percentage}% das vendas totais com ${topCategory.value} unidades vendidas.`,
-          timestamp: new Date()
-        });
-      }
-
-      // If we had change data, we would add specific alerts for increase/decrease
-      categories.forEach(cat => {
-        if (cat.change && Math.abs(cat.change) > 10) { // Threshold for alert
-           const isIncrease = cat.change > 0;
-           alerts.push({
-            id: `dashboard-cat-change-${cat.name}`,
-            type: isIncrease ? "success" : "warning",
-            priority: "medium",
-            title: `Desempenho: ${cat.name}`,
-            message: `Vendas de ${cat.name} ${isIncrease ? 'aumentaram' : 'diminuíram'} ${Math.abs(cat.change)}%`,
-            details: `A categoria ${cat.name} apresentou uma variação significativa de ${cat.change}% no período.`,
-            timestamp: new Date()
-          });
-        }
-      });
-    }
-
-    return alerts;
+  const getBackendPeriodo = () => {
+    if (timeframe === 'monthly') return 'mes';
+    if (timeframe === 'yearly') return 'ano';
+    return 'semana';
   };
 
-  // Fetch KPI and Revenue data from backend
+  const formatChaletType = (type) => {
+    const map = {
+      LUXURY: 'Luxo',
+      STANDARD: 'Standard',
+      FAMILY: 'Família',
+      MASTER: 'Master',
+      ECONOMIC: 'Econômico',
+    };
+    return map[type] || String(type || 'Outros');
+  };
+
+  const buildKpiCards = (kpis) => {
+    const occupancy = Number(kpis?.taxaOcupacao || 0);
+    const revenue = Number(kpis?.receitaTotal || 0);
+    const activeReservations = Number(kpis?.reservasAtivas || 0);
+    const occupiedChalets = Number(kpis?.chalesOcupados || 0);
+
+    return [
+      {
+        title: 'Taxa de Ocupação',
+        value: `${occupancy.toFixed(2)}%`,
+        change: `${occupancy.toFixed(1)}%`,
+        changeType: occupancy >= 70 ? 'positive' : 'negative',
+        icon: 'Percent',
+        color: occupancy >= 70 ? 'success' : 'warning',
+        trend: [25, 35, 50, 60, 70, 75, Math.min(100, Math.round(occupancy))],
+      },
+      {
+        title: 'Receita Total',
+        value: revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        change: '+0,0%',
+        changeType: 'positive',
+        icon: 'DollarSign',
+        color: 'success',
+        trend: [20, 30, 40, 50, 60, 70, 80],
+      },
+      {
+        title: 'Reservas Ativas',
+        value: activeReservations,
+        change: `${activeReservations}`,
+        changeType: activeReservations > 0 ? 'positive' : 'neutral',
+        icon: 'CalendarCheck',
+        color: 'primary',
+        trend: [10, 25, 30, 45, 40, 55, 60],
+      },
+      {
+        title: 'Chalés Ocupados',
+        value: occupiedChalets,
+        change: `${occupiedChalets}`,
+        changeType: occupiedChalets > 0 ? 'positive' : 'neutral',
+        icon: 'Home',
+        color: 'warning',
+        trend: [15, 25, 20, 30, 35, 40, 45],
+      },
+    ];
+  };
+
+  const buildCategoryData = (receitaPorChale) => {
+    const byType = (receitaPorChale || []).reduce((acc, item) => {
+      const key = formatChaletType(item?.chaletTipo);
+      acc[key] = (acc[key] || 0) + Number(item?.totalReservas || 0);
+      return acc;
+    }, {});
+
+    const total = Object.values(byType).reduce((sum, value) => sum + Number(value || 0), 0);
+    return Object.entries(byType).map(([name, value]) => ({
+      name,
+      value,
+      percentage: total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0,
+      change: 0,
+    }));
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
+    let cancelled = false;
+
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
       try {
-        const [kpiRes, revenueRes, topProductsRes, categoryRes] = await Promise.all([
-          api.get('/api/admin/dashboard/kpis'),
-          api.get(`/api/admin/dashboard/performance?period=${timeframe}`),
-          api.get('/api/admin/dashboard/top-products?limit=10'),
-          api.get('/api/admin/dashboard/category-performance')
+        const periodo = getBackendPeriodo();
+        const [kpiRes, receitaRes, reservasRes] = await Promise.all([
+          api.get('/api/dashboard/hospedagem/kpis', { params: { periodo } }),
+          api.get('/api/dashboard/hospedagem/receita', { params: { periodo } }),
+          api.get('/api/dashboard/hospedagem/reservas', { params: { periodo } }),
         ]);
 
-        let currentKpiData = [];
-        let currentCategoryData = [];
+        if (cancelled) return;
 
-        if (kpiRes.data) {
-          currentKpiData = kpiRes.data.map(kpi => {
-            let color = 'primary';
-            const title = (kpi.title || '').toLowerCase();
-            if (title.includes('receita') || title.includes('lucro')) color = 'success';
-            else if (title.includes('inventário')) color = 'warning';
-            else if (title.includes('aluguéis')) color = 'primary';
-            
-            return {
-              ...kpi,
-              color,
-              trend: [0, 0, 0, 0, 0, 0, 0] // Placeholder trend
-            };
-          });
-          setKpiData(currentKpiData);
-        }
+        const kpisPayload = kpiRes?.data?.kpis || {};
+        const receitaPayload = receitaRes?.data || {};
+        const receitaPorChale = Array.isArray(receitaPayload?.receitaPorChale)
+          ? receitaPayload.receitaPorChale
+          : [];
+        const grafico = receitaPayload?.graficoBarras || {};
+        const labels = Array.isArray(grafico?.labels) ? grafico.labels : [];
+        const receitas = Array.isArray(grafico?.receitas) ? grafico.receitas : [];
+        const reservas = Array.isArray(grafico?.reservas) ? grafico.reservas : [];
 
-        if (revenueRes.data) {
-          setRevenueData(revenueRes.data.map(item => ({
-            period: item.period,
-            revenue: item.revenue,
-            userCount: item.userCount
-          })));
-        }
+        const mappedChartData = labels.map((label, index) => ({
+          period: label,
+          revenue: Number(receitas[index] || 0),
+          userCount: Number(reservas[index] || 0),
+        }));
 
-        if (topProductsRes.data) {
-          setTopProducts(topProductsRes.data);
-        }
+        const mappedTopChales = receitaPorChale
+          .map((item) => ({
+            chaletId: item?.chaletId,
+            chaleName: item?.chaletNome,
+            category: formatChaletType(item?.chaletTipo),
+            totalRevenue: Number(item?.receitaTotal || 0),
+            reservationsCount: Number(item?.totalReservas || 0),
+            image: '',
+          }))
+          .sort((a, b) => b.reservationsCount - a.reservationsCount)
+          .slice(0, 10);
 
-        if (categoryRes.data) {
-          const total = categoryRes.data.reduce((acc, item) => acc + (item.quantitySold || 0), 0);
-          currentCategoryData = categoryRes.data.map(item => ({
-            name: item.category,
-            value: item.quantitySold || 0,
-            percentage: total > 0 ? parseFloat(((item.quantitySold || 0) / total * 100).toFixed(1)) : 0,
-            change: item.change || 0 // Use backend change if available
-          }));
-          setCategoryData(currentCategoryData);
-        }
-
-        // Generate alerts based on fetched data
-        const generatedAlerts = generateDashboardAlerts(currentKpiData, currentCategoryData);
-        // Sync with backend read status
-        const syncedAlerts = await syncAlertsWithReadStatus(generatedAlerts);
-        setDashboardAlerts(syncedAlerts);
-
+        const mappedCategories = buildCategoryData(receitaPorChale);
+        if (cancelled) return;
+        setKpiData(buildKpiCards(kpisPayload));
+        setRevenueData(mappedChartData);
+        setTopChales(mappedTopChales);
+        setCategoryData(mappedCategories);
+        setLastUpdated(new Date());
       } catch (error) {
-        console.error("Error fetching dashboard data", error);
-        // Fallback to empty or mock if needed
+        console.error('Erro ao carregar dados da visão geral:', error);
+        if (cancelled) return;
+        setKpiData([]);
+        setRevenueData([]);
+        setTopChales([]);
+        setCategoryData([]);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
-    fetchData();
-  }, [timeframe]);
+
+    fetchDashboardData();
+    return () => {
+      cancelled = true;
+    };
+  }, [timeframe, reloadTick]);
 
   useEffect(() => {
-    // Auto-refresh data every 30 minutes
     const refreshInterval = setInterval(() => {
       setLastUpdated(new Date());
+      setReloadTick((prev) => prev + 1);
     }, 30 * 60 * 1000);
 
     return () => {
@@ -195,7 +199,7 @@ const ExecutiveOverviewDashboard = () => {
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Carregano dados ...</p>
+              <p className="text-muted-foreground">Carregando dados...</p>
             </div>
           </div>
         </div>
@@ -223,11 +227,11 @@ const ExecutiveOverviewDashboard = () => {
                 <Icon name="Clock" size={16} />
                 <span>Última Atualização: {lastUpdated?.toLocaleTimeString()}</span>
               </div>
-              <AlertNotificationCenter alerts={dashboardAlerts} />
+              <AlertNotificationCenter />
               <ExportControlPanel 
                 onExport={handleExport}
                 title="Exportar Painel"
-                availableFormats={['pdf', 'excel', 'png']}
+                availableFormats={['excel', 'csv']}
               />
             </div>
           </div>
@@ -266,9 +270,9 @@ const ExecutiveOverviewDashboard = () => {
               </div>
             </div>
 
-            {/*Top Products List*/}
+            {/* Top Chales List */}
             <div className="xl:col-span-1 h-full">
-              <TopProductsList products={topProducts} className="h-full" />
+              <TopChalesList chales={topChales} className="h-full" />
             </div>
           </div>
 

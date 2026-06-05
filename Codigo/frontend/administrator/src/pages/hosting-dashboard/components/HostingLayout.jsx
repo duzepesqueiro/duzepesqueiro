@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from '../../../components/ui/Header';
 import HostingSidebarMenu from './HostingSidebarMenu';
 import Button from '../../../components/ui/Button';
+import AlertNotificationCenter from '../../../components/ui/AlertNotificationCenter';
 
 const HostingLayout = ({ title, subtitle, actions, children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -29,7 +30,10 @@ const HostingLayout = ({ title, subtitle, actions, children }) => {
                   <h1 className="text-3xl font-heading font-bold text-foreground">{title}</h1>
                   {subtitle ? <p className="text-muted-foreground mt-1">{subtitle}</p> : null}
                 </div>
-                {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+                <div className="flex items-center gap-2">
+                  <AlertNotificationCenter />
+                  {actions}
+                </div>
               </div>
               {children}
             </section>

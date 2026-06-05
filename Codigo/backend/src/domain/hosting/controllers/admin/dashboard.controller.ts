@@ -51,8 +51,8 @@ export class DashboardController {
     );
 
     const [kpis, taxaOcupacao] = await Promise.all([
-      this.metricsService.obterKPIsGeral(),
-      this.metricsService.obterTaxaOcupacao(query.dataReferencia ?? new Date()),
+      this.metricsService.obterKPIsGeral(query.periodo ?? 'mes', query.dataReferencia ?? new Date()),
+      this.metricsService.obterTaxaOcupacaoPorPeriodo(periodo),
     ]);
 
     return {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RentalSection } from "@/components/fishing/RentalSection";
 import { ShoppingSection } from "@/components/fishing/ShoppingSection";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import { RentalHistory, RentalDTO } from "@/components/fishing/RentalHistory";
 import { OrderHistory } from "@/components/fishing/OrderHistory";
-import { getUserRentals, cancelRental, api, submitUserRating, getPendingRequests } from "@/lib/api";
+import { getUserRentals, cancelRental, getAllRentalProducts, submitUserRating, getPendingRequests } from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -19,25 +19,29 @@ import { CartSummary } from "@/components/fishing/CartSummary";
 import { showRatingToast } from "@/components/RatingToast";
 import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { toast } from "sonner";
+import { RentalProductDetail } from "@/pages/store/RentalProductDetail";
+import { SaleProductDetail } from "@/pages/store/SaleProductDetail";
 
 export interface RentalItem {
-  id: number;
+  id: string;
   name: string;
   description: string;
   hourlyPrice: number;
   available: number;
   image: string;
+  images: string[];
   fullDescription: string;
   unavailableDates: Date[];
 }
 
 export interface ShopItem {
-  id: number;
+  id: string;
   name: string;
   description: string;
   price: number;
   stock: number;
   image: string;
+  images: string[];
 }
 
 export interface CartItem extends ShopItem {
@@ -46,6 +50,7 @@ export interface CartItem extends ShopItem {
 
 const FishingGear = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"rental" | "purchase">("rental");
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [rentalOrders, setRentalOrders] = useState<Array<{ dto: RentalDTO; itemName: string }>>([]);
@@ -60,36 +65,46 @@ const FishingGear = () => {
   const refreshUserRentals = async (name?: string, phone?: string) => {
     try {
       const rentals: RentalDTO[] = await getUserRentals(name, phone);
-      const itemsRes = await api.get("/user/alugueis");
-      const items: RentalItem[] = (Array.isArray(itemsRes.data) ? itemsRes.data : []).map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        hourlyPrice: Number(d.hourlyPrice ?? 0),
-        available: Number(d.available ?? 0),
-        image: d.image,
-        fullDescription: d.fullDescription ?? d.description ?? "",
-        unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-      }));
-      const nameMap = new Map<number, string>(items.map((it) => [it.id, it.name]));
+      const catalog = await getAllRentalProducts({ limit: 100 });
+      const items: RentalItem[] = catalog.map((d: any) => {
+        const images = Array.isArray(d.images)
+          ? d.images.filter(Boolean).slice(0, 10)
+          : [];
+        const image = d.image || images[0] || "https://placehold.co/600x600?text=Aluguel";
+
+        return {
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          hourlyPrice: Number(d.hourlyPrice ?? d.salePrice ?? 0),
+          available: Number(d.available ?? d.stockQuantity ?? 0),
+          image,
+          images: images.length ? images : [image],
+          fullDescription: d.fullDescription ?? d.description ?? "",
+          unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
+        };
+      });
+      const nameMap = new Map<string, string>(items.map((it) => [it.id, it.name]));
       setRentalOrders(
-        rentals.map((dto) => ({ dto, itemName: nameMap.get(dto.rentalItemId) || "Item" }))
+        rentals.map((dto) => ({ dto, itemName: nameMap.get(String(dto.rentalItemId)) || "Item" }))
       );
     } catch (err) {
       console.error("Falha ao buscar seus aluguéis", err);
     }
   };
 
-  const addToCart = (item: ShopItem) => {
+  const addToCart = (item: ShopItem, quantity = 1) => {
     // Enforce authentication before allowing add to cart
     // if (!isAuthenticated()) {
     //   redirectToLogin(`add_to_cart:${item.id}`);
     //   return;
     // }
     setCartItems((prev) => {
+      const qty = Number(quantity || 0);
+      if (qty <= 0) return prev;
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
-        const nextQty = existing.quantity + 1;
+        const nextQty = existing.quantity + qty;
         if (nextQty > item.stock) {
           // Evita exceder estoque
           toast.error("Estoque insuficiente para adicionar mais unidades.");
@@ -105,13 +120,17 @@ const FishingGear = () => {
         toast.error("Este produto está sem estoque.");
         return prev;
       }
-      const next = [...prev, { ...item, quantity: 1 }];
+      if (qty > item.stock) {
+        toast.error("Estoque insuficiente para adicionar esta quantidade.");
+        return prev;
+      }
+      const next = [...prev, { ...item, quantity: qty }];
       toast.success("Item adicionado ao carrinho.");
       return next;
     });
   };
 
-  const updateCartQuantity = (id: number, quantity: number) => {
+  const updateCartQuantity = (id: string, quantity: number) => {
     setCartItems((prev) => {
       const item = prev.find((i) => i.id === id);
       if (!item) return prev;
@@ -144,6 +163,12 @@ const FishingGear = () => {
       setHistoryOpen(true);
       setHistoryTab(historyParam);
     }
+
+    if (rentalIdParam) {
+      navigate(`/store/rental/${rentalIdParam}`);
+    } else if (productIdParam) {
+      navigate(`/store/product/${productIdParam}`);
+    }
   }, [location.search]);
 
   // Ouve o estado global de loading emitido pelo cliente de API
@@ -165,7 +190,17 @@ const FishingGear = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header searchScope={activeTab === "rental" ? "rental" : "purchase"} />
+      <Header
+        searchScope={
+          location.pathname.includes("/store/rental/")
+            ? "rental"
+            : location.pathname.includes("/store/product/")
+              ? "purchase"
+              : activeTab === "rental"
+                ? "rental"
+                : "purchase"
+        }
+      />
 
       {/* Hero Section */}
       <section className="pt-32 pb-12 px-4 md:px-8">
@@ -187,229 +222,266 @@ const FishingGear = () => {
               <LoadingSpinner />
             </div>
           )}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as "rental" | "purchase")}
-            className="w-full"
-            style={globalLoading ? { display: 'none' } : undefined}
-          >
-            <div className="flex items-center justify-between mb-8">
-              {/* Abas principais */}
-              <TabsList className="grid max-w-md grid-cols-2">
-                <TabsTrigger value="rental">Aluguel de equipamentos</TabsTrigger>
-                <TabsTrigger value="purchase" className="relative">
-                  Comprar produtos
-                  {totalItems > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                    >
-                      {totalItems}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Ícones alinhados à direita com espaçamento */}
-              <div className="flex items-center gap-2">
-                {/* Botão de carrinho como gatilho do modal */}
-                <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" className="relative">
-                      <ShoppingCart className="h-5 w-5" />
-                      {totalItems > 0 && (
-                        <span className="absolute -top-1 -right-1">
+          <Routes>
+            <Route
+              index
+              element={
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(v) => setActiveTab(v as "rental" | "purchase")}
+                  className="w-full"
+                  style={globalLoading ? { display: "none" } : undefined}
+                >
+                  <div className="flex items-center justify-between mb-8">
+                    <TabsList className="grid max-w-md grid-cols-2">
+                      <TabsTrigger value="rental">Aluguel de equipamentos</TabsTrigger>
+                      <TabsTrigger value="purchase" className="relative">
+                        Comprar produtos
+                        {totalItems > 0 && (
                           <Badge
                             variant="destructive"
-                            className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                            className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
                           >
                             {totalItems}
                           </Badge>
-                        </span>
-                      )}
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent
-                    side="right"
-                    className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] overflow-y-auto transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
-                  >
-                    <SheetHeader>
-                      <SheetTitle className="sr-only">Carrinho</SheetTitle>
-                      <SheetDescription className="sr-only">Resumo do carrinho e compra</SheetDescription>
-                    </SheetHeader>
-                    <CartSummary
-                      cartItems={cartItems}
-                      onUpdateQuantity={updateCartQuantity}
-                      onPurchased={(buyerName, items) => {
-                        // Fecha a barra lateral do carrinho ao concluir a compra
-                        setCartOpen(false);
-                        setLastBuyerName(buyerName);
-                        if (items.length > 0) {
-                          // Enfileira todos; mostra apenas o primeiro como toast lateral
-                          items.forEach((it) => enqueueRatingPrompt({ type: "product", id: it.id, name: it.name }));
-                          const first = items[0];
-                          const prompt = { type: "product" as const, id: first.id, name: first.name };
-                          // Exibe a avaliação após a confirmação (pequeno atraso para ordem visual)
-                          setTimeout(() => {
-                            showRatingToast(prompt, {
-                              onSubmit: async (rating, comment) => {
-                                try {
-                                  await submitUserRating({ targetType: 'PRODUCT', targetId: prompt.id, rating, comment });
-                                  toast.success('Obrigado pela sua avaliação!');
-                                } catch (e) {
-                                  toast.error('Não foi possível enviar sua avaliação.');
-                                } finally {
-                                  dequeueRatingPrompt(prompt.id);
-                                }
-                              },
-                              onClose: () => dequeueRatingPrompt(prompt.id),
-                            });
-                          }, 300);
-                          }
-                      }}
-                    />
-                  </SheetContent>
-                </Sheet>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
 
-                {/* Botão de histórico: compras e aluguéis */}
-                <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setHistoryOpen(true)} aria-label="Abrir histórico">
-                      <History className="h-5 w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent
-                    side="right"
-                    className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] max-h-[100dvh] overflow-y-auto overflow-x-hidden transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
-                  >
-                    <SheetHeader>
-                      <SheetTitle>Histórico</SheetTitle>
-                      <SheetDescription>Compras e Aluguéis do usuário</SheetDescription>
-                    </SheetHeader>
-                    <div className="mt-4 space-y-4">
-                      {/* Toolbar de filtros em estilo e-commerce */}
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <Filter className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Filtros rápidos</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Select>
-                            <SelectTrigger aria-label="Período" className="w-40 justify-between">
-                              <span className="flex items-center gap-2"><Calendar className="h-4 w-4" /></span>
-                            </SelectTrigger>
-                            <SelectContent align="start">
-                              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                              <SelectItem value="6m">Últimos 6 meses</SelectItem>
-                              <SelectItem value="12m">Últimos 12 meses</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select>
-                            <SelectTrigger aria-label="Status" className="w-40 justify-between">
-                              Status
-                            </SelectTrigger>
-                            <SelectContent align="start">
-                              <SelectItem value="all">Todos</SelectItem>
-                              <SelectItem value="done">Concluído</SelectItem>
-                              <SelectItem value="pending">Pendente</SelectItem>
-                              <SelectItem value="canceled">Cancelado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Abas com cabeçalho fixo */}
-                      <Tabs value={historyTab} onValueChange={(v) => setHistoryTab(v as "orders" | "rentals")} className="w-full">
-                        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2">
-                          <TabsList className="grid w-full max-w-md grid-cols-2">
-                            <TabsTrigger value="orders">Histórico de Compras</TabsTrigger>
-                            <TabsTrigger value="rentals">Histórico de Aluguéis</TabsTrigger>
-                          </TabsList>
-                        </div>
-                        <TabsContent value="orders" className="mt-4">
-                          <OrderHistory initialBuyerName={lastBuyerName} />
-                        </TabsContent>
-                        <TabsContent value="rentals" className="mt-4">
-                          <RentalHistory
-                            orders={rentalOrders}
-                            onCancel={async (id: number) => {
-                              const updated = await cancelRental(id);
-                              setRentalOrders((prev) =>
-                                prev.map((o) =>
-                                  o.dto.id === id
-                                    ? { dto: { ...o.dto, returnTime: updated?.returnTime }, itemName: o.itemName }
-                                    : o
-                                )
-                              );
-                              if (lastRenterName || lastPhone) {
-                                refreshUserRentals(lastRenterName, lastPhone);
-                              }
-                            }}
-                            onUpdated={() => {
-                              if (lastRenterName || lastPhone) {
-                                refreshUserRentals(lastRenterName, lastPhone);
+                    <div className="flex items-center gap-2">
+                      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+                        <SheetTrigger asChild>
+                          <Button variant="outline" size="icon" className="relative">
+                            <ShoppingCart className="h-5 w-5" />
+                            {totalItems > 0 && (
+                              <span className="absolute -top-1 -right-1">
+                                <Badge
+                                  variant="destructive"
+                                  className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                                >
+                                  {totalItems}
+                                </Badge>
+                              </span>
+                            )}
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent
+                          side="right"
+                          className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] overflow-y-auto transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
+                        >
+                          <SheetHeader>
+                            <SheetTitle className="sr-only">Carrinho</SheetTitle>
+                            <SheetDescription className="sr-only">Resumo do carrinho e compra</SheetDescription>
+                          </SheetHeader>
+                          <CartSummary
+                            cartItems={cartItems}
+                            onUpdateQuantity={updateCartQuantity}
+                            onPurchased={(buyerName, items) => {
+                              setCartOpen(false);
+                              setLastBuyerName(buyerName);
+                              if (items.length > 0) {
+                                items.forEach((it) => enqueueRatingPrompt({ type: "product", id: it.id, name: it.name }));
+                                const first = items[0];
+                                const prompt = { type: "product" as const, id: first.id, name: first.name };
+                                setTimeout(() => {
+                                  showRatingToast(prompt, {
+                                    onSubmit: async (rating, comment) => {
+                                      try {
+                                        await submitUserRating({ targetType: "PRODUCT", targetId: prompt.id, rating, comment });
+                                        toast.success("Obrigado pela sua avaliação!");
+                                      } catch (e) {
+                                        toast.error("Não foi possível enviar sua avaliação.");
+                                      } finally {
+                                        dequeueRatingPrompt(prompt.id);
+                                      }
+                                    },
+                                    onClose: () => dequeueRatingPrompt(prompt.id),
+                                  });
+                                }, 300);
                               }
                             }}
                           />
-                        </TabsContent>
-                      </Tabs>
+                        </SheetContent>
+                      </Sheet>
+
+                      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+                        <SheetTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={() => setHistoryOpen(true)} aria-label="Abrir histórico">
+                            <History className="h-5 w-5" />
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent
+                          side="right"
+                          className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] max-h-[100dvh] overflow-y-auto overflow-x-hidden transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
+                        >
+                          <SheetHeader>
+                            <SheetTitle>Histórico</SheetTitle>
+                            <SheetDescription>Compras e Aluguéis do usuário</SheetDescription>
+                          </SheetHeader>
+                          <div className="mt-4 space-y-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-center gap-2">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Filtros rápidos</span>
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Select>
+                                  <SelectTrigger aria-label="Período" className="w-40 justify-between">
+                                    <span className="flex items-center gap-2"><Calendar className="h-4 w-4" /></span>
+                                  </SelectTrigger>
+                                  <SelectContent align="start">
+                                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                                    <SelectItem value="6m">Últimos 6 meses</SelectItem>
+                                    <SelectItem value="12m">Últimos 12 meses</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select>
+                                  <SelectTrigger aria-label="Status" className="w-40 justify-between">
+                                    Status
+                                  </SelectTrigger>
+                                  <SelectContent align="start">
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="done">Concluído</SelectItem>
+                                    <SelectItem value="pending">Pendente</SelectItem>
+                                    <SelectItem value="canceled">Cancelado</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <Separator />
+
+                            <Tabs value={historyTab} onValueChange={(v) => setHistoryTab(v as "orders" | "rentals")} className="w-full">
+                              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2">
+                                <TabsList className="grid w-full max-w-md grid-cols-2">
+                                  <TabsTrigger value="orders">Histórico de Compras</TabsTrigger>
+                                  <TabsTrigger value="rentals">Histórico de Aluguéis</TabsTrigger>
+                                </TabsList>
+                              </div>
+                              <TabsContent value="orders" className="mt-4">
+                                <OrderHistory initialBuyerName={lastBuyerName} />
+                              </TabsContent>
+                              <TabsContent value="rentals" className="mt-4">
+                                <RentalHistory
+                                  orders={rentalOrders}
+                                  onCancel={async (id: string | number) => {
+                                    const updated = await cancelRental(id);
+                                    setRentalOrders((prev) =>
+                                      prev.map((o) =>
+                                        o.dto.id === id
+                                          ? { dto: { ...o.dto, returnTime: updated?.returnTime }, itemName: o.itemName }
+                                          : o
+                                      )
+                                    );
+                                    if (lastRenterName || lastPhone) {
+                                      refreshUserRentals(lastRenterName, lastPhone);
+                                    }
+                                  }}
+                                  onUpdated={() => {
+                                    if (lastRenterName || lastPhone) {
+                                      refreshUserRentals(lastRenterName, lastPhone);
+                                    }
+                                  }}
+                                />
+                              </TabsContent>
+                            </Tabs>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
                     </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            </div>
+                  </div>
 
-            <TabsContent value="rental" className="mt-0">
-              <RentalSection
-                onBooked={({ dto, itemName, renterName, customerPhone }) => {
-                  setLastRenterName(renterName);
-                  setLastPhone(customerPhone);
-                  // Atualiza imediatamente com o último aluguel
-                  setRentalOrders((prev) => [{ dto, itemName }, ...prev]);
-                  // Depois busca histórico completo do usuário
-                  refreshUserRentals(renterName, customerPhone);
-                  const prompt = { type: "rental" as const, id: dto?.rentalItemId ?? 0, name: itemName };
-                  enqueueRatingPrompt(prompt);
-                  // Exibe após confirmação de aluguel (leve atraso)
-                  setTimeout(() => {
-                    showRatingToast(prompt, {
-                      onSubmit: async (rating, comment) => {
-                        try {
-                          await submitUserRating({ targetType: 'RENTAL', targetId: prompt.id, rating, comment });
-                          toast.success('Obrigado pela sua avaliação!');
-                        } catch (e) {
-                          toast.error('Não foi possível enviar sua avaliação.');
-                        } finally {
-                          dequeueRatingPrompt(prompt.id);
-                        }
-                      },
-                      onClose: () => dequeueRatingPrompt(prompt.id),
-                    });
-                  }, 300);
-                }}
-                initialRentalId={(() => {
-                  const params = new URLSearchParams(location.search);
-                  const rid = params.get("rentalId");
-                  return rid ? Number(rid) : undefined;
-                })()}
-              />
-            </TabsContent>
+                  <TabsContent value="rental" className="mt-0">
+                    <RentalSection
+                      onBooked={({ dto, itemName, renterName, customerPhone }) => {
+                        setLastRenterName(renterName);
+                        setLastPhone(customerPhone);
+                        setRentalOrders((prev) => [{ dto, itemName }, ...prev]);
+                        refreshUserRentals(renterName, customerPhone);
+                        const rentalTargetId = String(dto?.productId ?? dto?.rentalItemId ?? "");
+                        const prompt = { type: "rental" as const, id: rentalTargetId, name: itemName };
+                        enqueueRatingPrompt(prompt);
+                        setTimeout(() => {
+                          showRatingToast(prompt, {
+                            onSubmit: async (rating, comment) => {
+                              try {
+                                await submitUserRating({ targetType: "RENTAL", targetId: prompt.id, rating, comment });
+                                toast.success("Obrigado pela sua avaliação!");
+                              } catch (e) {
+                                toast.error("Não foi possível enviar sua avaliação.");
+                              } finally {
+                                dequeueRatingPrompt(prompt.id);
+                              }
+                            },
+                            onClose: () => dequeueRatingPrompt(prompt.id),
+                          });
+                        }, 300);
+                      }}
+                      initialRentalId={(() => {
+                        const params = new URLSearchParams(location.search);
+                        const rid = params.get("rentalId");
+                        return rid || undefined;
+                      })()}
+                    />
+                  </TabsContent>
 
-            <TabsContent value="purchase" className="mt-0">
-              <ShoppingSection
-                cartItems={cartItems}
-                onAddToCart={addToCart}
-                onUpdateQuantity={updateCartQuantity}
-                initialProductId={(() => {
-                  const params = new URLSearchParams(location.search);
-                  const pid = params.get("productId");
-                  return pid ? Number(pid) : undefined;
-                })()}
-              />
-            </TabsContent>
-          </Tabs>
+                  <TabsContent value="purchase" className="mt-0">
+                    <ShoppingSection
+                      cartItems={cartItems}
+                      onAddToCart={addToCart}
+                      onUpdateQuantity={updateCartQuantity}
+                      initialProductId={(() => {
+                        const params = new URLSearchParams(location.search);
+                        const pid = params.get("productId");
+                        return pid || undefined;
+                      })()}
+                    />
+                  </TabsContent>
+                </Tabs>
+              }
+            />
+            <Route
+              path="rental/:id"
+              element={
+                <RentalProductDetail
+                  onBooked={({ dto, itemName, renterName, customerPhone }) => {
+                    setLastRenterName(renterName);
+                    setLastPhone(customerPhone);
+                    setRentalOrders((prev) => [{ dto, itemName }, ...prev]);
+                    refreshUserRentals(renterName, customerPhone);
+                    const rentalTargetId = String(dto?.productId ?? dto?.rentalItemId ?? "");
+                    const prompt = { type: "rental" as const, id: rentalTargetId, name: itemName };
+                    enqueueRatingPrompt(prompt);
+                    setTimeout(() => {
+                      showRatingToast(prompt, {
+                        onSubmit: async (rating, comment) => {
+                          try {
+                            await submitUserRating({ targetType: "RENTAL", targetId: prompt.id, rating, comment });
+                            toast.success("Obrigado pela sua avaliação!");
+                          } catch (e) {
+                            toast.error("Não foi possível enviar sua avaliação.");
+                          } finally {
+                            dequeueRatingPrompt(prompt.id);
+                          }
+                        },
+                        onClose: () => dequeueRatingPrompt(prompt.id),
+                      });
+                    }, 300);
+                  }}
+                />
+              }
+            />
+            <Route
+              path="product/:id"
+              element={
+                <SaleProductDetail
+                  onAddToCart={(item, qty) => {
+                    addToCart(item, qty);
+                  }}
+                />
+              }
+            />
+          </Routes>
         </div>
       </section>
 

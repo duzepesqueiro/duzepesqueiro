@@ -77,6 +77,15 @@ export class EventCardResponseDto {
   @ApiProperty({ example: 'https://cdn.example.com/events/evento-1.webp' })
   imageUrl: string;
 
+  @ApiProperty({
+    type: [String],
+    example: [
+      'https://cdn.example.com/events/evento-1.webp',
+      'https://cdn.example.com/events/evento-2.webp',
+    ],
+  })
+  images: string[];
+
   @ApiProperty({ example: 'Lago Azul - Setor Norte' })
   location: string;
 

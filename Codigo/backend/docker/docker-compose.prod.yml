@@ -9,7 +9,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
-      MONGO_URI: ${MONGO_URI}
+      MONGODB_URL: ${MONGODB_URL}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       RUN_PRISMA_SEED: ${RUN_PRISMA_SEED:-false}
     healthcheck:

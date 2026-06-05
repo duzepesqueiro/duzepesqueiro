@@ -162,13 +162,21 @@ export class UsersService {
       id,
     );
 
-    this.notificationsService.sendToAdmins('users:updated', {
-      userId: updated.id,
-      name,
-      email: primaryEmail,
-      updatedBy: updatedBy.id,
-      role: updated.role,
-      active: isActiveNow,
+    await this.notificationsService.notifyAdmins({
+      source: 'users',
+      eventKey: 'users.updated',
+      title: 'Usuário atualizado',
+      message: `${name} foi atualizado por um administrador.`,
+      type: 'INFO',
+      dedupKey: `users.updated.${updated.id}.${updatedBy.id}.${String(updated.role)}.${isActiveNow ? '1' : '0'}`,
+      payload: {
+        userId: updated.id,
+        name,
+        email: primaryEmail,
+        updatedBy: updatedBy.id,
+        role: updated.role,
+        active: isActiveNow,
+      },
     });
 
     return this.toAdminUser(updated);
@@ -199,10 +207,18 @@ export class UsersService {
       id,
     );
 
-    this.notificationsService.sendToAdmins('users:deleted', {
-      userId: id,
-      deletedBy: deletedBy.id,
-      email: existing.emails[0]?.email ?? null,
+    await this.notificationsService.notifyAdmins({
+      source: 'users',
+      eventKey: 'users.deleted',
+      title: 'Usuário removido',
+      message: `Usuário ${existing.profile?.fullName ?? existing.username} foi removido.`,
+      type: 'WARNING',
+      dedupKey: `users.deleted.${id}`,
+      payload: {
+        userId: id,
+        deletedBy: deletedBy.id,
+        email: existing.emails[0]?.email ?? null,
+      },
     });
 
     return { success: true };
@@ -451,12 +467,20 @@ export class UsersService {
       user.id,
     );
 
-    this.notificationsService.sendToAdmins('users:created', {
-      userId: user.id,
-      email: primaryEmail,
-      name,
-      role: user.role,
-      createdBy: actor.id,
+    await this.notificationsService.notifyAdmins({
+      source: 'users',
+      eventKey: 'users.created',
+      title: 'Novo usuário cadastrado',
+      message: `${name} foi cadastrado na plataforma.`,
+      type: 'SUCCESS',
+      dedupKey: `users.created.${user.id}`,
+      payload: {
+        userId: user.id,
+        email: primaryEmail,
+        name,
+        role: user.role,
+        createdBy: actor.id,
+      },
     });
 
     return user;

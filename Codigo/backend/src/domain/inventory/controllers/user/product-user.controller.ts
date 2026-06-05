@@ -14,7 +14,7 @@ import {
 } from '../../dto/user';
 import { ProductUserService } from '../../services';
 
-@Controller('user/products')
+@Controller(['user/products', 'api/user/products'])
 @ApiTags('Inventory - User')
 @UsePipes(
   new ValidationPipe({

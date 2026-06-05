@@ -6,7 +6,7 @@ import { RatingStars } from "@/components/RatingStars";
 import { X } from "lucide-react";
 
 export interface RatingToastPrompt {
-  id: number;
+  id: string | number;
   type: "event" | "rental" | "product";
   name: string;
 }

@@ -24,6 +24,7 @@ import {
   ProductLifecycleNotificationMailPayload,
   ProductPurchaseConfirmationMailPayload,
   RentalConfirmationMailPayload,
+  ReviewPublishedMailPayload,
 } from '../interfaces/mail-template-payloads.interface';
 
 @Injectable()
@@ -584,6 +585,35 @@ export class MailService {
         error,
       );
     }
+  }
+
+  async sendReviewPublishedEmail(payload: ReviewPublishedMailPayload) {
+    const domainLabel: Record<ReviewPublishedMailPayload['domain'], string> = {
+      HOSTING: 'Hospedagem',
+      EVENT: 'Evento',
+      RENTAL: 'Aluguel',
+      SALES: 'Vendas',
+    };
+
+    await this.sendTemplatedEmail(
+      {
+        to: payload.email,
+        subject: `Avaliação publicada - ${payload.targetName ?? domainLabel[payload.domain]}`,
+        template: 'review-published',
+        context: {
+          ...payload,
+          domainLabel: domainLabel[payload.domain],
+          targetName: payload.targetName ?? domainLabel[payload.domain],
+          year: new Date().getFullYear(),
+        },
+        event: 'ReviewPublishedEmail',
+        metadata: {
+          domain: payload.domain,
+          rating: payload.rating,
+        },
+      },
+      true,
+    );
   }
 
   async sendProductLifecycleNotification(

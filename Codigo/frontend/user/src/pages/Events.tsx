@@ -1,163 +1,169 @@
 import { useState, useMemo, useEffect } from "react";
 import { format as formatDate } from "date-fns";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { EventCard } from "@/components/EventCard";
-import { EventsCarousel } from "@/components/EventsCarousel";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { RegistrationFormModal } from "@/components/RegistrationFormModal";
+import { MyEventsModal } from "@/components/MyEventsModal";
 import { enqueueRatingPrompt, dequeueRatingPrompt } from "@/lib/ratings";
 import { showRatingToast } from "@/components/RatingToast";
 import { EventFilters, EventFiltersState } from "@/components/EventFilters";
-import { api, submitUserRating, getPendingRequests } from "@/lib/api";
+import { api, submitUserRating } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
+import { Ticket } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import Header from "@/components/Header";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PAGE_SIZE = 9;
+
+interface PaginatedEventsResponse {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const mapStatusToApi = (value: string): "ALL" | "UPCOMING" | "CANCELLED" => {
+  if (value === "cancelled") return "CANCELLED";
+  if (value === "scheduled") return "UPCOMING";
+  return "ALL";
+};
+
+const isEventPast = (dateValue?: string | Date, timeValue?: string): boolean => {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return false;
+
+  if (timeValue && /^\d{2}:\d{2}/.test(timeValue)) {
+    const [hh, mm] = timeValue.split(":").map((v) => Number(v));
+    if (!Number.isNaN(hh) && !Number.isNaN(mm)) {
+      date.setHours(hh, mm, 0, 0);
+    }
+  } else {
+    date.setHours(23, 59, 59, 999);
+  }
+
+  return date.getTime() < Date.now();
+};
 
 const Events = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [carouselEvents, setCarouselEvents] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [allEvents, setAllEvents] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
-  const [globalLoading, setGlobalLoading] = useState<boolean>(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [isMyEventsOpen, setIsMyEventsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<number | undefined>();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
+  const [selectedEventTitle, setSelectedEventTitle] = useState<string | undefined>();
   // Rating via lateral toast, not dialog
   const [filters, setFilters] = useState<EventFiltersState>({
     name: "",
     date: undefined,
-    capacity: "all",
     time: "",
     status: "all",
   });
 
   // Busca vinda da barra de pesquisa (Header), via parâmetro ?q
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const hasActiveFilters = useMemo(() => {
     return !!(
       (searchQuery && searchQuery.trim()) ||
       (filters.name && filters.name.trim()) ||
       filters.date ||
-      filters.capacity !== "all" ||
       (filters.time && filters.time !== "all") ||
       filters.status !== "all"
     );
   }, [searchQuery, filters]);
 
-  // Carrega todos os eventos na montagem (para carrossel e base de busca)
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextOpen = params.get("myEvents") === "1";
+    setIsMyEventsOpen(nextOpen);
+  }, [location.search]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
+
+  useEffect(() => {
+    let mounted = true;
     const loadEvents = async () => {
       try {
-        const response = await api.get("/eventos/filtrar");
-        const data = Array.isArray(response.data) ? response.data : [];
-        setCarouselEvents(data);
-        setAllEvents(data);
-        // Inicialmente filteredEvents pode ser igual a allEvents, 
-        // mas será atualizado pelo useEffect de filtro logo em seguida.
+        setIsLoadingEvents(true);
+        const nameFilter = filters.name.trim();
+        const globalQuery = searchQuery.trim();
+        const response = await api.get<PaginatedEventsResponse>("/events", {
+          params: {
+            name: nameFilter || globalQuery || undefined,
+            date: filters.date ? formatDate(filters.date, "dd/MM/yyyy") : undefined,
+            time: filters.time || undefined,
+            status: mapStatusToApi(filters.status),
+            page: currentPage,
+            limit: PAGE_SIZE,
+          },
+        });
+
+        if (!mounted) return;
+        const raw = Array.isArray(response.data?.items) ? response.data.items : [];
+        const data = raw.map((e: any) => ({
+          ...e,
+          images: Array.isArray(e.images) ? e.images : e.imageUrl ? [e.imageUrl] : [],
+          date: e.eventDate ? (() => { const [y, m, d] = String(e.eventDate).split("T")[0].split("-"); return `${d}/${m}/${y}`; })() : "",
+          time: e.eventTime ?? "",
+          currentAttendees: (e.totalSlots ?? 0) - (e.availableSlots ?? 0),
+          totalCapacity: e.totalSlots ?? 0,
+          description: e.description ?? "",
+          rules: e.rules ?? "",
+        }));
+
+        setEvents(data);
+        setTotalItems(Number(response.data?.total ?? 0));
+        setPageSize(Number(response.data?.pageSize ?? PAGE_SIZE));
       } catch (error) {
-        console.error("Erro ao buscar eventos", error);
-        setCarouselEvents([]);
-        setAllEvents([]);
-        setFilteredEvents([]);
+        console.error("Erro ao buscar eventos paginados", error);
+        if (!mounted) return;
+        setEvents([]);
+        setTotalItems(0);
+        setPageSize(PAGE_SIZE);
+      } finally {
+        if (mounted) setIsLoadingEvents(false);
       }
     };
+
     loadEvents();
-  }, []);
+    return () => {
+      mounted = false;
+    };
+  }, [searchQuery, filters, currentPage, refreshKey]);
 
-  // Lógica de filtragem CLIENT-SIDE (replicando padrão de Aluguel/Vendas)
-  useEffect(() => {
-    let result = [...allEvents];
-
-    // 1. Filtro por Busca Global (Header) ou Nome (Filtro Local)
-    // Se houver searchQuery (Header), ela tem prioridade ou soma-se? 
-    // O padrão geralmente é: se o usuário digitou no header, filtra por isso.
-    // Se digitou no filtro local, filtra por isso.
-    // Vamos considerar ambos combinados (AND) ou priorizar um? 
-    // O código anterior usava um "effectiveTitle". Vamos manter a lógica de que ambos filtram o título.
-    
-    const query = searchQuery.trim().toLowerCase();
-    const filterName = filters.name?.trim().toLowerCase();
-
-    if (query) {
-      result = result.filter((e) => String(e.title || "").toLowerCase().includes(query));
-    }
-    if (filterName) {
-      result = result.filter((e) => String(e.title || "").toLowerCase().includes(filterName));
-    }
-
-    // 2. Filtro por Data
-    if (filters.date) {
-      const filterDateStr = formatDate(filters.date, "yyyy-MM-dd");
-      result = result.filter((e) => {
-        if (!e.date) return false;
-        // Assume e.date vindo do backend ou formato string comparável
-        // Se e.date for ISO completo, extrair a parte da data
-        return String(e.date).includes(filterDateStr);
-      });
-    }
-
-    // 3. Filtro por Capacidade
-    if (filters.capacity && filters.capacity !== "all") {
-      result = result.filter((e) => {
-        const cap = Number(e?.totalCapacity ?? e?.capacity ?? 0);
-        if (filters.capacity === "small") return cap < 150;
-        if (filters.capacity === "medium") return cap >= 150 && cap <= 500;
-        if (filters.capacity === "large") return cap > 500;
-        return true;
-      });
-    }
-
-    // 4. Filtro por Horário
-    if (filters.time && filters.time !== "all") {
-      const t = String(filters.time).trim().toLowerCase();
-      if (t) {
-        result = result.filter((e) => String(e.time || "").toLowerCase().includes(t));
-      }
-    }
-
-    // 5. Filtro por Status
-    if (filters.status && filters.status !== "all") {
-      result = result.filter((e) => e.status === filters.status);
-    }
-
-    setFilteredEvents(result);
-  }, [allEvents, filters, searchQuery]);
-
-  // Abre modal via parâmetro de query (eventId)
-  const location = useLocation();
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get("eventId");
-    const id = eventIdParam ? Number(eventIdParam) : undefined;
-    if (id) {
-      // if (!isAuthenticated()) {
-      //   redirectToLogin(`register_event:${id}`);
-      //   return;
-      // }
-      setSelectedEventId(id);
+    if (eventIdParam) {
+      const event = events.find((e) => String(e.id) === eventIdParam);
+      setSelectedEventId(eventIdParam);
+      setSelectedEventTitle(event?.title);
       setIsModalOpen(true);
     }
-  }, [location.search]);
-
-  // Ouve o estado global de loading emitido pelo cliente de API
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const pending = (e as CustomEvent)?.detail?.pending ?? 0;
-      setGlobalLoading(pending > 0);
-    };
-    setGlobalLoading(getPendingRequests() > 0);
-    if (typeof window !== 'undefined') {
-      window.addEventListener('global-loading', handler);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('global-loading', handler);
-      }
-    };
-  }, []);
+  }, [location.search, events]);
 
   // Atualiza apenas a busca do carrossel pelo parâmetro (?q), sem mexer nos filtros
   useEffect(() => {
@@ -166,15 +172,18 @@ const Events = () => {
     setSearchQuery(q);
   }, [location.search]);
 
-  const handleRegister = (eventId: number) => {
-    // If not authenticated, redirect to login and store pending action
-    // if (!isAuthenticated()) {
-    //   redirectToLogin(`register_event:${eventId}`);
-    //   return;
-    // }
+  const handleRegister = (eventId: string) => {
+    const event = events.find((e) => String(e.id) === eventId);
     setSelectedEventId(eventId);
+    setSelectedEventTitle(event?.title);
     setIsModalOpen(true);
   };
+
+  const handleOpenDetails = (eventId: string) => {
+    navigate(`/events/${eventId}`);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / Math.max(1, pageSize)));
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,7 +192,7 @@ const Events = () => {
       {/* Hero Section */}
       <section className="pt-24 pb-6 px-4 md:px-8">
         <div className="max-w-7xl mx-auto text-center space-y-4 animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-bold">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold">
             Próximos eventos
           </h1>
           <p>
@@ -206,20 +215,34 @@ const Events = () => {
       {/* Events Carousel or Grid Section */}
       <section className="py-12 px-4 md:px-8">
         <div className="max-w-7xl mx-auto">
-          {globalLoading ? (
+          {isLoadingEvents ? (
             <div className="py-24">
               <LoadingSpinner />
             </div>
-          ) : hasActiveFilters ? (
+          ) : (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Resultados da busca</h2>
-              {filteredEvents.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {hasActiveFilters ? "Resultados da busca" : "Eventos disponíveis"}
+                </h2>
+                {isAuthenticated() && (
+                  <Button
+                    onClick={() => setIsMyEventsOpen(true)}
+                    className="shrink-0 bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold gap-2"
+                  >
+                    <Ticket className="w-4 h-4" />
+                    Meus eventos
+                  </Button>
+                )}
+              </div>
+              {events.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredEvents.map((event) => (
+                  {events.map((event) => (
                     <EventCard 
                       key={event.id} 
                       {...event} 
                       onRegister={() => handleRegister(event.id)} 
+                      onOpenDetails={() => handleOpenDetails(event.id)}
                     />
                   ))}
                 </div>
@@ -228,19 +251,63 @@ const Events = () => {
                   Nenhum evento encontrado para os filtros selecionados.
                 </div>
               )}
+              {events.length > 0 && totalPages > 1 && (
+                <Pagination className="mt-2">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage((page) => Math.max(1, page - 1));
+                        }}
+                        className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          isActive={page === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage((page) => Math.min(totalPages, page + 1));
+                        }}
+                        className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
-          ) : (
-            <EventsCarousel onRegister={handleRegister} events={carouselEvents} />
           )}
         </div>
       </section>
+
+      {/* My Events Modal */}
+      <MyEventsModal
+        open={isMyEventsOpen}
+        onOpenChange={setIsMyEventsOpen}
+        onRegistrationCancelled={() => setRefreshKey((k) => k + 1)}
+      />
 
       {/* Registration Modal */}
       <RegistrationFormModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         initialEventId={selectedEventId}
+        initialEventTitle={selectedEventTitle}
         onRegistered={({ eventId, eventTitle }) => {
+          setRefreshKey((k) => k + 1);
           const name = eventTitle || "Evento";
           const prompt = { type: "event" as const, id: eventId, name };
           enqueueRatingPrompt(prompt);
@@ -259,7 +326,7 @@ const Events = () => {
               },
               onClose: () => dequeueRatingPrompt(prompt.id),
             });
-          }, 300);
+          }, 150);
         }}
       />
 

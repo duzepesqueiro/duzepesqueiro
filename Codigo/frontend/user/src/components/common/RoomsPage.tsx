@@ -129,21 +129,60 @@ const RoomsPage = () => {
     ? serverRooms.map((c) => mapApiChaletToRoom(c))
     : [];
 
+  const roomIds = useMemo(() => roomList.map((room) => room.id).filter(Boolean), [roomList]);
+
+  const { data: reviewsSummaryByRoomId = {} } = useQuery<
+    Record<string, { averageRating: number; reviewsCount: number }>
+  >({
+    queryKey: ['hosting-rooms-reviews-summary', roomIds.join('|')],
+    enabled: roomIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        roomIds.map(async (roomId) => {
+          try {
+            const { data } = await api.get('/api/reviews/summary', {
+              params: { domain: 'HOSTING', targetId: roomId },
+            });
+            const averageRating = Number(data?.averageRating ?? 0);
+            const reviewsCount = Number(data?.reviewsCount ?? 0);
+            return [roomId, { averageRating, reviewsCount }] as const;
+          } catch {
+            return [roomId, { averageRating: 0, reviewsCount: 0 }] as const;
+          }
+        }),
+      );
+      return Object.fromEntries(responses);
+    },
+    staleTime: 1000 * 60,
+  });
+
+  const roomListWithReviews = useMemo(() => {
+    return roomList.map((room) => {
+      const summary = reviewsSummaryByRoomId[room.id];
+      if (!summary) return room;
+      return {
+        ...room,
+        averageRating: summary.averageRating,
+        reviewsCount: summary.reviewsCount,
+      };
+    });
+  }, [roomList, reviewsSummaryByRoomId]);
+
   const hasDateFilter = Boolean(booking.checkIn && booking.checkOut);
 
   const { data: availabilityMap = {}, isLoading: isLoadingAvailability } = useQuery<Record<string, boolean>>({
     queryKey: [
       'rooms-availability',
-      roomList.map((room) => room.id).join('|'),
+      roomListWithReviews.map((room) => room.id).join('|'),
       booking.checkIn ? booking.checkIn.toISOString() : null,
       booking.checkOut ? booking.checkOut.toISOString() : null,
     ],
-    enabled: hasDateFilter && roomList.length > 0,
+    enabled: hasDateFilter && roomListWithReviews.length > 0,
     queryFn: async () => {
       const checkin = booking.checkIn!.toISOString();
       const checkout = booking.checkOut!.toISOString();
       const responses = await Promise.all(
-        roomList.map(async (room) => {
+        roomListWithReviews.map(async (room) => {
           try {
             const { data } = await api.get('/api/chales/disponibilidade', {
               params: { chaleId: room.id, checkin, checkout },
@@ -161,10 +200,10 @@ const RoomsPage = () => {
   });
 
   const priceSliderMax = useMemo(() => {
-    if (!roomList.length) return 1000;
-    const maxPrice = Math.max(...roomList.map((room) => room.pricePerNight || 0));
+    if (!roomListWithReviews.length) return 1000;
+    const maxPrice = Math.max(...roomListWithReviews.map((room) => room.pricePerNight || 0));
     return Math.max(1000, Math.ceil(maxPrice / 100) * 100);
-  }, [roomList]);
+  }, [roomListWithReviews]);
 
   useEffect(() => {
     if (!priceFilterEnabled) {
@@ -175,7 +214,7 @@ const RoomsPage = () => {
   }, [priceSliderMax, priceFilterEnabled]);
 
   const filteredRooms = useMemo(() => {
-    return roomList
+    return roomListWithReviews
       .filter((room) => {
         if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
         if (petsOnly && !room.petFriendly) return false;
@@ -187,7 +226,7 @@ const RoomsPage = () => {
         room,
         unavailable: hasDateFilter ? Boolean(availabilityMap[room.id]) : false,
       }));
-  }, [roomList, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
+  }, [roomListWithReviews, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
 
   const summaryChips = [
     booking.checkIn && booking.checkOut
@@ -331,7 +370,11 @@ const RoomsPage = () => {
                     <label className="text-xs font-semibold uppercase tracking-wider text-[#024059]">
                       Aceita pets
                     </label>
-                    <Switch checked={petsOnly} onCheckedChange={setPetsOnly} />
+                    <Switch 
+                      checked={petsOnly} 
+                      onCheckedChange={setPetsOnly} 
+                      className="data-[state=unchecked]:bg-black/40"
+                    />
                   </div>
                 </div>
               </div>

@@ -1,17 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User as UserIcon, XCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, XCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { api, getUserOrders, cancelOrder } from "@/lib/api";
+import { listSalesOrdersPage, cancelOrder } from "@/lib/api";
 
 export interface SaleDTO {
-  id: number;
-  saleItemId: number;
-  buyerName: string;
-  quantity: number;
-  totalPrice: number;
+  id: string;
+  status: string;
+  paymentStatus: string;
+  totalAmount: number;
+  items: Array<{
+    id: string;
+    productId: string;
+    nameSnapshot: string;
+    imageSnapshot?: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
   createdAt: string; // ISO datetime
 }
 
@@ -30,27 +38,30 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
   const [productQuery, setProductQuery] = useState<string>("");
   const [orders, setOrders] = useState<Array<{ dto: SaleDTO; item: ItemInfo }>>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [total, setTotal] = useState<number>(0);
+  const pageSize = 10;
 
   const refreshOrders = async () => {
     try {
       setLoading(true);
-      // Carrega pedidos do usuário (sem filtrar por nome)
-      const byName = (initialBuyerName || "").trim();
-      const sales: SaleDTO[] = await getUserOrders(byName ? byName : undefined);
-      const itemsRes = await api.get("/user/loja");
-      const items: any[] = Array.isArray(itemsRes.data) ? itemsRes.data : [];
-      const itemMap = new Map<number, ItemInfo>(
-        items.map((it: any) => [
-          Number(it.id),
-          {
-            name: String(it.name || it.product || "Produto"),
-            image: typeof it.image === "string" ? it.image : undefined,
-            price: typeof it.price === "number" ? it.price : undefined,
-          },
-        ])
-      );
+      const result = await listSalesOrdersPage({ page, limit: pageSize });
+      const sales: SaleDTO[] = Array.isArray(result?.items) ? result.items : [];
+      setTotalPages(Math.max(1, Number(result?.totalPages ?? 1)));
+      setTotal(Number(result?.total ?? sales.length) || 0);
       setOrders(
-        sales.map((dto) => ({ dto, item: itemMap.get(Number(dto.saleItemId)) || { name: "Produto" } }))
+        (sales || []).map((dto: any) => {
+          const first = Array.isArray(dto.items) ? dto.items[0] : undefined;
+          return {
+            dto,
+            item: {
+              name: String(first?.nameSnapshot ?? "Pedido"),
+              image: typeof first?.imageSnapshot === "string" ? first.imageSnapshot : undefined,
+              price: typeof first?.unitPrice === "number" ? first.unitPrice : undefined,
+            },
+          };
+        }),
       );
     } catch (err) {
       console.error("Falha ao buscar pedidos do usuário", err);
@@ -77,7 +88,7 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
     // Carrega pedidos na montagem e quando o nome do comprador muda
     refreshOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBuyerName]);
+  }, [initialBuyerName, page]);
 
   const formatDateTime = (s?: string) => {
     if (!s) return "-";
@@ -89,33 +100,27 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
     }
   };
 
-  // Paginação
-  const [page, setPage] = useState<number>(1);
-  const pageSize = 5;
-  const filtered = (productQuery
-    ? orders.filter(({ item }) => item.name.toLowerCase().includes(productQuery.toLowerCase().trim()))
-    : orders);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const startIndex = (page - 1) * pageSize;
-  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
-  const showingStart = filtered.length === 0 ? 0 : Math.min(startIndex + 1, filtered.length);
-  const showingEnd = Math.min(startIndex + pageItems.length, filtered.length);
+  const filtered = useMemo(() => {
+    const q = productQuery.toLowerCase().trim();
+    if (!q) return orders;
+    return orders.filter(({ dto, item }) => {
+      const names = [
+        item.name,
+        ...(Array.isArray(dto.items) ? dto.items.map((i) => String(i.nameSnapshot || "")) : []),
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return names.toLowerCase().includes(q);
+    });
+  }, [orders, productQuery]);
 
-  useEffect(() => {
-    // Reset para primeira página quando o filtro muda ou a lista é atualizada
-    setPage(1);
-  }, [productQuery, orders]);
+  const showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const showingEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
 
-  useEffect(() => {
-    // Garante que a página atual está dentro dos limites
-    if (page > totalPages) setPage(totalPages);
-    if (page < 1) setPage(1);
-  }, [totalPages]);
-
-  const handleCancel = async (id: number) => {
+  const handleCancel = async (id: string) => {
     try {
       await cancelOrder(id);
-      setOrders((prev) => prev.filter((o) => o.dto.id !== id));
+      refreshOrders();
     } catch (err) {
       console.error("Erro ao cancelar pedido", err);
     }
@@ -142,7 +147,7 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
       ) : (
         <>
           <ul className="divide-y rounded-md border">
-            {pageItems.map(({ dto, item }) => (
+            {filtered.map(({ dto, item }) => (
               <li key={dto.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
@@ -154,17 +159,14 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
                   </Avatar>
                   <div className="min-w-0">
                     <div className="text-sm font-medium line-clamp-1">{item.name}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <UserIcon className="h-3 w-3" /> {dto.buyerName}
-                    </div>
                     <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
                       <Calendar className="h-3 w-3" /> Realizado em: {formatDateTime(dto.createdAt)}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:self-start">
-                  <Badge variant="secondary">Qtd: {dto.quantity}</Badge>
-                  <span className="text-lg font-bold">R${formatCurrency(dto.totalPrice)}</span>
+                  <Badge variant="secondary">Itens: {(dto.items || []).reduce((acc, i) => acc + Number(i.quantity || 0), 0)}</Badge>
+                  <span className="text-lg font-bold">R${formatCurrency(dto.totalAmount)}</span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -179,7 +181,7 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
           </ul>
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              Mostrando {showingStart}–{showingEnd} de {filtered.length}
+              Mostrando {showingStart}–{showingEnd} de {total}
             </div>
             <div className="flex items-center gap-2">
               <Button

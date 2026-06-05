@@ -29,6 +29,13 @@ enum PaymentDomain {
   EVENT
 }
 
+enum ReviewDomain {
+  SALES
+  RENTAL
+  HOSTING
+  EVENT
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -74,6 +81,12 @@ enum RentalPeriod {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+enum SalesOrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
 }
 
 enum EventStatus {
@@ -270,79 +283,99 @@ enum HostingNotificationStatus {
   RETRYING
 }
 
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum NotificationChannel {
+  IN_APP
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
 model User {
-  id                 String                        @id @default(uuid())
-  username           String                        @unique
-  passwordHash       String
-  role               UserRole                      @default(CUSTOMER)
-  isActive           Boolean                       @default(true)
-  status             UserStatus                    @default(ACTIVE)
-  failedAttempts     Int                           @default(0)
-  lastLoginAt        DateTime?
-  createdAt          DateTime                      @default(now())
-  updatedAt          DateTime                      @updatedAt
-  profile            UserProfile?
-  emails             UserEmail[]
-  phones             UserPhone[]
-  payments           Payment[]
-  eventRegistrations EventRegistration[]
-  createdProducts    Product[]                     @relation("ProductCreatedBy")
-  editedProducts     Product[]                     @relation("ProductEditedBy")
-  inventoryMovements InventoryMovement[]           @relation("InventoryMovementUser")
-  inventoryLocks     InventoryConcurrencyControl[] @relation("InventoryLockUser")
-  rentals            Rental[]
-  rentalCarts        RentalCart[]
-  rentalAuditLogs    RentalAuditLog[]              @relation("RentalAuditLogUser")
-  hostingReservations       HostingReservation[] @relation("HostingReservationUser")
-  hostingCreatedReservations HostingReservation[] @relation("HostingReservationCreatedBy")
-  hostingUpdatedReservations HostingReservation[] @relation("HostingReservationUpdatedBy")
-  hostingChaletBlocks       HostingChaletBlock[] @relation("HostingChaletBlockCreatedBy")
-  hostingCreatedPricingRules HostingPricingRule[] @relation("HostingPricingRuleCreatedBy")
-  hostingUpdatedPricingRules HostingPricingRule[] @relation("HostingPricingRuleUpdatedBy")
-  hostingAuditLogs          HostingAuditLog[] @relation("HostingAuditLogUser")
-  hostingReservationReviews HostingReservationReview[] @relation("HostingReservationReviewUser")
-  hostingNotificationLogs   HostingNotificationLog[] @relation("HostingNotificationLogUser")
-  hostingCreatedCancellationPolicies HostingCancellationPolicy[] @relation("HostingCancellationPolicyCreatedBy")
+  id                                 String                        @id @default(uuid())
+  username                           String                        @unique
+  passwordHash                       String
+  role                               UserRole                      @default(CUSTOMER)
+  isActive                           Boolean                       @default(true)
+  status                             UserStatus                    @default(ACTIVE)
+  failedAttempts                     Int                           @default(0)
+  lastLoginAt                        DateTime?
+  createdAt                          DateTime                      @default(now())
+  updatedAt                          DateTime                      @updatedAt
+  profile                            UserProfile?
+  emails                             UserEmail[]
+  phones                             UserPhone[]
+  payments                           Payment[]
+  salesOrders                        SalesOrder[]
+  eventRegistrations                 EventRegistration[]
+  createdProducts                    Product[]                     @relation("ProductCreatedBy")
+  editedProducts                     Product[]                     @relation("ProductEditedBy")
+  inventoryMovements                 InventoryMovement[]           @relation("InventoryMovementUser")
+  inventoryLocks                     InventoryConcurrencyControl[] @relation("InventoryLockUser")
+  rentals                            Rental[]
+  rentalCarts                        RentalCart[]
+  rentalAuditLogs                    RentalAuditLog[]              @relation("RentalAuditLogUser")
+  hostingReservations                HostingReservation[]          @relation("HostingReservationUser")
+  hostingCreatedReservations         HostingReservation[]          @relation("HostingReservationCreatedBy")
+  hostingUpdatedReservations         HostingReservation[]          @relation("HostingReservationUpdatedBy")
+  hostingChaletBlocks                HostingChaletBlock[]          @relation("HostingChaletBlockCreatedBy")
+  hostingCreatedPricingRules         HostingPricingRule[]          @relation("HostingPricingRuleCreatedBy")
+  hostingUpdatedPricingRules         HostingPricingRule[]          @relation("HostingPricingRuleUpdatedBy")
+  hostingAuditLogs                   HostingAuditLog[]             @relation("HostingAuditLogUser")
+  hostingReservationReviews          HostingReservationReview[]    @relation("HostingReservationReviewUser")
+  hostingNotificationLogs            HostingNotificationLog[]      @relation("HostingNotificationLogUser")
+  hostingCreatedCancellationPolicies HostingCancellationPolicy[]   @relation("HostingCancellationPolicyCreatedBy")
+  notifications                      Notification[]                @relation("UserNotifications")
+  reviews                            Review[]                      @relation("ReviewUser")
 
   @@map("users")
 }
 
 model Payment {
-  id                String              @id @default(uuid())
-  externalId        Int?                @unique @map("external_id")
-  domain            PaymentDomain
-  entityId          String              @map("entity_id")
-  externalReference String              @unique @map("external_reference")
-  transactionAmount Decimal             @map("transaction_amount") @db.Decimal(10, 2)
-  netReceivedAmount Decimal?            @map("net_received_amount") @db.Decimal(10, 2)
-  installments      Int                 @default(1)
-  installmentAmount Decimal?            @map("installment_amount") @db.Decimal(10, 2)
-  status            PaymentStatus       @default(PENDING)
-  statusDetail      String?             @map("status_detail")
-  paymentMethod     PaymentMethod       @map("payment_method")
-  paymentMethodId   String?             @map("payment_method_id")
-  paymentTypeId     String?             @map("payment_type_id")
-  issuerId          String?             @map("issuer_id")
-  payerEmail        String              @map("payer_email")
-  payerName         String?             @map("payer_name")
-  payerDocument     String?             @map("payer_document")
-  payerDocumentType String?             @map("payer_document_type")
-  pixQrCode         String?             @map("pix_qr_code") @db.Text
-  pixQrCodeBase64   String?             @map("pix_qr_code_base64") @db.Text
-  pixTicketUrl      String?             @map("pix_ticket_url")
-  idempotencyKey    String              @unique @map("idempotency_key")
-  captured          Boolean             @default(false)
-  binaryMode        Boolean             @default(false) @map("binary_mode")
-  metadata          Json?
-  dateCreated       DateTime            @default(now()) @map("date_created")
-  dateApproved      DateTime?           @map("date_approved")
-  dateLastUpdated   DateTime            @updatedAt @map("date_last_updated")
-  dateOfExpiration  DateTime?           @map("date_of_expiration")
-  moneyReleaseDate  DateTime?           @map("money_release_date")
-  userId            String              @map("user_id")
-  user              User                @relation(fields: [userId], references: [id])
-  webhookLogs       PaymentWebhookLog[]
-  refunds           PaymentRefund[]
+  id                  String               @id @default(uuid())
+  externalId          Int?                 @unique @map("external_id")
+  domain              PaymentDomain
+  entityId            String               @map("entity_id")
+  externalReference   String               @unique @map("external_reference")
+  transactionAmount   Decimal              @map("transaction_amount") @db.Decimal(10, 2)
+  netReceivedAmount   Decimal?             @map("net_received_amount") @db.Decimal(10, 2)
+  installments        Int                  @default(1)
+  installmentAmount   Decimal?             @map("installment_amount") @db.Decimal(10, 2)
+  status              PaymentStatus        @default(PENDING)
+  statusDetail        String?              @map("status_detail")
+  paymentMethod       PaymentMethod        @map("payment_method")
+  paymentMethodId     String?              @map("payment_method_id")
+  paymentTypeId       String?              @map("payment_type_id")
+  issuerId            String?              @map("issuer_id")
+  payerEmail          String               @map("payer_email")
+  payerName           String?              @map("payer_name")
+  payerDocument       String?              @map("payer_document")
+  payerDocumentType   String?              @map("payer_document_type")
+  pixQrCode           String?              @map("pix_qr_code") @db.Text
+  pixQrCodeBase64     String?              @map("pix_qr_code_base64") @db.Text
+  pixTicketUrl        String?              @map("pix_ticket_url")
+  idempotencyKey      String               @unique @map("idempotency_key")
+  captured            Boolean              @default(false)
+  binaryMode          Boolean              @default(false) @map("binary_mode")
+  metadata            Json?
+  dateCreated         DateTime             @default(now()) @map("date_created")
+  dateApproved        DateTime?            @map("date_approved")
+  dateLastUpdated     DateTime             @updatedAt @map("date_last_updated")
+  dateOfExpiration    DateTime?            @map("date_of_expiration")
+  moneyReleaseDate    DateTime?            @map("money_release_date")
+  userId              String               @map("user_id")
+  user                User                 @relation(fields: [userId], references: [id])
+  webhookLogs         PaymentWebhookLog[]
+  refunds             PaymentRefund[]
   hostingReservations HostingReservation[]
 
   @@index([domain, entityId])
@@ -538,6 +571,7 @@ model Product {
   editedBy           User?                        @relation("ProductEditedBy", fields: [editedById], references: [id])
   inventoryMovements InventoryMovement[]
   purchaseOrderItems PurchaseOrderItem[]
+  salesOrderItems    SalesOrderItem[]
   concurrencyControl InventoryConcurrencyControl?
   rentalInventory    RentalInventory?             @relation("ProductToRentalInventory")
   rentalItems        RentalItem[]                 @relation("ProductToRentalItem")
@@ -745,6 +779,46 @@ model RentalCartItem {
   @@map("rental_cart_items")
 }
 
+model SalesOrder {
+  id            String           @id @default(uuid())
+  userId        String
+  status        SalesOrderStatus @default(PENDING)
+  paymentStatus PaymentStatus    @default(PENDING)
+  totalAmount   Decimal          @default(0) @db.Decimal(12, 2)
+  note          String?
+  paymentId     String?
+  paidAt        DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         SalesOrderItem[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([paymentStatus])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id            String     @id @default(uuid())
+  orderId       String     @map("order_id")
+  productId     String     @map("product_id")
+  quantity      Int
+  unitPrice     Decimal    @db.Decimal(12, 2)
+  subtotal      Decimal    @db.Decimal(12, 2)
+  nameSnapshot  String     @map("name_snapshot") @db.VarChar(255)
+  imageSnapshot String?    @map("image_snapshot") @db.VarChar(500)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  order         SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("sales_order_items")
+}
+
 model PesqueiroConfig {
   id               String   @id @default(uuid())
   openingTime      String   @default("06:00")
@@ -779,29 +853,31 @@ model RentalAuditLog {
 }
 
 model HostingChalet {
-  id             String                  @id @default(uuid())
-  code           String                  @unique @map("codigo") @db.VarChar(50)
-  name           String                  @map("nome") @db.VarChar(255)
-  description    String?                 @map("descricao") @db.Text
-  amenities      String[]                @default([]) @map("comodidades")
-  rooms          String[]                @default([]) @map("comodos")
-  notes          String?                 @map("observacoes") @db.Text
-  unitType       ChaleType               @map("tipo_unidade")
-  status         ChaleStatus             @default(AVAILABLE) @map("status")
-  basePrice      Decimal                 @map("preco_base") @db.Decimal(12, 2)
-  maxGuests      Int                     @default(2) @map("max_hospedes")
-  isActive       Boolean                 @default(true) @map("ativo")
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
-  deletedAt      DateTime?               @map("deleted_at")
-  reservations   HostingReservation[]
-  availability   HostingChaletAvailability[]
-  dateBlocks     HostingChaletBlock[]
-  pricingRules   HostingPricingRuleChalet[]
+  id              String                      @id @default(uuid())
+  code            String                      @unique @map("codigo") @db.VarChar(50)
+  name            String                      @map("nome") @db.VarChar(255)
+  description     String?                     @map("descricao") @db.Text
+  amenities       String[]                    @default([]) @map("comodidades")
+  rooms           String[]                    @default([]) @map("comodos")
+  notes           String?                     @map("observacoes") @db.Text
+  unitType        ChaleType                   @map("tipo_unidade")
+  status          ChaleStatus                 @default(AVAILABLE) @map("status")
+  basePrice       Decimal                     @map("preco_base") @db.Decimal(12, 2)
+  averageRating   Decimal                     @default(0) @map("average_rating") @db.Decimal(5, 2)
+  reviewsCount    Int                         @default(0) @map("reviews_count")
+  maxGuests       Int                         @default(2) @map("max_hospedes")
+  isActive        Boolean                     @default(true) @map("ativo")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @updatedAt @map("updated_at")
+  deletedAt       DateTime?                   @map("deleted_at")
+  reservations    HostingReservation[]
+  availability    HostingChaletAvailability[]
+  dateBlocks      HostingChaletBlock[]
+  pricingRules    HostingPricingRuleChalet[]
   chaletAmenities HostingChaletAmenity[]
-  images         HostingChaletImage[]
-  reviews        HostingReservationReview[]
-  auditLogs      HostingAuditLog[]
+  images          HostingChaletImage[]
+  reviews         HostingReservationReview[]
+  auditLogs       HostingAuditLog[]
 
   @@index([status, deletedAt])
   @@index([isActive, deletedAt])
@@ -810,22 +886,22 @@ model HostingChalet {
 }
 
 model HostingAmenity {
-  id          String                @id @default(uuid())
-  name        String                @unique @map("nome") @db.VarChar(120)
-  description String?               @map("descricao") @db.Text
-  createdAt   DateTime              @default(now()) @map("created_at")
-  updatedAt   DateTime              @updatedAt @map("updated_at")
+  id          String                 @id @default(uuid())
+  name        String                 @unique @map("nome") @db.VarChar(120)
+  description String?                @map("descricao") @db.Text
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
   chalets     HostingChaletAmenity[]
 
   @@map("hosting_amenities")
 }
 
 model HostingChaletAmenity {
-  id        String        @id @default(uuid())
-  chaletId  String        @map("chale_id")
-  amenityId String        @map("comodidade_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  chalet    HostingChalet @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+  id        String         @id @default(uuid())
+  chaletId  String         @map("chale_id")
+  amenityId String         @map("comodidade_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  chalet    HostingChalet  @relation(fields: [chaletId], references: [id], onDelete: Cascade)
   amenity   HostingAmenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
 
   @@unique([chaletId, amenityId])
@@ -850,18 +926,18 @@ model HostingChaletImage {
 }
 
 model HostingChaletAvailability {
-  id            String               @id @default(uuid())
-  chaletId      String               @map("chale_id")
-  referenceDate DateTime             @map("reference_date") @db.Date
-  status        ChaleStatus  @default(AVAILABLE) @map("status")
-  reservationId String?              @map("reservation_id")
-  blockId       String?              @map("block_id")
-  notes         String?              @map("notes") @db.Text
-  createdAt     DateTime             @default(now()) @map("created_at")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
-  chalet        HostingChalet        @relation(fields: [chaletId], references: [id], onDelete: Cascade)
-  reservation   HostingReservation?  @relation(fields: [reservationId], references: [id], onDelete: SetNull)
-  block         HostingChaletBlock?  @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  id            String              @id @default(uuid())
+  chaletId      String              @map("chale_id")
+  referenceDate DateTime            @map("reference_date") @db.Date
+  status        ChaleStatus         @default(AVAILABLE) @map("status")
+  reservationId String?             @map("reservation_id")
+  blockId       String?             @map("block_id")
+  notes         String?             @map("notes") @db.Text
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  chalet        HostingChalet       @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+  reservation   HostingReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  block         HostingChaletBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
 
   @@unique([chaletId, referenceDate])
   @@index([status, referenceDate])
@@ -869,24 +945,24 @@ model HostingChaletAvailability {
 }
 
 model HostingPricingRule {
-  id            String                    @id @default(uuid())
-  name          String                    @map("nome") @db.VarChar(255)
-  ruleType      PriceRuleType             @map("tipo_regra")
-  percentage    Decimal                   @map("percentual") @db.Decimal(5, 2)
-  startDate     DateTime                  @map("data_inicio") @db.Date
-  endDate       DateTime                  @map("data_fim") @db.Date
-  appliesToAll  Boolean                   @default(false) @map("aplica_todos")
-  isActive      Boolean                   @default(true) @map("ativo")
-  createdById   String?                   @map("criado_por")
-  updatedById   String?                   @map("atualizado_por")
-  createdAt     DateTime                  @default(now()) @map("created_at")
-  updatedAt     DateTime                  @updatedAt @map("updated_at")
-  deletedAt     DateTime?                 @map("deleted_at")
-  chalets       HostingPricingRuleChalet[]
-  reservations  HostingReservation[]
-  createdBy     User?                     @relation("HostingPricingRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy     User?                     @relation("HostingPricingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  auditLogs     HostingAuditLog[]
+  id           String                     @id @default(uuid())
+  name         String                     @map("nome") @db.VarChar(255)
+  ruleType     PriceRuleType              @map("tipo_regra")
+  percentage   Decimal                    @map("percentual") @db.Decimal(5, 2)
+  startDate    DateTime                   @map("data_inicio") @db.Date
+  endDate      DateTime                   @map("data_fim") @db.Date
+  appliesToAll Boolean                    @default(false) @map("aplica_todos")
+  isActive     Boolean                    @default(true) @map("ativo")
+  createdById  String?                    @map("criado_por")
+  updatedById  String?                    @map("atualizado_por")
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+  deletedAt    DateTime?                  @map("deleted_at")
+  chalets      HostingPricingRuleChalet[]
+  reservations HostingReservation[]
+  createdBy    User?                      @relation("HostingPricingRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?                      @relation("HostingPricingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  auditLogs    HostingAuditLog[]
 
   @@index([isActive, startDate, endDate], map: "idx_preco_regras_ativas")
   @@index([startDate, endDate], map: "idx_preco_regras_datas")
@@ -895,12 +971,12 @@ model HostingPricingRule {
 }
 
 model HostingPricingRuleChalet {
-  id        String            @id @default(uuid())
-  ruleId    String            @map("regra_id")
-  chaletId  String            @unique @map("chale_id")
-  createdAt DateTime          @default(now()) @map("created_at")
+  id        String             @id @default(uuid())
+  ruleId    String             @map("regra_id")
+  chaletId  String             @unique @map("chale_id")
+  createdAt DateTime           @default(now()) @map("created_at")
   rule      HostingPricingRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  chalet    HostingChalet     @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+  chalet    HostingChalet      @relation(fields: [chaletId], references: [id], onDelete: Cascade)
 
   @@unique([ruleId, chaletId])
   @@index([ruleId])
@@ -932,12 +1008,12 @@ model HostingCancellationPolicy {
 }
 
 model HostingKpi {
-  id            String           @id @default(uuid())
-  referenceDate DateTime         @map("reference_date") @db.Date
+  id            String            @id @default(uuid())
+  referenceDate DateTime          @map("reference_date") @db.Date
   metric        HospedagemKpiType @map("metric")
-  value         Decimal          @map("value") @db.Decimal(15, 2)
+  value         Decimal           @map("value") @db.Decimal(15, 2)
   metadata      Json?
-  createdAt     DateTime         @default(now()) @map("created_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
 
   @@unique([metric, referenceDate])
   @@index([metric, referenceDate])
@@ -947,62 +1023,62 @@ model HostingKpi {
 }
 
 model HostingReservation {
-  id                   String                   @id @default(uuid())
-  code                 String                   @unique @map("codigo") @db.VarChar(20)
-  chaletId             String                   @map("chale_id")
-  userId               String?                  @map("user_id")
-  pricingRuleId        String?                  @map("regra_preco_id")
-  cancellationPolicyId String?                  @map("cancellation_policy_id")
-  status               ReservationStatus @default(PENDING) @map("status")
-  origin               HostingReservationOrigin @default(ONLINE) @map("origem")
-  guestName            String                   @map("nome_hospede") @db.VarChar(255)
-  guestEmail           String?                  @map("email_hospede") @db.VarChar(255)
-  guestPhone           String?                  @map("telefone_hospede") @db.VarChar(30)
-  checkInDate          DateTime                 @map("data_checkin") @db.Date
-  checkOutDate         DateTime                 @map("data_checkout") @db.Date
-  adults               Int                      @default(1) @map("adultos")
-  children             Int                      @default(0) @map("criancas")
-  baseAmount           Decimal                  @map("valor_base") @db.Decimal(12, 2)
-  discountAmount       Decimal                  @default(0) @map("valor_desconto") @db.Decimal(12, 2)
-  surchargeAmount      Decimal                  @default(0) @map("valor_acrescimo") @db.Decimal(12, 2)
-  totalAmount          Decimal                  @map("valor_total") @db.Decimal(12, 2)
-  paymentStatus        PaymentStatus            @default(PENDING) @map("status_pagamento")
-  paymentMethod        String?                  @map("metodo_pagamento")
-  paymentId            String?                  @map("payment_id")
-  paidAt               DateTime?                @map("pago_em")
-  checkedInAt          DateTime?                @map("checkin_realizado_em")
-  checkedOutAt         DateTime?                @map("checkout_realizado_em")
-  cancelledAt          DateTime?                @map("cancelado_em")
-  noShowAt             DateTime?                @map("no_show_at")
-  noShowFeeAmount      Decimal?                 @map("no_show_fee_amount") @db.Decimal(12, 2)
-  noShowReason         String?                  @map("no_show_reason") @db.Text
-  vehiclePlate         String?                  @map("vehicle_plate") @db.VarChar(20)
-  vehicleModel         String?                  @map("vehicle_model") @db.VarChar(120)
-  vehicleColor         String?                  @map("vehicle_color") @db.VarChar(60)
-  vehicleType          String?                  @map("vehicle_type") @db.VarChar(60)
-  extraBedRequested    Boolean                  @default(false) @map("extra_bed_requested")
-  extraBedFee          Decimal                  @default(0) @map("extra_bed_fee") @db.Decimal(12, 2)
-  negotiationNotes     String?                  @map("negotiation_notes") @db.Text
-  contactChannel       HostingContactChannel?   @map("contact_channel")
-  contactNotes         String?                  @map("contact_notes") @db.Text
-  policiesAccepted     Boolean                  @default(false) @map("policies_accepted")
-  policiesAcceptedAt   DateTime?                @map("policies_accepted_at")
-  policyVersion        String?                  @map("policy_version") @db.VarChar(50)
-  policyTerm           String?                  @map("policy_term") @db.Text
-  cancellationReason   String?                  @map("motivo_cancelamento") @db.Text
-  notes                String?                  @map("observacoes") @db.Text
-  createdById          String?                  @map("criado_por")
-  updatedById          String?                  @map("atualizado_por")
-  createdAt            DateTime                 @default(now()) @map("created_at")
-  updatedAt            DateTime                 @updatedAt @map("updated_at")
-  deletedAt            DateTime?                @map("deleted_at")
-  chalet               HostingChalet            @relation(fields: [chaletId], references: [id])
-  user                 User?                    @relation("HostingReservationUser", fields: [userId], references: [id], onDelete: SetNull)
-  pricingRule          HostingPricingRule?      @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
-  cancellationPolicy   HostingCancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id], onDelete: SetNull)
-  payment              Payment?                 @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  createdBy            User?                    @relation("HostingReservationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy            User?                    @relation("HostingReservationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                   String                      @id @default(uuid())
+  code                 String                      @unique @map("codigo") @db.VarChar(20)
+  chaletId             String                      @map("chale_id")
+  userId               String?                     @map("user_id")
+  pricingRuleId        String?                     @map("regra_preco_id")
+  cancellationPolicyId String?                     @map("cancellation_policy_id")
+  status               ReservationStatus           @default(PENDING) @map("status")
+  origin               HostingReservationOrigin    @default(ONLINE) @map("origem")
+  guestName            String                      @map("nome_hospede") @db.VarChar(255)
+  guestEmail           String?                     @map("email_hospede") @db.VarChar(255)
+  guestPhone           String?                     @map("telefone_hospede") @db.VarChar(30)
+  checkInDate          DateTime                    @map("data_checkin") @db.Date
+  checkOutDate         DateTime                    @map("data_checkout") @db.Date
+  adults               Int                         @default(1) @map("adultos")
+  children             Int                         @default(0) @map("criancas")
+  baseAmount           Decimal                     @map("valor_base") @db.Decimal(12, 2)
+  discountAmount       Decimal                     @default(0) @map("valor_desconto") @db.Decimal(12, 2)
+  surchargeAmount      Decimal                     @default(0) @map("valor_acrescimo") @db.Decimal(12, 2)
+  totalAmount          Decimal                     @map("valor_total") @db.Decimal(12, 2)
+  paymentStatus        PaymentStatus               @default(PENDING) @map("status_pagamento")
+  paymentMethod        String?                     @map("metodo_pagamento")
+  paymentId            String?                     @map("payment_id")
+  paidAt               DateTime?                   @map("pago_em")
+  checkedInAt          DateTime?                   @map("checkin_realizado_em")
+  checkedOutAt         DateTime?                   @map("checkout_realizado_em")
+  cancelledAt          DateTime?                   @map("cancelado_em")
+  noShowAt             DateTime?                   @map("no_show_at")
+  noShowFeeAmount      Decimal?                    @map("no_show_fee_amount") @db.Decimal(12, 2)
+  noShowReason         String?                     @map("no_show_reason") @db.Text
+  vehiclePlate         String?                     @map("vehicle_plate") @db.VarChar(20)
+  vehicleModel         String?                     @map("vehicle_model") @db.VarChar(120)
+  vehicleColor         String?                     @map("vehicle_color") @db.VarChar(60)
+  vehicleType          String?                     @map("vehicle_type") @db.VarChar(60)
+  extraBedRequested    Boolean                     @default(false) @map("extra_bed_requested")
+  extraBedFee          Decimal                     @default(0) @map("extra_bed_fee") @db.Decimal(12, 2)
+  negotiationNotes     String?                     @map("negotiation_notes") @db.Text
+  contactChannel       HostingContactChannel?      @map("contact_channel")
+  contactNotes         String?                     @map("contact_notes") @db.Text
+  policiesAccepted     Boolean                     @default(false) @map("policies_accepted")
+  policiesAcceptedAt   DateTime?                   @map("policies_accepted_at")
+  policyVersion        String?                     @map("policy_version") @db.VarChar(50)
+  policyTerm           String?                     @map("policy_term") @db.Text
+  cancellationReason   String?                     @map("motivo_cancelamento") @db.Text
+  notes                String?                     @map("observacoes") @db.Text
+  createdById          String?                     @map("criado_por")
+  updatedById          String?                     @map("atualizado_por")
+  createdAt            DateTime                    @default(now()) @map("created_at")
+  updatedAt            DateTime                    @updatedAt @map("updated_at")
+  deletedAt            DateTime?                   @map("deleted_at")
+  chalet               HostingChalet               @relation(fields: [chaletId], references: [id])
+  user                 User?                       @relation("HostingReservationUser", fields: [userId], references: [id], onDelete: SetNull)
+  pricingRule          HostingPricingRule?         @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  cancellationPolicy   HostingCancellationPolicy?  @relation(fields: [cancellationPolicyId], references: [id], onDelete: SetNull)
+  payment              Payment?                    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdBy            User?                       @relation("HostingReservationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User?                       @relation("HostingReservationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   guests               HostingReservationGuest[]
   vouchers             HostingReservationVoucher[]
   reviews              HostingReservationReview[]
@@ -1027,18 +1103,18 @@ model HostingReservation {
 }
 
 model HostingChaletBlock {
-  id          String        @id @default(uuid())
-  chaletId    String        @map("chale_id")
-  startDate   DateTime      @map("data_inicio") @db.Date
-  endDate     DateTime      @map("data_fim") @db.Date
-  reason      BlockReason?  @map("motivo")
-  notes       String?       @map("observacoes") @db.Text
-  isActive    Boolean       @default(true) @map("ativo")
-  createdById String?       @map("criado_por")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  chalet      HostingChalet @relation(fields: [chaletId], references: [id], onDelete: Cascade)
-  createdBy   User?         @relation("HostingChaletBlockCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  id           String                      @id @default(uuid())
+  chaletId     String                      @map("chale_id")
+  startDate    DateTime                    @map("data_inicio") @db.Date
+  endDate      DateTime                    @map("data_fim") @db.Date
+  reason       BlockReason?                @map("motivo")
+  notes        String?                     @map("observacoes") @db.Text
+  isActive     Boolean                     @default(true) @map("ativo")
+  createdById  String?                     @map("criado_por")
+  createdAt    DateTime                    @default(now()) @map("created_at")
+  updatedAt    DateTime                    @updatedAt @map("updated_at")
+  chalet       HostingChalet               @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+  createdBy    User?                       @relation("HostingChaletBlockCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   availability HostingChaletAvailability[]
 
   @@index([chaletId, startDate, endDate], map: "idx_bloqueios_datas")
@@ -1048,14 +1124,14 @@ model HostingChaletBlock {
 }
 
 model HostingReservationVoucher {
-  id                   String             @id @default(uuid())
-  reservationId        String             @map("reservation_id")
-  qrCode               String             @map("qr_code")
-  arrivalInstructions  String?            @map("arrival_instructions") @db.Text
-  complexContacts      String?            @map("complex_contacts") @db.Text
-  generatedAt          DateTime           @default(now()) @map("generated_at")
-  sentByEmail          Boolean            @default(false) @map("sent_by_email")
-  reservation          HostingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  id                  String             @id @default(uuid())
+  reservationId       String             @map("reservation_id")
+  qrCode              String             @map("qr_code")
+  arrivalInstructions String?            @map("arrival_instructions") @db.Text
+  complexContacts     String?            @map("complex_contacts") @db.Text
+  generatedAt         DateTime           @default(now()) @map("generated_at")
+  sentByEmail         Boolean            @default(false) @map("sent_by_email")
+  reservation         HostingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@index([reservationId])
   @@map("hosting_reservation_vouchers")
@@ -1081,29 +1157,53 @@ model HostingReservationGuest {
 }
 
 model HostingNotificationLog {
-  id            String                    @id @default(uuid())
-  reservationId String?                   @map("reservation_id")
-  userId        String?                   @map("user_id")
+  id            String                     @id @default(uuid())
+  reservationId String?                    @map("reservation_id")
+  userId        String?                    @map("user_id")
   channel       HostingNotificationChannel
   event         String
-  recipient     String                    @db.VarChar(255)
+  recipient     String                     @db.VarChar(255)
   payload       Json?
-  status        HostingNotificationStatus @default(PENDING)
-  attempts      Int                       @default(0)
-  lastAttemptAt DateTime?                 @map("last_attempt_at")
-  sentAt        DateTime?                 @map("sent_at")
-  nextRetryAt   DateTime?                 @map("next_retry_at")
-  errorMessage  String?                   @map("error_message") @db.Text
-  createdAt     DateTime                  @default(now()) @map("created_at")
-  updatedAt     DateTime                  @updatedAt @map("updated_at")
-  reservation   HostingReservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
-  user          User?                     @relation("HostingNotificationLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  status        HostingNotificationStatus  @default(PENDING)
+  attempts      Int                        @default(0)
+  lastAttemptAt DateTime?                  @map("last_attempt_at")
+  sentAt        DateTime?                  @map("sent_at")
+  nextRetryAt   DateTime?                  @map("next_retry_at")
+  errorMessage  String?                    @map("error_message") @db.Text
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime                   @updatedAt @map("updated_at")
+  reservation   HostingReservation?        @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  user          User?                      @relation("HostingNotificationLogUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([reservationId])
   @@index([userId])
   @@index([status, nextRetryAt])
   @@index([channel, event, createdAt])
   @@map("hosting_notification_logs")
+}
+
+model Notification {
+  id              String              @id @default(uuid())
+  recipientUserId String              @map("recipient_user_id")
+  source          String              @db.VarChar(80)
+  eventKey        String              @map("event_key") @db.VarChar(120)
+  dedupKey        String?             @unique(map: "uk_notifications_dedup_key") @map("dedup_key") @db.VarChar(180)
+  title           String              @db.VarChar(160)
+  message         String              @db.Text
+  type            NotificationType    @default(INFO)
+  channel         NotificationChannel @default(IN_APP)
+  payload         Json?
+  status          NotificationStatus  @default(UNREAD)
+  readAt          DateTime?           @map("read_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  expiresAt       DateTime?           @map("expires_at")
+  user            User                @relation("UserNotifications", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, status, createdAt(sort: Desc)], map: "idx_notifications_user_status_created")
+  @@index([recipientUserId, createdAt(sort: Desc)], map: "idx_notifications_user_created")
+  @@index([eventKey, createdAt(sort: Desc)], map: "idx_notifications_event_created")
+  @@map("notifications")
 }
 
 model HostingReservationReview {
@@ -1124,22 +1224,54 @@ model HostingReservationReview {
   @@map("hosting_reservation_reviews")
 }
 
+model Review {
+  id         String       @id @default(uuid())
+  domain     ReviewDomain @map("domain")
+  subjectId  String       @map("subject_id")
+  targetId   String       @map("target_id")
+  targetName String?      @map("target_name") @db.VarChar(255)
+  userId     String       @map("user_id")
+  rating     Int          @map("rating")
+  comment    String?      @map("comment") @db.Text
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  user       User         @relation("ReviewUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([domain, subjectId], map: "uk_reviews_domain_subject")
+  @@index([domain, targetId, createdAt(sort: Desc)], map: "idx_reviews_domain_target_created")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_reviews_user_created")
+  @@map("reviews")
+}
+
+model ReviewAggregate {
+  id            String       @id @default(uuid())
+  domain        ReviewDomain @map("domain")
+  targetId      String       @map("target_id")
+  averageRating Decimal      @default(0) @map("average_rating") @db.Decimal(5, 2)
+  reviewsCount  Int          @default(0) @map("reviews_count")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@unique([domain, targetId], map: "uk_review_aggregates_domain_target")
+  @@index([domain, targetId], map: "idx_review_aggregates_domain_target")
+  @@map("review_aggregates")
+}
+
 model HostingAuditLog {
-  id            String               @id @default(uuid())
-  reservationId String?              @map("reserva_id")
-  chaletId      String?              @map("chale_id")
-  pricingRuleId String?              @map("regra_preco_id")
-  userId        String?              @map("user_id")
-  action        String               @map("acao")
-  oldValue      Json?                @map("valor_anterior")
-  newValue      Json?                @map("valor_novo")
-  ipAddress     String?              @map("ip_address")
-  userAgent     String?              @map("user_agent")
-  createdAt     DateTime             @default(now()) @map("created_at")
-  reservation   HostingReservation?  @relation(fields: [reservationId], references: [id], onDelete: SetNull)
-  chalet        HostingChalet?       @relation(fields: [chaletId], references: [id], onDelete: SetNull)
-  pricingRule   HostingPricingRule?  @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
-  user          User?                @relation("HostingAuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  id            String              @id @default(uuid())
+  reservationId String?             @map("reserva_id")
+  chaletId      String?             @map("chale_id")
+  pricingRuleId String?             @map("regra_preco_id")
+  userId        String?             @map("user_id")
+  action        String              @map("acao")
+  oldValue      Json?               @map("valor_anterior")
+  newValue      Json?               @map("valor_novo")
+  ipAddress     String?             @map("ip_address")
+  userAgent     String?             @map("user_agent")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  reservation   HostingReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  chalet        HostingChalet?      @relation(fields: [chaletId], references: [id], onDelete: SetNull)
+  pricingRule   HostingPricingRule? @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  user          User?               @relation("HostingAuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([reservationId])
   @@index([chaletId])

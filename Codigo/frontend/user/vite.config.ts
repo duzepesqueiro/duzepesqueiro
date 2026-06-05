@@ -17,7 +17,11 @@ export default defineConfig(({ mode }) => {
         '.ngrok-free.dev',
         '.ngrok.app',
         'localhost'
-      ]
+      ],
+      watch: {
+        usePolling: true,
+        interval: 300,
+      },
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {

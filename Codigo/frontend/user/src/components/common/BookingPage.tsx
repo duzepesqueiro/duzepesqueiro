@@ -8,7 +8,8 @@ import { addDays, differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Header from '@/components/common/layout/Header';
 import { useBooking } from '@/contexts/BookingContext';
-import { api } from '@/lib/api';
+import { api, getUserProfile } from '@/lib/api';
+import { isAuthenticated } from '@/lib/auth';
 import { mapApiChaletToRoom } from '@/lib/hostingRoomMapper';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -271,12 +272,41 @@ const BookingPage = () => {
   }, [bookingSeed, room, setBooking]);
 
   useEffect(() => {
-    if (step === 1 && booking.guestDetails.length === 0) {
-      setBooking((prev) => ({
-        ...prev,
-        guestDetails: [createEmptyGuest()],
-      }));
-    }
+    let mounted = true;
+
+    const initializeFirstGuest = async () => {
+      // Só atua se o usuário chegar na Etapa 1 e não houver nenhum hóspede na memória
+      if (step === 1 && booking.guestDetails.length === 0) {
+        const newGuest = createEmptyGuest();
+
+        // Se estiver logado, buscamos os dados para já preencher o Hóspede 1
+        if (isAuthenticated()) {
+          try {
+            const profile = await getUserProfile();
+            if (mounted && profile) {
+              // Preenche apenas o nome, já que o CPF não está na interface da API
+              if (profile.nome) {
+                newGuest.name = profile.nome;
+              }
+            }
+          } catch (error) {
+            console.warn("Erro ao pré-preencher dados do hóspede principal:", error);
+          }
+        }
+
+        // Atualiza o estado global da reserva com o hóspede preenchido (ou vazio se falhar)
+        if (mounted) {
+          setBooking((prev) => ({
+            ...prev,
+            guestDetails: [newGuest],
+          }));
+        }
+      }
+    };
+
+    initializeFirstGuest();
+
+    return () => { mounted = false; };
   }, [booking.guestDetails.length, setBooking, step]);
 
   useEffect(() => {

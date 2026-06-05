@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -12,6 +13,8 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+const EVENT_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'UPCOMING'] as const;
 
 export class CreateEventDto {
   @ApiProperty({
@@ -111,4 +114,16 @@ export class CreateEventDto {
   @Type(() => Boolean)
   @IsBoolean({ message: 'isPaid deve ser verdadeiro ou falso.' })
   isPaid: boolean = false;
+
+  @ApiPropertyOptional({
+    enum: EVENT_STATUSES,
+    example: 'SCHEDULED',
+    description: 'Status do evento (calculado automaticamente se omitido)',
+  })
+  @IsOptional()
+  @IsString({ message: 'O status deve ser um texto.' })
+  @IsIn(EVENT_STATUSES, {
+    message: 'O status deve ser SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED ou UPCOMING.',
+  })
+  status?: (typeof EVENT_STATUSES)[number];
 }
