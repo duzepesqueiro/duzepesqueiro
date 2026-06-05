@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { RentalCard } from "./RentalCard";
-import { RentalModal } from "./RentalModal";
 import { RentalItem } from "@/pages/FishingGear";
-import { api } from "@/lib/api";
+import { getRentalProductsPage } from "@/lib/api";
 import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -11,18 +11,19 @@ import { ArrowUpAZ, Package, DollarSign, ArrowDown, ArrowUp } from "lucide-react
 
 interface RentalSectionProps {
   onBooked: (payload: { dto: any; itemName: string; renterName: string; customerPhone: string }) => void;
-  initialRentalId?: number;
+  initialRentalId?: string;
 }
 
 export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<RentalItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<RentalItem | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [sortMode, setSortMode] = useState<"stock" | "alpha" | "price_asc" | "price_desc">("stock");
   const [priceRange, setPriceRange] = useState<number[]>([0, 0]);
-  const itemsPerPage = 8;
+  const requestLimit = 10;
 
   useEffect(() => {
     let mounted = true;
@@ -30,24 +31,37 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get("/user/alugueis");
-        const data = Array.isArray(res.data) ? res.data : [];
-        const mapped: RentalItem[] = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          hourlyPrice: Number(d.hourlyPrice ?? 0),
-          available: Number(d.available ?? 0),
-          image: d.image,
-          fullDescription: d.fullDescription ?? d.description ?? "",
-          unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
-        }));
+        const pageData = await getRentalProductsPage({ page: currentPage, limit: requestLimit });
+        const mapped: RentalItem[] = pageData.items.map((d: any) => {
+          const images = Array.isArray(d.images)
+            ? d.images.filter(Boolean).slice(0, 10)
+            : [];
+          const image = d.image || images[0] || "https://placehold.co/600x600?text=Aluguel";
+
+          return {
+            id: d.id,
+            name: d.name,
+            description: d.description,
+            hourlyPrice: Number(d.hourlyPrice ?? d.salePrice ?? 0),
+            available: Number(d.available ?? d.stockQuantity ?? 0),
+            image,
+            images: images.length ? images : [image],
+            fullDescription: d.fullDescription ?? d.description ?? "",
+            unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
+          };
+        });
         // Default: ordenar por disponibilidade (sem disponibilidade por último)
         const sorted = mapped.sort((a, b) => {
           if (b.available !== a.available) return b.available - a.available;
           return a.name.localeCompare(b.name);
         });
-        if (mounted) setItems(sorted);
+        if (mounted) {
+          setItems(sorted);
+          setTotalPages(Math.max(1, Number(pageData.totalPages || 1)));
+          if (currentPage > Number(pageData.totalPages || 1)) {
+            setCurrentPage(Math.max(1, Number(pageData.totalPages || 1)));
+          }
+        }
       } catch (err: any) {
         console.error("Erro ao carregar itens de aluguel", err);
         if (mounted) setError("Falha ao carregar itens de aluguel. Tente novamente.");
@@ -57,12 +71,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
     };
     fetchItems();
     return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    // Resetar paginação quando a lista mudar
-    setCurrentPage(1);
-  }, [items.length]);
+  }, [currentPage]);
 
   // Atualiza faixa de preço ao carregar itens (usa hourlyPrice)
   useEffect(() => {
@@ -80,7 +89,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
       //   redirectToLogin(`rent_item:${target.id}`);
       //   return;
       // }
-      setSelectedItem(target);
+      navigate(`/store/rental/${target.id}`);
     }
   }, [initialRentalId, items]);
 
@@ -106,10 +115,6 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
     });
     return sorted;
   }, [items, priceRange, sortMode]);
-
-  const totalPages = Math.ceil(visibleItems.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedItems = visibleItems.slice(startIndex, startIndex + itemsPerPage);
 
   if (loading) {
     return <div className="py-10 text-center text-muted-foreground">Carregando equipamentos para aluguel...</div>;
@@ -150,7 +155,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
 
         <div className="flex-1 sm:max-w-md">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Faixa de preço (hora)</span>
+            <span className="text-sm text-muted-foreground">Faixa de preço (dia)</span>
             <span className="text-xs text-muted-foreground">
               {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
             </span>
@@ -165,7 +170,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedItems.map((item) => (
+        {visibleItems.map((item) => (
           <RentalCard
             key={item.id}
             item={item}
@@ -174,7 +179,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
               //   redirectToLogin(`rent_item:${item.id}`);
               //   return;
               // }
-              setSelectedItem(item);
+              navigate(`/store/rental/${item.id}`);
             }}
           />
         ))}
@@ -206,17 +211,6 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
           </PaginationItem>
         </PaginationContent>
       </Pagination>
-
-      <RentalModal
-        item={selectedItem}
-        open={!!selectedItem}
-        onOpenChange={(open) => !open && setSelectedItem(null)}
-        onBooked={({ dto, renterName, customerPhone }) => {
-          if (selectedItem) {
-            onBooked({ dto, itemName: selectedItem.name, renterName, customerPhone });
-          }
-        }}
-      />
     </div>
   );
 };

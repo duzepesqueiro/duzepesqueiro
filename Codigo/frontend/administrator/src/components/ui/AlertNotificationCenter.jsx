@@ -1,55 +1,137 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Button from './Button';
 import Icon from '../AppIcon';
-import { markAlertsAsRead as markAlertsAsReadService } from '../../utils/notificationService';
+import {
+  connectNotificationsSocket,
+  listNotifications,
+  markAllNotificationsAsRead,
+  markNotificationsAsRead,
+} from '../../utils/notificationsBackendService';
 
-const AlertNotificationCenter = ({ className = '', alerts: externalAlerts = [] }) => {
+const AlertNotificationCenter = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [alerts, setAlerts] = useState(Array.isArray(externalAlerts) && externalAlerts.length > 0 ? externalAlerts : []);
+  const [backendAlerts, setBackendAlerts] = useState([]);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState([]);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
-  // Sincroniza quando a prop externa muda
+  // Bootstrap de notificações persistidas no backend
   useEffect(() => {
-    if (Array.isArray(externalAlerts)) {
-      setAlerts(prev => {
-        // Simple comparison to avoid infinite loop if array reference changes but content is same
-        if (JSON.stringify(prev) === JSON.stringify(externalAlerts)) {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const response = await listNotifications({ status: 'ALL', limit: 50 });
+        const incoming = Array.isArray(response?.items) ? response.items : [];
+        if (!mounted) return;
+        setBackendAlerts(incoming.map((item) => ({ ...item, __origin: 'backend' })));
+        setIsBackendConnected(true);
+      } catch (_) {
+        if (!mounted) return;
+        setIsBackendConnected(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Tempo real do backend de notifications
+  useEffect(() => {
+    const socket = connectNotificationsSocket();
+    if (!socket) {
+      return () => {};
+    }
+
+    const onCreated = (notification) => {
+      if (!notification?.id) return;
+      setBackendAlerts((prev) => {
+        if (prev.some((item) => item?.id === notification.id)) {
           return prev;
         }
-        return externalAlerts;
+        return [{ ...notification, __origin: 'backend' }, ...prev];
       });
-    }
-  }, [externalAlerts]);
+      setIsBackendConnected(true);
+    };
 
-  const unreadCount = alerts?.filter(alert => !alert?.isRead)?.length;
+    const onRead = (payload) => {
+      const ids = Array.isArray(payload?.ids) ? payload.ids : [];
+      if (!ids.length) return;
+      setBackendAlerts((prev) =>
+        prev.map((item) => (ids.includes(item?.id) ? { ...item, isRead: true, readAt: payload?.readAt } : item)),
+      );
+    };
+
+    const onReadAll = (payload) => {
+      setBackendAlerts((prev) => prev.map((item) => ({ ...item, isRead: true, readAt: payload?.readAt })));
+    };
+
+    socket.on('connect', () => setIsBackendConnected(true));
+    socket.on('disconnect', () => setIsBackendConnected(false));
+    socket.on('notification.created', onCreated);
+    socket.on('notification.read', onRead);
+    socket.on('notification.read-all', onReadAll);
+
+    return () => {
+      socket.off('notification.created', onCreated);
+      socket.off('notification.read', onRead);
+      socket.off('notification.read-all', onReadAll);
+      socket.disconnect();
+    };
+  }, []);
+
+  const alerts = useMemo(() => {
+    const byId = new Map();
+    [...backendAlerts].forEach((item) => {
+      if (!item?.id || dismissedAlertIds.includes(item.id)) return;
+      if (!byId.has(item.id)) {
+        byId.set(item.id, item);
+      }
+    });
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(b?.timestamp || 0).getTime() - new Date(a?.timestamp || 0).getTime(),
+    );
+  }, [backendAlerts, dismissedAlertIds]);
+
+  const unreadCount = alerts?.filter((alert) => !alert?.isRead)?.length;
 
   const togglePanel = () => {
     setIsOpen(!isOpen);
   };
 
   const markAsRead = async (alertId) => {
+    const targetAlert = alerts.find((alert) => alert?.id === alertId);
+    if (!targetAlert) return;
+
     // Optimistic update
-    setAlerts(prev => prev?.map(alert => 
-      alert?.id === alertId ? { ...alert, isRead: true } : alert
-    ));
-    // Persist to backend
-    await markAlertsAsReadService([alertId]);
+    setBackendAlerts((prev) => prev?.map((alert) => (alert?.id === alertId ? { ...alert, isRead: true } : alert)));
+
+    try {
+      await markNotificationsAsRead([alertId]);
+    } catch (_) {
+      return;
+    }
   };
 
   const markAllAsRead = async () => {
     // Identify unread alerts
-    const unreadIds = alerts?.filter(a => !a?.isRead).map(a => a?.id) || [];
+    const unreadAlerts = alerts?.filter((a) => !a?.isRead) || [];
+    const backendUnreadIds = unreadAlerts.map((alert) => alert?.id);
     
     // Optimistic update
-    setAlerts(prev => prev?.map(alert => ({ ...alert, isRead: true })));
+    setBackendAlerts((prev) => prev?.map((alert) => ({ ...alert, isRead: true })));
     
-    // Persist to backend
-    if (unreadIds.length > 0) {
-      await markAlertsAsReadService(unreadIds);
+    if (backendUnreadIds.length > 0) {
+      try {
+        await markAllNotificationsAsRead();
+      } catch (_) {
+        await markNotificationsAsRead(backendUnreadIds);
+      }
     }
   };
 
   const dismissAlert = (alertId) => {
-    setAlerts(prev => prev?.filter(alert => alert?.id !== alertId));
+    setDismissedAlertIds((prev) => [...prev, alertId]);
   };
 
   const getAlertIcon = (type) => {
@@ -80,7 +162,8 @@ const AlertNotificationCenter = ({ className = '', alerts: externalAlerts = [] }
 
   const formatTimestamp = (timestamp) => {
     const now = new Date();
-    const diff = now - timestamp;
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const diff = now - date;
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));

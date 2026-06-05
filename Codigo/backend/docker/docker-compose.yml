@@ -39,7 +39,6 @@ services:
     volumes:
       - ../src:/app/src
       - ../prisma:/app/prisma
-      - ../uploads:/app/uploads
 
     depends_on:
       postgres:

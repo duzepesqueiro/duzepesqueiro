@@ -5,6 +5,8 @@ export interface Room {
   description: string;
   capacity: number;
   pricePerNight: number;
+  averageRating?: number;
+  reviewsCount?: number;
   amenities: string[];
   petFriendly: boolean;
   images: string[];

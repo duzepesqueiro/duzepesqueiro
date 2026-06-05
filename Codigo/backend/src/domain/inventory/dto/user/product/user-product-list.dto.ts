@@ -26,6 +26,9 @@ export class UserProductListItemDto {
   @ApiPropertyOptional()
   image?: string;
 
+  @ApiPropertyOptional({ type: [String] })
+  images?: string[];
+
   @ApiProperty({ enum: ProductStatus })
   status: ProductStatus;
 

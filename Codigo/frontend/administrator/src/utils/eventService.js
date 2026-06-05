@@ -64,7 +64,7 @@ export const getEventById = async (id) => {
 };
 
 export const createEvent = async (eventData, imageFiles = []) => {
-  const payload = toEventFormData(eventData, imageFiles, false);
+  const payload = toEventFormData(eventData, imageFiles, true);
   const response = await api.post(EVENTS_BASE_PATH, payload, {
     headers: { "Content-Type": "multipart/form-data" },
   });

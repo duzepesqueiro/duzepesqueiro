@@ -75,7 +75,10 @@ export class ProductRepository {
     if (filters.lowStockOnly) {
       const all = await this.prisma.product.findMany({
         where,
-        include: { supplier: { select: { id: true, name: true } } },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          productImages: { orderBy: { createdAt: 'asc' } },
+        },
       });
       const lowStockItems = all.filter(
         (item) => Number(item.stockQuantity) < Number(item.minimumLimit),
@@ -96,7 +99,10 @@ export class ProductRepository {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { supplier: { select: { id: true, name: true } } },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          productImages: { orderBy: { createdAt: 'asc' } },
+        },
       }),
       this.prisma.product.count({ where }),
     ]);

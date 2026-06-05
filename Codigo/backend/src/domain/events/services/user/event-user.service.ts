@@ -106,12 +106,10 @@ export class EventUserService {
   }
 
   private mapUserStatusToDomainStatuses(status: UserStatusFilter): IEvent['status'][] | undefined {
-    if (status === 'ALL') {
-      return undefined;
-    }
     if (status === 'CANCELLED') {
       return ['CANCELLED'];
     }
+    // ALL e UPCOMING: só eventos futuros (exclui COMPLETED e CANCELLED)
     return ['UPCOMING', 'SCHEDULED'];
   }
 
@@ -138,10 +136,14 @@ export class EventUserService {
   }
 
   private toEventCard(event: IEvent): IEventCard {
+    const images = this.resolveImageUrls(event);
     return {
       id: event.id,
       title: event.title,
-      imageUrl: event.imageUrl,
+      description: event.description,
+      rules: event.rules,
+      imageUrl: images[0] ?? '',
+      images,
       location: event.location,
       eventDate: event.eventDate,
       eventTime: event.eventTime,
@@ -151,5 +153,24 @@ export class EventUserService {
       availableSlots: event.availableSlots,
       totalSlots: event.totalSlots,
     };
+  }
+
+  private resolveImageUrls(event: IEvent): string[] {
+    const candidates: string[] = [];
+    if (Array.isArray(event.images)) {
+      candidates.push(...event.images.map((url) => String(url ?? '').trim()));
+    }
+    if (event.imageUrl) {
+      candidates.push(String(event.imageUrl).trim());
+    }
+
+    const unique: string[] = [];
+    for (const value of candidates) {
+      if (!value) continue;
+      if (!/^https?:\/\//i.test(value)) continue;
+      if (value.includes('storage.duzepesqueiro.local')) continue;
+      if (!unique.includes(value)) unique.push(value);
+    }
+    return unique;
   }
 }

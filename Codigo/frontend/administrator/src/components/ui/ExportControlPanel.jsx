@@ -5,12 +5,12 @@ import Icon from '../AppIcon';
 
 const ExportControlPanel = ({ 
   onExport, 
-  availableFormats = ['pdf', 'excel', 'csv', 'png'], 
+  availableFormats = ['excel', 'csv'],
   className = '',
   title = 'Exportar Dados'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState('pdf');
+  const [selectedFormat, setSelectedFormat] = useState('excel');
   const [isExporting, setIsExporting] = useState(false);
 
   const formatOptions = [
@@ -171,19 +171,6 @@ const ExportControlPanel = ({
             <div className="border-t border-border p-4">
               <p className="text-xs text-muted-foreground mb-3">Exportação Rápida:</p>
               <div className="flex space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedFormat('pdf');
-                    handleExport();
-                  }}
-                  iconName="FileText"
-                  iconPosition="left"
-                  className="flex-1"
-                >
-                  PDF
-                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

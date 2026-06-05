@@ -17,7 +17,7 @@ const Sidebar = ({ open, setOpen }) => {
     <motion.aside
       animate={{ width: open ? 256 : 64 }}
       transition={{ duration: 0.3 }}
-      className="fixed top-0 left-0 h-screen z-50 glass border-r border-border flex flex-col"
+      className="fixed top-[72px] left-0 h-[calc(100vh-72px)] z-40 glass border-r border-border flex flex-col"
     >
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-3 border-b border-border">
