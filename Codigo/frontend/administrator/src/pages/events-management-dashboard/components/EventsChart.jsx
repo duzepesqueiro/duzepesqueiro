@@ -46,7 +46,7 @@ const EventsChart = ({
   };
 
   return (
-    <div className={`bg-card border border-border rounded-lg p-6 ${className}`}>
+    <div className={`bg-card border border-border rounded-lg p-4 sm:p-6 ${className}`}>
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold">Estatística dos Eventos</h3>

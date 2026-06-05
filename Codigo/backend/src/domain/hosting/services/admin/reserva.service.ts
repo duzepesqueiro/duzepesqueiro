@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaymentDomain, Prisma } from '@prisma/client';
 import { LogsService } from '../../../../application/logs/services';
+import { NotificationsService } from '../../../../application/notifications/services/notifications.service';
 import { IPaymentDomain, IPaymentMethod } from '../../../../application/payment/interfaces';
 import { PayerDto, PaymentItemDto } from '../../../../application/payment/dto/create-payment.dto';
 import { PaymentFacadeService } from '../../../../application/payment/services';
@@ -40,6 +41,7 @@ export class ReservaService {
     private readonly paymentFacadeService: PaymentFacadeService,
     private readonly logsService: LogsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notificationsService: NotificationsService,
     private readonly hospedagemNotificationService: HospedagemNotificationService,
     private readonly hostingTermsStorageService: HostingTermsStorageService,
     private readonly politicaCancelamentoService: PoliticaCancelamentoService,
@@ -163,6 +165,20 @@ export class ReservaService {
       { reservationId: reservation.id, userId: userId ?? reservation.userId, totalAmount: Number(reservation.totalAmount) },
       reservation.id,
     );
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.created',
+      type: 'SUCCESS',
+      title: 'Reserva de hospedagem criada',
+      message: `Reserva ${reservation.code} criada com sucesso.`,
+      dedupKey: `hosting.reservation.created.${reservation.id}`,
+      payload: {
+        reservationId: reservation.id,
+        code: reservation.code,
+        status: reservation.status,
+        totalAmount: Number(reservation.totalAmount),
+      },
+      reservationId: reservation.id,
+    });
 
     return this.toReservaDTO(reservation);
   }
@@ -238,6 +254,19 @@ export class ReservaService {
   async atualizarReserva(id: string, data: UpdateReservaDTO): Promise<ReservaDTO> {
     const updated = await this.reservaRepository.update(id, data);
     await this.createAuditLog('HOSTING_RESERVATION_UPDATED', id, data.updatedById ?? undefined, null, data as Record<string, unknown>);
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.updated',
+      type: 'INFO',
+      title: 'Reserva de hospedagem atualizada',
+      message: `Reserva ${updated.code} foi atualizada.`,
+      dedupKey: `hosting.reservation.updated.${updated.id}.${updated.updatedAt.toISOString()}`,
+      payload: {
+        reservationId: updated.id,
+        code: updated.code,
+        status: updated.status,
+      },
+      reservationId: updated.id,
+    });
     return this.toReservaDTO(updated);
   }
 
@@ -255,6 +284,19 @@ export class ReservaService {
     });
     void this.logsService.info('hosting', 'HostingCheckinProcessed', { reservationId: id, operatorId: operadorId }, id);
     await this.hospedagemNotificationService.enviarNotificacaoCheckin(id);
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.checkin',
+      type: 'SUCCESS',
+      title: 'Check-in realizado',
+      message: `Check-in registrado para a reserva ${updated.code}.`,
+      dedupKey: `hosting.reservation.checkin.${updated.id}.${updated.checkedInAt?.toISOString() ?? ''}`,
+      payload: {
+        reservationId: updated.id,
+        code: updated.code,
+        checkedInAt: updated.checkedInAt?.toISOString() ?? null,
+      },
+      reservationId: updated.id,
+    });
 
     return {
       reservationId: id,
@@ -277,6 +319,19 @@ export class ReservaService {
     });
     void this.logsService.info('hosting', 'HostingCheckoutProcessed', { reservationId: id, operatorId: operadorId }, id);
     await this.hospedagemNotificationService.enviarNotificacaoCheckoutEConclusao(id);
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.checkout',
+      type: 'SUCCESS',
+      title: 'Check-out realizado',
+      message: `Check-out registrado para a reserva ${updated.code}.`,
+      dedupKey: `hosting.reservation.checkout.${updated.id}.${updated.checkedOutAt?.toISOString() ?? ''}`,
+      payload: {
+        reservationId: updated.id,
+        code: updated.code,
+        checkedOutAt: updated.checkedOutAt?.toISOString() ?? null,
+      },
+      reservationId: updated.id,
+    });
 
     return {
       reservationId: id,
@@ -318,6 +373,21 @@ export class ReservaService {
       id,
     );
     await this.hospedagemNotificationService.enviarNotificacaoCancelamento(id, penaltyAmount);
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.cancelled',
+      type: 'WARNING',
+      title: 'Reserva cancelada',
+      message: `Reserva ${updated.code} foi cancelada.`,
+      dedupKey: `hosting.reservation.cancelled.${updated.id}.${updated.cancelledAt?.toISOString() ?? ''}`,
+      payload: {
+        reservationId: updated.id,
+        code: updated.code,
+        reason: motivo,
+        cancelledAt: updated.cancelledAt?.toISOString() ?? null,
+        penaltyAmount,
+      },
+      reservationId: updated.id,
+    });
 
     return {
       reservationId: id,
@@ -349,6 +419,20 @@ export class ReservaService {
       id,
       updated.noShowFeeAmount ? Number(updated.noShowFeeAmount) : Number(updated.totalAmount),
     );
+    await this.notifyAdminsReservationEvent({
+      eventKey: 'hosting.reservation.no-show',
+      type: 'ERROR',
+      title: 'No-show registrado',
+      message: `Reserva ${updated.code} marcada como no-show.`,
+      dedupKey: `hosting.reservation.no-show.${updated.id}.${updated.noShowAt?.toISOString() ?? ''}`,
+      payload: {
+        reservationId: updated.id,
+        code: updated.code,
+        noShowAt: updated.noShowAt?.toISOString() ?? null,
+        noShowFeeAmount: updated.noShowFeeAmount ? Number(updated.noShowFeeAmount) : Number(updated.totalAmount),
+      },
+      reservationId: updated.id,
+    });
 
     return {
       reservationId: id,
@@ -647,6 +731,39 @@ export class ReservaService {
         newValue: (newValue ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
+  }
+
+  private async notifyAdminsReservationEvent(params: {
+    eventKey: string;
+    type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+    title: string;
+    message: string;
+    dedupKey: string;
+    payload: Record<string, unknown>;
+    reservationId: string;
+  }): Promise<void> {
+    try {
+      await this.notificationsService.notifyAdmins({
+        source: 'hosting',
+        eventKey: params.eventKey,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        dedupKey: params.dedupKey,
+        payload: params.payload,
+      });
+    } catch (error) {
+      void this.logsService.warn(
+        'hosting',
+        'HostingAdminNotificationFailed',
+        {
+          reservationId: params.reservationId,
+          eventKey: params.eventKey,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        params.reservationId,
+      );
+    }
   }
 
   private toReservaDTO(data: {

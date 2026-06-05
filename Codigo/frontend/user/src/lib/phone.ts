@@ -1,24 +1,21 @@
 export const unmaskPhone = (value: string) => {
-  return String(value || "").replace(/\D/g, "").slice(0, 10);
+  return String(value || "").replace(/\D/g, "").slice(0, 11);
 };
 
 export const formatPhoneBR = (value: string) => {
   const digits = unmaskPhone(value);
-  const d1 = digits.slice(0, 2);
-  const d2 = digits.slice(2, 6);
-  const d3 = digits.slice(6, 10);
 
   if (!digits.length) return "";
 
-  let out = "";
-  // DDD
-  out += `(${d1}`;
+  const ddd = digits.slice(0, 2);
+  const part1 = digits.slice(2, 7);
+  const part2 = digits.slice(7, 11);
+
+  let out = `(${ddd}`;
   if (digits.length >= 2) out += ") ";
-  // Primeira parte
-  out += d2;
-  if (digits.length >= 6) out += "-";
-  // Segunda parte
-  out += d3;
+  out += part1;
+  if (digits.length >= 7) out += "-";
+  out += part2;
 
   return out;
 };

@@ -185,6 +185,8 @@ export class EventRegistrationRepository implements IEventRegistrationRepository
             select: {
               id: true,
               title: true,
+              description: true,
+              rules: true,
               imageUrl: true,
               location: true,
               eventDate: true,
@@ -211,6 +213,8 @@ export class EventRegistrationRepository implements IEventRegistrationRepository
         event: {
           id: row.event.id,
           title: row.event.title,
+          description: row.event.description,
+          rules: row.event.rules,
           imageUrl: row.event.imageUrl,
           location: row.event.location,
           eventDate: row.event.eventDate,
@@ -313,7 +317,9 @@ export class EventRegistrationRepository implements IEventRegistrationRepository
   async countByEventId(eventId: string): Promise<number> {
     try {
       const prisma = this.prisma as any;
-      return prisma.eventRegistration.count({ where: { eventId } });
+      return prisma.eventRegistration.count({
+        where: { eventId, status: { not: 'CANCELLED' } },
+      });
     } catch (error) {
       this.logger.error(
         `Falha ao contar inscrições por evento event=${eventId}`,

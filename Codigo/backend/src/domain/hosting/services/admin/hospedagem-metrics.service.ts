@@ -21,15 +21,25 @@ type CacheEntry<T> = {
 @Injectable()
 export class HospedagemMetricsService {
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  private readonly occupancyStatuses: ReservationStatus[] = [
+    ReservationStatus.PENDING,
+    ReservationStatus.CONFIRMED,
+    ReservationStatus.OCCUPIED,
+    ReservationStatus.COMPLETED,
+  ];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
 
-  async obterKPIsGeral(): Promise<HospedagemKPIsDTO> {
+  async obterKPIsGeral(
+    periodo: 'semana' | 'mes' | 'ano' = 'mes',
+    dataReferencia = new Date(),
+  ): Promise<HospedagemKPIsDTO> {
     const hoje = new Date();
-    const [totalChales, chalesOcupados, reservasAtivas, reservasCanceladas, receitaTotal] =
+    const range = this.obterRangePorGranularidade(periodo, dataReferencia);
+    const [totalChales, chalesOcupadosHoje, taxaOcupacao, reservasAtivas, reservasCanceladas, receitaTotal] =
       await Promise.all([
         this.prisma.hostingChalet.count({
           where: {
@@ -37,15 +47,8 @@ export class HospedagemMetricsService {
             isActive: true,
           },
         }),
-        this.prisma.hostingReservation.groupBy({
-          by: ['chaletId'],
-          where: {
-            deletedAt: null,
-            status: ReservationStatus.OCCUPIED,
-            checkInDate: { lte: hoje },
-            checkOutDate: { gt: hoje },
-          },
-        }),
+        this.obterChalesOcupadosNoDia(hoje),
+        this.obterTaxaOcupacaoPorPeriodo(range),
         this.prisma.hostingReservation.count({
           where: {
             deletedAt: null,
@@ -64,17 +67,12 @@ export class HospedagemMetricsService {
             status: ReservationStatus.CANCELLED,
           },
         }),
-        this.obterReceitaTotal(this.obterRangePorGranularidade('mes', hoje)),
+        this.obterReceitaTotal(range),
       ]);
-
-    const taxaOcupacao =
-      totalChales > 0
-        ? Number(((chalesOcupados.length / totalChales) * 100).toFixed(2))
-        : 0;
 
     return {
       totalChales,
-      chalesOcupados: chalesOcupados.length,
+      chalesOcupados: chalesOcupadosHoje,
       taxaOcupacao,
       reservasAtivas,
       reservasCanceladas,
@@ -105,6 +103,53 @@ export class HospedagemMetricsService {
     });
 
     return Number(((occupied.length / totalChales) * 100).toFixed(2));
+  }
+
+  async obterTaxaOcupacaoPorPeriodo(periodo: DateRangeDTO): Promise<number> {
+    const periodStart = this.startOfDay(periodo.startDate);
+    const periodEndExclusive = this.addDays(this.startOfDay(periodo.endDate), 1);
+    const totalDays = Math.max(1, this.daysBetween(periodStart, periodEndExclusive));
+
+    const totalChales = await this.prisma.hostingChalet.count({
+      where: {
+        deletedAt: null,
+        isActive: true,
+      },
+    });
+
+    if (totalChales === 0) {
+      return 0;
+    }
+
+    const reservations = await this.prisma.hostingReservation.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: this.occupancyStatuses },
+        checkInDate: { lt: periodEndExclusive },
+        checkOutDate: { gt: periodStart },
+      },
+      select: {
+        chaletId: true,
+        checkInDate: true,
+        checkOutDate: true,
+      },
+    });
+
+    const occupiedChaletDays = new Set<string>();
+    for (const reservation of reservations) {
+      const start = this.maxDate(this.startOfDay(reservation.checkInDate), periodStart);
+      const endExclusive = this.minDate(this.startOfDay(reservation.checkOutDate), periodEndExclusive);
+      for (let cursor = new Date(start); cursor < endExclusive; cursor = this.addDays(cursor, 1)) {
+        occupiedChaletDays.add(`${reservation.chaletId}:${this.dateKey(cursor)}`);
+      }
+    }
+
+    const denominator = totalChales * totalDays;
+    if (denominator <= 0) {
+      return 0;
+    }
+
+    return Number(((occupiedChaletDays.size / denominator) * 100).toFixed(2));
   }
 
   async obterReceitaTotal(periodo: DateRangeDTO): Promise<number> {
@@ -452,6 +497,22 @@ export class HospedagemMetricsService {
     this.cache.clear();
   }
 
+  async obterChalesOcupadosNoDia(data = new Date()): Promise<number> {
+    const dayStart = this.startOfDay(data);
+    const dayEnd = this.addDays(dayStart, 1);
+    const grouped = await this.prisma.hostingReservation.groupBy({
+      by: ['chaletId'],
+      where: {
+        deletedAt: null,
+        status: { in: this.occupancyStatuses },
+        checkInDate: { lt: dayEnd },
+        checkOutDate: { gt: dayStart },
+      },
+    });
+
+    return grouped.length;
+  }
+
   private async withCache<T>(key: string, load: () => Promise<T>): Promise<T> {
     const ttlMs = Number(this.configService.get<number>('hosting.metricsCacheTtlMs') ?? 5 * 60 * 1000);
     const now = Date.now();
@@ -535,5 +596,22 @@ export class HospedagemMetricsService {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
+  }
+
+  private maxDate(a: Date, b: Date): Date {
+    return a.getTime() >= b.getTime() ? a : b;
+  }
+
+  private minDate(a: Date, b: Date): Date {
+    return a.getTime() <= b.getTime() ? a : b;
+  }
+
+  private daysBetween(startInclusive: Date, endExclusive: Date): number {
+    const diffMs = endExclusive.getTime() - startInclusive.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  private dateKey(date: Date): string {
+    return date.toISOString().slice(0, 10);
   }
 }

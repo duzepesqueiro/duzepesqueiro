@@ -92,7 +92,7 @@ const Index = () => {
 
       {/* Main content with margin to accommodate sidebar */}
       <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <section className="relative h-[90vh] min-h-[620px] flex items-center justify-center overflow-hidden">
+        <section className="relative h-[90vh] min-h-[620px] pt-24 flex items-center justify-center overflow-hidden">
           <img
             src={heroImg}
             alt="DuZé Pesqueiro"

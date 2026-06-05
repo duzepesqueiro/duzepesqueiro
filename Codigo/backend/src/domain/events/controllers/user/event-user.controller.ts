@@ -33,7 +33,7 @@ import { EventRegistrationService, EventUserService } from '../../services/user'
 
 type StatusParam = 'ALL' | 'UPCOMING' | 'CANCELLED';
 
-@Controller('events')
+@Controller(['events', 'api/events'])
 @ApiTags('Events - User')
 @UseInterceptors(ClassSerializerInterceptor)
 @UsePipes(

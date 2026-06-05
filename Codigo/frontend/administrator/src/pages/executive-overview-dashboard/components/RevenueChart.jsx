@@ -14,7 +14,7 @@ const RevenueChart = ({ data, timeframe = 'weekly', onTimeframeChange, className
                 style={{ backgroundColor: entry?.color }}
               />
               <span className="text-muted-foreground">
-                {entry?.dataKey === 'revenue' ? 'Receita:' : 'Usuários:'}
+                {entry?.dataKey === 'revenue' ? 'Receita:' : 'Reservas:'}
               </span>
               <span className="font-medium text-foreground">
                 {entry?.dataKey === 'revenue' 
@@ -31,24 +31,26 @@ const RevenueChart = ({ data, timeframe = 'weekly', onTimeframeChange, className
 
   const periodLabels = {
     weekly: 'Semana',
-    monthly: 'Mês'
+    monthly: 'Mês',
+    yearly: 'Ano',
   };
+  const periodTitle = periodLabels?.[timeframe] || 'Semana';
 
   return (
     <div className={`bg-card border border-border rounded-lg p-6 ${className}`}>
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
         <div>
           <h3 className="text-lg font-heading font-semibold text-foreground">
-            Desempenho {timeframe === 'monthly' ? 'Mensal' : 'Semanal'}
+            Desempenho {periodTitle}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Receita {timeframe === 'monthly' ? 'Mensal' : 'Semanal'} vs Contagem de Usuários
+            Receita {periodTitle} vs Contagem de Reservas
           </p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
           <div className="flex bg-muted rounded-lg p-1">
-            {['weekly', 'monthly'].map((period) => (
+            {['weekly', 'monthly', 'yearly'].map((period) => (
               <button
                 key={period}
                 onClick={() => onTimeframeChange && onTimeframeChange(period)}
@@ -70,7 +72,7 @@ const RevenueChart = ({ data, timeframe = 'weekly', onTimeframeChange, className
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-accent rounded-full" />
-              <span className="text-muted-foreground">Usuários</span>
+              <span className="text-muted-foreground">Reservas</span>
             </div>
           </div>
         </div>

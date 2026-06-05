@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../../components/ui/Header';
 import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter';
-import { getSalesAlerts } from '../../utils/notificationService';
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import SalesKPICards from './components/SalesKPICards';
 import SalesChart from './components/SalesChart';
@@ -22,7 +21,6 @@ import { exportAdminData } from '../../utils/exportService';
 const SalesAnalyticsDashboard = () => {
   const [salesFilters, setSalesFilters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [pageAlerts, setPageAlerts] = useState([]);
 
   const [kpiData, setKpiData] = useState([]);
   const [salesChartData, setSalesChartData] = useState([]);
@@ -67,20 +65,6 @@ const SalesAnalyticsDashboard = () => {
     fetchAnalyticsData();
   }, [fetchAnalyticsData]);
 
-  // Notificações de vendas: confirmadas e canceladas
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const alerts = await getSalesAlerts();
-        if (mounted) setPageAlerts(alerts);
-      } catch (err) {
-        if (mounted) setPageAlerts([{ id: 'sales-alert-error', type: 'error', title: 'Erro ao carregar alertas', message: 'Falha ao consultar vendas.', category: 'sales', timestamp: new Date(), isRead: false }]);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -113,10 +97,10 @@ const SalesAnalyticsDashboard = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <AlertNotificationCenter alerts={pageAlerts} />
+              <AlertNotificationCenter />
               <ExportControlPanel 
                 onExport={handleExport}
-                availableFormats={['pdf', 'excel', 'csv', 'png']}
+                availableFormats={['excel', 'csv']}
                 title="Exportar Relatório de Vendas"
               />
               <Button

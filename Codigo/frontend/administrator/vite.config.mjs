@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       strictPort: true,
       allowedHosts: [".amazonaws.com", ".builtwithrocket.new"],
+      watch: {
+        usePolling: true,
+        interval: 300,
+      },
     },
   };
 });

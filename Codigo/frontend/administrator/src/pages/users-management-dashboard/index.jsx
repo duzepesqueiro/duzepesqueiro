@@ -353,7 +353,7 @@ const UsersManagementDashboard = () => {
             <Button variant="outline" iconName="Database">Backup</Button>
             <ExportControlPanel
               onExport={handleExport}
-              availableFormats={['pdf','excel','csv']}
+              availableFormats={['excel','csv']}
               title="Exportar Relatório de Usuários"
             />
           </div>

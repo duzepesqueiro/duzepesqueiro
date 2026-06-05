@@ -22,11 +22,15 @@ export class AluguelNotificationListener {
     if (!payload.userId) {
       return;
     }
-    this.notificationsService.sendToUser(payload.userId, 'rental.booking_created', {
-      type: 'rental_booking_created',
+    void this.notificationsService.notifyUser({
+      userId: payload.userId,
+      source: 'rental',
+      eventKey: 'rental.booking_created',
       title: 'Reserva criada',
       message: `Sua reserva #${rentalId} foi criada com sucesso`,
-      payload,
+      type: 'SUCCESS',
+      dedupKey: `rental.booking_created.${rentalId}`,
+      payload: payload as Record<string, unknown>,
     });
     this.logsService.info('rental', 'RentalBookingCreatedNotificationSent', payload, rentalId);
   }
@@ -36,11 +40,15 @@ export class AluguelNotificationListener {
     if (!payload.userId) {
       return;
     }
-    this.notificationsService.sendToUser(payload.userId, 'rental.status_changed', {
-      type: 'rental_status_update',
-      title: 'Status do Aluguel Atualizado',
+    void this.notificationsService.notifyUser({
+      userId: payload.userId,
+      source: 'rental',
+      eventKey: 'rental.status_changed',
+      title: 'Status do aluguel atualizado',
       message: `Seu aluguel #${payload.rentalId} agora está ${payload.newStatus}`,
-      payload,
+      type: 'INFO',
+      dedupKey: `rental.status_changed.${payload.rentalId}.${payload.newStatus}`,
+      payload: payload as unknown as Record<string, unknown>,
     });
     this.logsService.info(
       'rental',
@@ -55,11 +63,15 @@ export class AluguelNotificationListener {
     if (!payload.userId) {
       return;
     }
-    this.notificationsService.sendToUser(payload.userId, 'rental.payment_completed', {
-      type: 'rental_payment_completed',
+    void this.notificationsService.notifyUser({
+      userId: payload.userId,
+      source: 'rental',
+      eventKey: 'rental.payment_completed',
       title: 'Pagamento confirmado',
       message: `Pagamento do aluguel #${payload.rentalId} confirmado`,
-      payload,
+      type: 'SUCCESS',
+      dedupKey: `rental.payment_completed.${payload.rentalId}`,
+      payload: payload as unknown as Record<string, unknown>,
     });
     this.logsService.info(
       'rental',
@@ -74,11 +86,15 @@ export class AluguelNotificationListener {
     if (!payload.userId) {
       return;
     }
-    this.notificationsService.sendToUser(payload.userId, 'rental.payment_failed', {
-      type: 'rental_payment_failed',
+    void this.notificationsService.notifyUser({
+      userId: payload.userId,
+      source: 'rental',
+      eventKey: 'rental.payment_failed',
       title: 'Falha no pagamento',
       message: `Não foi possível confirmar o pagamento do aluguel #${payload.rentalId}`,
-      payload,
+      type: 'ERROR',
+      dedupKey: `rental.payment_failed.${payload.rentalId}`,
+      payload: payload as unknown as Record<string, unknown>,
     });
     this.logsService.warn(
       'rental',
@@ -94,11 +110,15 @@ export class AluguelNotificationListener {
     if (!payload.userId) {
       return;
     }
-    this.notificationsService.sendToUser(payload.userId, 'rental.booking_completed', {
-      type: 'rental_booking_completed',
+    void this.notificationsService.notifyUser({
+      userId: payload.userId,
+      source: 'rental',
+      eventKey: 'rental.booking_completed',
       title: 'Devolução registrada',
       message: `A devolução da reserva #${rentalId} foi registrada`,
-      payload,
+      type: 'SUCCESS',
+      dedupKey: `rental.booking_completed.${rentalId}`,
+      payload: payload as Record<string, unknown>,
     });
     this.logsService.info('rental', 'RentalBookingCompletedNotificationSent', payload, rentalId);
   }

@@ -32,6 +32,27 @@ const toErrorMessage = (error, fallback) => {
   return fallback;
 };
 
+const toDateOnly = (value) => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const canStartCheckIn = (reservation) => {
+  const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+  if (!checkInDate) {
+    return true;
+  }
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return today.getTime() >= checkInDate.getTime();
+};
+
 const statusToLabel = {
   PENDING: 'Pendente',
   CONFIRMED: 'Confirmado',
@@ -235,6 +256,10 @@ const ReservationsManagementPage = () => {
 
   const handleCheckIn = async (reservation) => {
     if (processingAction.reservationId) {
+      return;
+    }
+    if (!canStartCheckIn(reservation)) {
+      alert('Check-in só pode ser realizado a partir da data da reserva.');
       return;
     }
     setProcessingAction({ reservationId: reservation.id, type: 'checkin' });
