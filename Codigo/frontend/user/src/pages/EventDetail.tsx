@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, ChevronLeft, Clock, MapPin, User as UserIcon, Users } from "lucide-react";
 import { format as formatDate } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { api } from "@/lib/api";
@@ -22,11 +23,14 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const REVIEWS_PAGE_SIZE = 10;
+const MAX_IMAGES = 10;
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [reviewsPage, setReviewsPage] = useState(1);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [imageErrorByUrl, setImageErrorByUrl] = useState<Record<string, boolean>>({});
 
   const { data: event, isLoading: isLoadingEvent } = useQuery<any>({
     queryKey: ["event-detail", id],
@@ -87,6 +91,54 @@ const EventDetail = () => {
     }
   }, [event?.eventDate]);
 
+  const availableSlots = Number(event?.availableSlots ?? 0);
+  const totalSlots = Number(event?.totalSlots ?? 0);
+  const currentAttendees = Math.max(0, totalSlots - availableSlots);
+
+  const carouselImages = useMemo(() => {
+    if (Array.isArray(event?.images)) {
+      return (event.images as unknown[])
+        .filter((url) => typeof url === "string" && String(url).trim())
+        .slice(0, MAX_IMAGES)
+        .map((url) => String(url));
+    }
+    if (event?.imageUrl) {
+      const url = String(event.imageUrl).trim();
+      return url ? [url] : [];
+    }
+    return [];
+  }, [event?.images, event?.imageUrl]);
+
+  const hasCarousel = carouselImages.length > 1;
+  const activeImageCandidate = carouselImages[activeImageIndex] ?? null;
+  const activeImage =
+    activeImageCandidate && !imageErrorByUrl[String(activeImageCandidate)]
+      ? String(activeImageCandidate)
+      : null;
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setImageErrorByUrl({});
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (activeImageIndex >= carouselImages.length) {
+      setActiveImageIndex(0);
+    }
+  }, [activeImageIndex, carouselImages.length]);
+
+  const goToPreviousImage = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!hasCarousel) return;
+    setActiveImageIndex((current) => (current - 1 + carouselImages.length) % carouselImages.length);
+  };
+
+  const goToNextImage = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!hasCarousel) return;
+    setActiveImageIndex((current) => (current + 1) % carouselImages.length);
+  };
+
   if (isLoadingEvent) {
     return (
       <div className="min-h-screen bg-background">
@@ -119,10 +171,6 @@ const EventDetail = () => {
     );
   }
 
-  const availableSlots = Number(event?.availableSlots ?? 0);
-  const totalSlots = Number(event?.totalSlots ?? 0);
-  const currentAttendees = Math.max(0, totalSlots - availableSlots);
-
   return (
     <div className="min-h-screen bg-background">
       <Header searchScope="events" />
@@ -138,16 +186,67 @@ const EventDetail = () => {
             <div className="lg:col-span-3 space-y-6">
               <Card className="overflow-hidden border border-border/40 bg-card">
                 <div className="relative aspect-video bg-muted">
-                  {event?.imageUrl ? (
-                    <img
-                      src={event.imageUrl}
-                      alt={event.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  ) : null}
+                  <AnimatePresence mode="wait">
+                    {activeImage ? (
+                      <motion.img
+                        key={`${event.id}-${activeImageIndex}`}
+                        src={activeImage}
+                        alt={`${event.title} - imagem ${activeImageIndex + 1}`}
+                        initial={{ opacity: 0, scale: 1.04 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.02 }}
+                        transition={{ duration: 0.35 }}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={() =>
+                          setImageErrorByUrl((prev) => ({
+                            ...prev,
+                            [activeImage]: true,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <motion.div
+                        key={`${event.id}-placeholder`}
+                        initial={{ opacity: 0, scale: 1.02 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.01 }}
+                        transition={{ duration: 0.35 }}
+                        className="flex h-full w-full items-center justify-center bg-muted"
+                      >
+                        <div className="text-center space-y-2">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-muted-foreground/35 text-muted-foreground/80">
+                            <span className="text-xl">+</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground/70">Imagem reservada</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {hasCarousel && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={goToPreviousImage}
+                        className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+                        aria-label="Imagem anterior"
+                      >
+                        &lt;
+                      </button>
+                      <button
+                        type="button"
+                        onClick={goToNextImage}
+                        className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+                        aria-label="Próxima imagem"
+                      >
+                        &gt;
+                      </button>
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border/50 bg-background/80 px-3 py-1 text-[11px] font-medium text-foreground backdrop-blur-sm">
+                        {activeImageIndex + 1}/{carouselImages.length}
+                      </div>
+                    </>
+                  )}
                   <div className="absolute top-3 left-3 flex flex-wrap gap-2">
                     <Badge variant="secondary">
                       {availableSlots > 0 ? `${availableSlots} vagas` : "Esgotado"}

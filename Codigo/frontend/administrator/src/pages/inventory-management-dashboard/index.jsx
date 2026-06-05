@@ -194,7 +194,7 @@ const InventoryManagementDashboard = () => {
               {/* Export Controls */}
               <ExportControlPanel
                 onExport={handleExport}
-                availableFormats={['pdf', 'excel', 'csv']}
+                availableFormats={['excel', 'csv']}
                 title="Exportar Relatório de Estoque"
               />
             </div>

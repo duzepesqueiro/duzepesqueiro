@@ -85,6 +85,7 @@ export interface IEventCard {
   description: string;
   rules: string;
   imageUrl: string;
+  images: string[];
   location: string;
   eventDate: Date;
   eventTime: string;

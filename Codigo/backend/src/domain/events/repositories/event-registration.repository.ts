@@ -317,7 +317,9 @@ export class EventRegistrationRepository implements IEventRegistrationRepository
   async countByEventId(eventId: string): Promise<number> {
     try {
       const prisma = this.prisma as any;
-      return prisma.eventRegistration.count({ where: { eventId } });
+      return prisma.eventRegistration.count({
+        where: { eventId, status: { not: 'CANCELLED' } },
+      });
     } catch (error) {
       this.logger.error(
         `Falha ao contar inscrições por evento event=${eventId}`,

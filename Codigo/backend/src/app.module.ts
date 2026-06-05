@@ -13,6 +13,7 @@ import { MailModule } from './application/mail/mail.module';
 import { PaymentModule } from './application/payment/payment.module';
 import { LogsModule } from './application/logs/logs.module';
 import { ReviewsModule } from './application/reviews/reviews.module';
+import { ExportModule } from './application/export/export.module';
 import { AluguelModule } from './domain/rentals';
 import { EventsModule } from './domain/events';
 import { InventoryModule } from './domain/inventory';
@@ -47,6 +48,7 @@ import { WebsocketModule } from './infrastructure/websocket/websocket.module';
     MailModule,
     PaymentModule,
     ReviewsModule,
+    ExportModule,
     AluguelModule,
     EventsModule,
     InventoryModule,

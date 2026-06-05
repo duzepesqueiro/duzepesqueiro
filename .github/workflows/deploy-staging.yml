@@ -1,0 +1,137 @@
+name: Deploy (staging)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER || secrets.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ vars.ECS_SERVICE || secrets.ECS_SERVICE }}
+      ECS_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION || secrets.ECS_TASK_DEFINITION }}
+      ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND || 'backend' }}
+      ECR_REPOSITORY_FRONTEND: ${{ vars.ECR_REPOSITORY_FRONTEND || 'frontend' }}
+      AUTH_VITE_API_BASE_URL: ${{ vars.AUTH_VITE_API_BASE_URL || '/api' }}
+      AUTH_VITE_BASE_PATH: ${{ vars.AUTH_VITE_BASE_PATH || '/auth/' }}
+      AUTH_VITE_USER_APP_URL: ${{ vars.AUTH_VITE_USER_APP_URL || '/user/' }}
+      AUTH_VITE_ADMIN_APP_URL: ${{ vars.AUTH_VITE_ADMIN_APP_URL || '/admin/' }}
+      USER_VITE_API_BASE_URL: ${{ vars.USER_VITE_API_BASE_URL || '/api' }}
+      USER_VITE_BASE_PATH: ${{ vars.USER_VITE_BASE_PATH || '/user/' }}
+      USER_VITE_AUTH_APP_URL: ${{ vars.USER_VITE_AUTH_APP_URL || '/auth/' }}
+      USER_VITE_MERCADOPAGO_PUBLIC_KEY: ${{ vars.USER_VITE_MERCADOPAGO_PUBLIC_KEY || secrets.USER_VITE_MERCADOPAGO_PUBLIC_KEY || '' }}
+      USER_VITE_STORE_INSTAGRAM_URL: ${{ vars.USER_VITE_STORE_INSTAGRAM_URL || '' }}
+      USER_VITE_STORE_WHATSAPP_PHONE: ${{ vars.USER_VITE_STORE_WHATSAPP_PHONE || '' }}
+      ADMIN_VITE_API_BASE_URL: ${{ vars.ADMIN_VITE_API_BASE_URL || '/api' }}
+      ADMIN_VITE_BASE_PATH: ${{ vars.ADMIN_VITE_BASE_PATH || '/admin/' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+      - name: Configure AWS credentials (access keys)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME == '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (backend)
+        id: build-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: Codigo/backend
+          file: Codigo/backend/docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push (frontend/nginx)
+        id: build-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: Codigo/frontend
+          file: Codigo/frontend/docker/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }}
+          build-args: |
+            AUTH_VITE_API_BASE_URL=${{ env.AUTH_VITE_API_BASE_URL }}
+            AUTH_VITE_BASE_PATH=${{ env.AUTH_VITE_BASE_PATH }}
+            AUTH_VITE_USER_APP_URL=${{ env.AUTH_VITE_USER_APP_URL }}
+            AUTH_VITE_ADMIN_APP_URL=${{ env.AUTH_VITE_ADMIN_APP_URL }}
+            USER_VITE_API_BASE_URL=${{ env.USER_VITE_API_BASE_URL }}
+            USER_VITE_BASE_PATH=${{ env.USER_VITE_BASE_PATH }}
+            USER_VITE_AUTH_APP_URL=${{ env.USER_VITE_AUTH_APP_URL }}
+            USER_VITE_MERCADOPAGO_PUBLIC_KEY=${{ env.USER_VITE_MERCADOPAGO_PUBLIC_KEY }}
+            USER_VITE_STORE_INSTAGRAM_URL=${{ env.USER_VITE_STORE_INSTAGRAM_URL }}
+            USER_VITE_STORE_WHATSAPP_PHONE=${{ env.USER_VITE_STORE_WHATSAPP_PHONE }}
+            ADMIN_VITE_API_BASE_URL=${{ env.ADMIN_VITE_API_BASE_URL }}
+            ADMIN_VITE_BASE_PATH=${{ env.ADMIN_VITE_BASE_PATH }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition "$ECS_TASK_DEFINITION" \
+            | jq '.taskDefinition
+              | del(
+                  .taskDefinitionArn,
+                  .revision,
+                  .status,
+                  .requiresAttributes,
+                  .compatibilities,
+                  .registeredAt,
+                  .registeredBy
+                )' > task-definition.json
+
+      - name: Render task definition (backend image)
+        id: render-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: backend
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}
+
+      - name: Render task definition (nginx image)
+        id: render-nginx
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-backend.outputs.task-definition }}
+          container-name: nginx
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-nginx.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

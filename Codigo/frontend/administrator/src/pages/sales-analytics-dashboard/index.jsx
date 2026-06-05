@@ -100,7 +100,7 @@ const SalesAnalyticsDashboard = () => {
               <AlertNotificationCenter />
               <ExportControlPanel 
                 onExport={handleExport}
-                availableFormats={['pdf', 'excel', 'csv', 'png']}
+                availableFormats={['excel', 'csv']}
                 title="Exportar Relatório de Vendas"
               />
               <Button

@@ -231,7 +231,7 @@ const ExecutiveOverviewDashboard = () => {
               <ExportControlPanel 
                 onExport={handleExport}
                 title="Exportar Painel"
-                availableFormats={['pdf', 'excel', 'png']}
+                availableFormats={['excel', 'csv']}
               />
             </div>
           </div>
