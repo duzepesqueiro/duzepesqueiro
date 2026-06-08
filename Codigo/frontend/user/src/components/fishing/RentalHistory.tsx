@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { updateRental } from "@/lib/api";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 
 export interface RentalDTO {
   id: string | number;
@@ -47,6 +48,14 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
       return d.toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
     } catch {
       return s;
+    }
+  };
+
+  const formatCurrency = (n?: number) => {
+    try {
+      return (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    } catch {
+      return String(n ?? 0);
     }
   };
 
@@ -150,14 +159,14 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
 
   if (!orders?.length) {
     return (
-      <div className="mt-8 p-6 border rounded-lg bg-muted/40 text-center text-muted-foreground">
+      <div className="mt-4 p-6 border border-dashed rounded-2xl bg-muted/20 text-center text-muted-foreground">
         Nenhuma reserva realizada ainda. Faça uma reserva para vê-la aqui em tempo real.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 mt-10">
+    <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold">Histórico de Aluguéis</h2>
         <p className="text-sm text-muted-foreground">Suas reservas aparecem aqui imediatamente após confirmação.</p>
@@ -167,67 +176,83 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Aluguéis Ativos e Próximos</h3>
         {!activeUpcoming.length ? (
-          <div className="p-4 border rounded-lg bg-muted/40 text-muted-foreground">Nenhum aluguel ativo ou próximo.</div>
+          <div className="p-4 border border-dashed rounded-2xl bg-muted/20 text-muted-foreground">Nenhum aluguel ativo ou próximo.</div>
         ) : (
           <>
-          <ul className="divide-y rounded-md border">
-            {activePageItems.map(({ dto, itemName }) => (
-              <li key={dto.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium line-clamp-1">{itemName}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <UserIcon className="h-3 w-3" /> {dto.renterName}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 sm:self-start">
-                  <Badge variant="secondary">Qtd: {dto.quantity}</Badge>
-                  <span className="text-lg font-bold">R${Number(dto.totalPrice).toFixed(2)}</span>
-                  <Button variant="outline" size="sm" onClick={() => startEdit(dto)} className="flex items-center gap-1">
-                    <Pencil className="h-4 w-4" /> Editar
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => onCancel?.(dto.id)} className="flex items-center gap-1 text-destructive border-destructive hover:bg-destructive/10">
-                    <XCircle className="h-4 w-4" /> Cancelar
-                  </Button>
-                </div>
-                {editingId === dto.id && (
-                  <div className="mt-2 p-3 rounded-lg border bg-muted/30 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label>Data</Label>
-                        <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            <ul className="space-y-3">
+              {activePageItems.map(({ dto, itemName }) => (
+                <li key={dto.id}>
+                  <Card className="border border-border/50 bg-card/90 backdrop-blur-sm">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold line-clamp-1">{itemName}</div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-2">
+                              <UserIcon className="h-3 w-3" /> {dto.renterName}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                              <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                          <Badge variant="secondary" className="font-semibold">Qtd: {dto.quantity}</Badge>
+                          <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
+                            {formatCurrency(dto.totalPrice)}
+                          </Badge>
+                          <Button type="button" variant="outline" size="sm" onClick={() => startEdit(dto)} className="h-9 flex items-center gap-2">
+                            <Pencil className="h-4 w-4" /> Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onCancel?.(dto.id)}
+                            className="h-9 flex items-center gap-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+                          >
+                            <XCircle className="h-4 w-4" /> Cancelar
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <Label>Hora</Label>
-                        <Input type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
-                      </div>
-                      <div>
-                        <Label>Horas</Label>
-                        <Input type="number" min={1} value={editHours} onChange={(e) => setEditHours(Number(e.target.value))} />
-                      </div>
-                      <div>
-                        <Label>Quantidade</Label>
-                        <Input type="number" min={1} value={editQty} onChange={(e) => setEditQty(Number(e.target.value))} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" onClick={() => setEditingId(null)}>Cancelar</Button>
-                      <Button variant="secondary" onClick={() => submitEdit(dto.id)}>Salvar alterações</Button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+
+                      {editingId === dto.id && (
+                        <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <Label>Data</Label>
+                              <Input className="h-11" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                            </div>
+                            <div>
+                              <Label>Hora</Label>
+                              <Input className="h-11" type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
+                            </div>
+                            <div>
+                              <Label>Horas</Label>
+                              <Input className="h-11" type="number" min={1} value={editHours} onChange={(e) => setEditHours(Number(e.target.value))} />
+                            </div>
+                            <div>
+                              <Label>Quantidade</Label>
+                              <Input className="h-11" type="number" min={1} value={editQty} onChange={(e) => setEditQty(Number(e.target.value))} />
+                            </div>
+                          </div>
+                          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
+                            <Button type="button" className="h-11" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
+                            <Button type="button" className="h-11 font-semibold" variant="secondary" onClick={() => submitEdit(dto.id)}>Salvar alterações</Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </li>
+              ))}
+            </ul>
           <div className="mt-3 flex items-center justify-end gap-2">
             <Button
               variant="outline"
@@ -257,42 +282,50 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
       <div className="space-y-4 mt-8">
         <h3 className="text-lg font-semibold">Em Atraso</h3>
         {!overdue.length ? (
-          <div className="p-4 border rounded-lg bg-muted/40 text-muted-foreground">Nenhum aluguel atrasado.</div>
+          <div className="p-4 border border-dashed rounded-2xl bg-muted/20 text-muted-foreground">Nenhum aluguel atrasado.</div>
         ) : (
           <>
-          <ul className="divide-y rounded-md border">
+          <ul className="space-y-3">
             {overduePageItems.map(({ dto, itemName }) => (
-              <li key={dto.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium line-clamp-1">{itemName}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <UserIcon className="h-3 w-3" /> {dto.renterName}
+              <li key={dto.id}>
+                <Card className="border border-border/50 bg-card/90 backdrop-blur-sm">
+                  <CardContent className="p-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold line-clamp-1">{itemName}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <UserIcon className="h-3 w-3" /> {dto.renterName}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                          <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
+
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <Badge variant="secondary" className="font-semibold">Qtd: {dto.quantity}</Badge>
+                      <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
+                        {formatCurrency(dto.totalPrice)}
+                      </Badge>
+                      {!dto.returnTime ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onCancel?.(dto.id)}
+                          className="h-9 flex items-center gap-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+                        >
+                          <XCircle className="h-4 w-4" /> Cancelar
+                        </Button>
+                      ) : null}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 sm:self-start">
-                  <Badge variant="secondary">Qtd: {dto.quantity}</Badge>
-                  <span className="text-lg font-bold">R${Number(dto.totalPrice).toFixed(2)}</span>
-                  {!dto.returnTime && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onCancel?.(dto.id)}
-                      className="flex items-center gap-1 text-destructive border-destructive hover:bg-destructive/10"
-                    >
-                      <XCircle className="h-4 w-4" /> Cancelar
-                    </Button>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               </li>
             ))}
           </ul>
@@ -325,32 +358,39 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
       <div className="space-y-4 mt-8">
         <h3 className="text-lg font-semibold">Histórico</h3>
         {!past.length ? (
-          <div className="p-4 border rounded-lg bg-muted/40 text-muted-foreground">Nenhum histórico disponível.</div>
+          <div className="p-4 border border-dashed rounded-2xl bg-muted/20 text-muted-foreground">Nenhum histórico disponível.</div>
         ) : (
           <>
-          <ul className="divide-y rounded-md border">
+          <ul className="space-y-3">
             {pastPageItems.map(({ dto, itemName }) => (
-              <li key={dto.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium line-clamp-1">{itemName}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <UserIcon className="h-3 w-3" /> {dto.renterName}
+              <li key={dto.id}>
+                <Card className="border border-border/50 bg-card/90 backdrop-blur-sm">
+                  <CardContent className="p-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="font-semibold bg-muted/60">{itemName?.[0]?.toUpperCase() || "A"}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold line-clamp-1">{itemName}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <UserIcon className="h-3 w-3" /> {dto.renterName}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                          <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-3 w-3" /> De {formatDate(dto.startDate)} até {formatDate(dto.endDate)}
+
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <Badge variant="secondary" className="font-semibold">Qtd: {dto.quantity}</Badge>
+                      <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
+                        {formatCurrency(dto.totalPrice)}
+                      </Badge>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">Criado em: {formatDateTime(dto.createdAt)}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Hora de devolução: {formatDateTime(dto.returnTime)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 sm:self-start">
-                  <Badge variant="secondary">Qtd: {dto.quantity}</Badge>
-                  <span className="text-lg font-bold">R${Number(dto.totalPrice).toFixed(2)}</span>
-                </div>
+                  </CardContent>
+                </Card>
               </li>
             ))}
           </ul>

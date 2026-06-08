@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatBRL } from '@/lib/currency';
 import { toast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ApiChaletDetail = {
   id: string;
@@ -51,6 +52,7 @@ const PaymentPage = () => {
   const location = useLocation();
   const { booking, payment, setPayment, addReservation } = useBooking();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [method, setMethod] = useState<PaymentMethod>((payment.method as PaymentMethod) || 'pix');
   const [cardNumber, setCardNumber] = useState(payment.card?.number || '');
   const [cardName, setCardName] = useState(payment.card?.name || '');
@@ -229,8 +231,8 @@ const PaymentPage = () => {
   if (!room) {
     return (
       <div className="relative min-h-screen bg-background">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} />
-        <div className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
+        <div className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="pt-24 pb-16 px-4 text-center">
             <p className="text-muted-foreground mt-16">Dados da reserva não encontrados.</p>
             <button onClick={() => navigate('/hospedagem/booking')} className="btn-gold mt-4 inline-block">
@@ -244,8 +246,8 @@ const PaymentPage = () => {
 
   return (
     <div className="relative min-h-screen bg-[#F2F2F2]">
-      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
-      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
+      <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="pt-24 pb-16 px-4">
           <div className="container mx-auto max-w-4xl">
             <button

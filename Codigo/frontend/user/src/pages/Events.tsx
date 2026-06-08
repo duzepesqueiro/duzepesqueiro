@@ -10,7 +10,7 @@ import { showRatingToast } from "@/components/RatingToast";
 import { EventFilters, EventFiltersState } from "@/components/EventFilters";
 import { api, submitUserRating } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
-import { Ticket } from "lucide-react";
+import { CalendarX2, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Header from "@/components/Header";
@@ -22,6 +22,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Card } from "@/components/ui/card";
 
 const PAGE_SIZE = 9;
 
@@ -189,35 +190,52 @@ const Events = () => {
     <div className="min-h-screen bg-background">
       <Header searchScope="events" />
 
-      {/* Hero Section */}
-      <section className="pt-24 pb-6 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto text-center space-y-4 animate-fade-in-up">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold">
-            Próximos eventos
-          </h1>
-          <p>
-            Descubra eventos e experiências incríveis. Inscreva-se agora para
-            garantir sua vaga!
-          </p>
-        </div>
+      <main className="pt-24">
+        <section className="relative overflow-hidden border-b border-border/40 bg-gradient-to-b from-muted/40 to-background">
+          <div className="mx-auto max-w-7xl px-4 md:px-8 py-10 sm:py-12">
+            <div className="mx-auto max-w-3xl text-center space-y-4 animate-fade-in-up">
+              <p className="text-sm font-semibold tracking-wide text-primary">DuZe Pesqueiro</p>
+              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight">
+                Próximos eventos
+              </h1>
+              <p className="text-base sm:text-lg text-muted-foreground">
+                Descubra experiências incríveis, garanta sua vaga e acompanhe suas inscrições em um só lugar.
+              </p>
+            </div>
 
-        {/* Filters Section */}
-        <section className="px-4 md:px-8 pb-2 pt-10">
-          <div className="max-w-7xl mx-auto">
-            <EventFilters 
-              filters={filters} 
-              onFiltersChange={setFilters} 
-            />
+            <div className="mt-8">
+              <EventFilters filters={filters} onFiltersChange={setFilters} />
+            </div>
           </div>
+
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--secondary))_0%,transparent_60%)] opacity-25 blur-3xl" />
         </section>
-      </section>
 
       {/* Events Carousel or Grid Section */}
-      <section className="py-12 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto">
+        <section className="py-10 sm:py-12">
+          <div className="mx-auto max-w-7xl px-4 md:px-8">
           {isLoadingEvents ? (
-            <div className="py-24">
-              <LoadingSpinner />
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="h-7 w-56 animate-pulse rounded-md bg-muted" />
+                <div className="h-11 w-36 animate-pulse rounded-md bg-muted" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: PAGE_SIZE }).map((_, idx) => (
+                  <Card key={idx} className="overflow-hidden border border-border/50 bg-card/90 backdrop-blur-sm">
+                    <div className="aspect-video animate-pulse bg-muted" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-5 w-3/4 animate-pulse rounded-md bg-muted" />
+                      <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted" />
+                      <div className="h-4 w-1/2 animate-pulse rounded-md bg-muted" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+                        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
@@ -228,7 +246,8 @@ const Events = () => {
                 {isAuthenticated() && (
                   <Button
                     onClick={() => setIsMyEventsOpen(true)}
-                    className="shrink-0 bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold gap-2"
+                    variant="secondary"
+                    className="shrink-0 h-11 font-semibold gap-2"
                   >
                     <Ticket className="w-4 h-4" />
                     Meus eventos
@@ -247,13 +266,19 @@ const Events = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 text-muted-foreground bg-muted/30 rounded-lg">
-                  Nenhum evento encontrado para os filtros selecionados.
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-background/70 text-primary shadow-sm">
+                    <CalendarX2 className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold">Nenhum evento encontrado</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Ajuste os filtros ou tente uma busca diferente.
+                  </p>
                 </div>
               )}
               {events.length > 0 && totalPages > 1 && (
                 <Pagination className="mt-2">
-                  <PaginationContent>
+                  <PaginationContent className="flex-wrap justify-center">
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={(e) => {
@@ -291,7 +316,8 @@ const Events = () => {
             </div>
           )}
         </div>
-      </section>
+        </section>
+      </main>
 
       {/* My Events Modal */}
       <MyEventsModal

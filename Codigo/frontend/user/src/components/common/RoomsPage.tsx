@@ -14,6 +14,7 @@ import type { Room } from '@/types/booking';
 import { api } from '@/lib/api';
 import { mapApiChaletToRoom, resolveEffectiveRoomPrice } from '@/lib/hostingRoomMapper';
 import { formatBRL } from '@/lib/currency';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ApiChalet = {
   id: string;
@@ -43,11 +44,36 @@ type AvailabilityResponse = {
   available: boolean;
 };
 
+const parseLocalDateParam = (value: string): Date | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(trimmed);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatLocalDateParam = (date: Date): string => {
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const RoomsPage = () => {
   const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
   const [petsOnly, setPetsOnly] = useState(booking.pets);
   const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
@@ -77,12 +103,12 @@ const RoomsPage = () => {
     }
 
     if (checkInParam) {
-      const d = new Date(checkInParam);
-      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkIn: d }));
+      const d = parseLocalDateParam(checkInParam);
+      if (d) setBooking((prev) => ({ ...prev, checkIn: d }));
     }
     if (checkOutParam) {
-      const d = new Date(checkOutParam);
-      if (!Number.isNaN(d.getTime())) setBooking((prev) => ({ ...prev, checkOut: d }));
+      const d = parseLocalDateParam(checkOutParam);
+      if (d) setBooking((prev) => ({ ...prev, checkOut: d }));
     }
   }, [booking.guests, searchParams, setBooking]);
 
@@ -239,8 +265,8 @@ const RoomsPage = () => {
   const handleSelectRoom = (room: Room) => {
     setBooking((prev) => ({ ...prev, roomId: room.id }));
     const params = new URLSearchParams();
-    if (booking.checkIn) params.set('checkIn', booking.checkIn.toISOString());
-    if (booking.checkOut) params.set('checkOut', booking.checkOut.toISOString());
+    if (booking.checkIn) params.set('checkIn', formatLocalDateParam(booking.checkIn));
+    if (booking.checkOut) params.set('checkOut', formatLocalDateParam(booking.checkOut));
     const query = params.toString();
     navigate(
       query ? `/hospedagem/rooms/${room.id}?${query}` : `/hospedagem/rooms/${room.id}`,
@@ -249,10 +275,10 @@ const RoomsPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#F2F2F2]">
-      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
+    <div className="relative min-h-screen bg-muted">
+      {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
-      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="px-4 pb-16 pt-24">
         <div className="container mx-auto max-w-[1400px]">
           <motion.div
@@ -262,14 +288,14 @@ const RoomsPage = () => {
           >
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
-                <span className="inline-flex items-center rounded-full border border-[#284003]/35 bg-[#F2BF27]/25 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#284003]">
+                <span className="inline-flex items-center rounded-full border border-border bg-secondary/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
                   Busca de hospedagem
                 </span>
                 <div>
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-[#024059] md:text-4xl lg:text-5xl">
+                  <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
                     Nossos Quartos
                   </h1>
-                  <p className="mt-2 max-w-2xl text-sm text-[#284003]/85 md:text-base">
+                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
                     Encontre o quarto perfeito para sua estadia em Du Zé.
                   </p>
                 </div>
@@ -277,7 +303,7 @@ const RoomsPage = () => {
 
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#024059]/35 bg-[#F2BF27]/30 px-4 py-2 text-sm font-medium text-[#024059] xl:hidden"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/80 px-4 py-2 text-sm font-semibold text-foreground shadow-sm backdrop-blur transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background xl:hidden"
               >
                 <Filter className="h-4 w-4" />
                 {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
@@ -289,7 +315,7 @@ const RoomsPage = () => {
                 {summaryChips.map((chip) => (
                   <span
                     key={chip}
-                    className="rounded-full border border-[#024059]/20 bg-[#F2F2F2] px-3 py-1 text-xs text-[#024059]"
+                    className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground shadow-sm"
                   >
                     {chip}
                   </span>
@@ -302,24 +328,23 @@ const RoomsPage = () => {
             <motion.aside
               initial={false}
               animate={{ height: showFilters ? 'auto' : 0, opacity: showFilters ? 1 : 0 }}
-              className="overflow-hidden xl:!h-auto xl:!opacity-100 xl:overflow-visible w-full xl:w-80 xl:flex-shrink-0"
+              className="w-full overflow-hidden xl:w-80 xl:flex-shrink-0 xl:overflow-visible xl:!h-auto xl:!opacity-100"
             >
               <div
-                className="rounded-2xl border-2 border-[#F2AB27]/60 bg-[#F2F2F2] p-6 xl:sticky xl:top-28"
-                style={{ boxShadow: '0 18px 42px -18px rgba(0,0,0,0.18)' }}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm xl:sticky xl:top-28"
               >
                 <div className="mb-4">
-                  <h2 className="font-display text-lg font-semibold text-[#024059]">Filtros</h2>
-                  <p className="text-xs text-[#284003]/75">Refine resultados por tipo, capacidade, preço e pets.</p>
+                  <h2 className="font-display text-lg font-semibold text-foreground">Filtros</h2>
+                  <p className="text-xs text-muted-foreground">Refine resultados por tipo, capacidade, preço e pets.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-1">
                   <div>
-                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
+                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Tipo
                     </label>
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-full border-[#024059]/35 bg-[#F2F2F2] text-[#024059]">
+                      <SelectTrigger className="w-full border-border bg-background text-foreground shadow-sm focus:ring-ring">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
@@ -333,11 +358,11 @@ const RoomsPage = () => {
                   </div>
 
                   <div>
-                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
+                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Capacidade mínima
                     </label>
                     <Select value={String(capacityFilter)} onValueChange={(v) => setCapacityFilter(Number(v))}>
-                      <SelectTrigger className="w-full border-[#024059]/35 bg-[#F2F2F2] text-[#024059]">
+                      <SelectTrigger className="w-full border-border bg-background text-foreground shadow-sm focus:ring-ring">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -351,7 +376,7 @@ const RoomsPage = () => {
                   </div>
 
                   <div className="sm:col-span-2 lg:col-span-2 xl:col-span-1">
-                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[#024059]/85">
+                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Faixa de preço: {formatBRL(priceRange[0])} - {formatBRL(priceRange[1])}
                     </label>
                     <Slider
@@ -366,14 +391,14 @@ const RoomsPage = () => {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between rounded-lg border border-[#024059]/25 bg-[#F2BF27]/20 px-3 py-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-[#024059]">
+                  <div className="flex min-h-11 items-center justify-between rounded-xl border border-border bg-secondary/15 px-3 py-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
                       Aceita pets
                     </label>
                     <Switch 
                       checked={petsOnly} 
                       onCheckedChange={setPetsOnly} 
-                      className="data-[state=unchecked]:bg-black/40"
+                      className="data-[state=unchecked]:bg-muted-foreground/35"
                     />
                   </div>
                 </div>
@@ -382,11 +407,11 @@ const RoomsPage = () => {
 
             <div className="flex-1">
               {isLoading || (hasDateFilter && isLoadingAvailability) ? (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2" aria-label="Carregando quartos">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3" aria-label="Carregando quartos">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <div
                       key={`room-skeleton-${index}`}
-                      className="overflow-hidden rounded-2xl border border-[#F2AB27]/40 bg-[#F2F2F2]"
+                      className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
                     >
                       <Skeleton className="h-56 w-full rounded-none" />
                       <div className="space-y-4 p-5">
@@ -414,11 +439,14 @@ const RoomsPage = () => {
                   ))}
                 </div>
               ) : filteredRooms.length === 0 ? (
-                <div className="py-16 text-center text-[#024059]/80">
-                  <p className="text-lg">Nenhum quarto encontrado com os filtros selecionados.</p>
+                <div className="rounded-2xl border border-border bg-card p-10 text-center text-foreground shadow-sm">
+                  <p className="text-lg font-semibold">Nenhum quarto encontrado</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Ajuste os filtros (tipo, capacidade, preço) ou remova a opção de pets para ampliar os resultados.
+                  </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {filteredRooms.map(({ room, unavailable }, i) => (
                     <RoomCard key={room.id} room={room} index={i} unavailable={unavailable} onSelect={handleSelectRoom} />
                   ))}

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar, MapPin, Users, AlertCircle } from "lucide-react";
+import { AlertCircle, Calendar, ChevronLeft, ChevronRight, ImageOff, MapPin, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,7 @@ export const EventCard = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [imageErrorByUrl, setImageErrorByUrl] = useState<Record<string, boolean>>({});
+  const detailsId = useId();
   const availableSpaces = totalCapacity - currentAttendees;
   const showRegister = typeof onRegister === "function";
   const showEvaluate = !showRegister && typeof onEvaluate === "function";
@@ -82,13 +83,26 @@ export const EventCard = ({
     setActiveImageIndex((current) => (current + 1) % carouselImages.length);
   };
 
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!canOpenDetails) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpenDetails?.();
+    }
+  };
+
   return (
     <Card
       className={cn(
-        "group overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full bg-card",
-        canOpenDetails ? "cursor-pointer" : undefined
+        "group overflow-hidden border border-border/50 bg-card/90 backdrop-blur-sm shadow-sm transition-shadow duration-200 flex flex-col h-full",
+        canOpenDetails
+          ? "cursor-pointer hover:shadow-[var(--shadow-nature)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          : undefined,
       )}
       onClick={() => onOpenDetails?.()}
+      role={canOpenDetails ? "button" : undefined}
+      tabIndex={canOpenDetails ? 0 : undefined}
+      onKeyDown={handleCardKeyDown}
     >
       <div className="relative aspect-video overflow-hidden">
         <AnimatePresence mode="wait">
@@ -101,7 +115,7 @@ export const EventCard = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.02 }}
               transition={{ duration: 0.35 }}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               loading="lazy"
               onError={() =>
                 setImageErrorByUrl((prev) => ({
@@ -117,13 +131,13 @@ export const EventCard = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.01 }}
               transition={{ duration: 0.35 }}
-              className="flex h-full w-full items-center justify-center bg-muted"
+              className="flex h-full w-full items-center justify-center bg-muted/50"
             >
-              <div className="text-center space-y-2">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-muted-foreground/35 text-muted-foreground/80">
-                  <span className="text-xl">+</span>
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70">
+                  <ImageOff className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <p className="text-xs text-muted-foreground/70">Imagem reservada</p>
+                <p className="text-xs">Sem imagem</p>
               </div>
             </motion.div>
           )}
@@ -134,31 +148,31 @@ export const EventCard = ({
             <button
               type="button"
               onClick={goToPreviousImage}
-              className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+              className="absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground backdrop-blur-md transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Imagem anterior"
             >
-              &lt;
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={goToNextImage}
-              className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+              className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground backdrop-blur-md transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Próxima imagem"
             >
-              &gt;
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border/50 bg-background/80 px-3 py-1 text-[11px] font-medium text-foreground backdrop-blur-sm">
               {activeImageIndex + 1}/{carouselImages.length}
             </div>
           </>
         )}
-        <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold shadow-sm">
-           {availableSpaces > 0 ? `${availableSpaces} vagas` : 'Esgotado'}
+        <div className="absolute right-3 top-3 rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[11px] font-semibold text-foreground backdrop-blur-md">
+          {availableSpaces > 0 ? `${availableSpaces} vagas` : "Esgotado"}
         </div>
       </div>
       
       <div className="p-4 flex flex-col flex-grow">
-        <h3 className="text-lg font-bold mb-2 line-clamp-2 leading-tight text-foreground">{title}</h3>
+        <h3 className="text-lg font-semibold mb-2 line-clamp-2 leading-tight text-foreground">{title}</h3>
         
         <div className="space-y-2 mb-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -178,7 +192,10 @@ export const EventCard = ({
 
         <div className="mt-auto space-y-3">
           {isExpanded && (
-            <div className="bg-muted/50 p-3 rounded-lg text-sm animate-in fade-in zoom-in-95 duration-200 space-y-3">
+            <div
+              id={detailsId}
+              className="rounded-xl border border-border/50 bg-muted/30 p-4 text-sm animate-in fade-in zoom-in-95 duration-200 space-y-3"
+            >
               {description && (
                 <div>
                   <span className="font-semibold block text-foreground mb-1">Descrição:</span>
@@ -200,21 +217,27 @@ export const EventCard = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className={cn(!showRegister && !showEvaluate ? "col-span-2" : undefined)}
+              className={cn(
+                "h-11 justify-center font-semibold",
+                !showRegister && !showEvaluate ? "sm:col-span-2" : undefined,
+              )}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!disableExpand) setIsExpanded(!isExpanded);
               }}
               disabled={disableExpand}
+              aria-expanded={isExpanded}
+              aria-controls={detailsId}
             >
               {isExpanded ? "Menos" : "Detalhes"}
             </Button>
             {showRegister && (
               <Button
-                className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
+                variant="secondary"
+                className="h-11 w-full font-semibold"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRegister?.();
@@ -226,7 +249,8 @@ export const EventCard = ({
             )}
             {showEvaluate && (
               <Button
-                className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
+                variant="secondary"
+                className="h-11 w-full font-semibold"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEvaluate?.();

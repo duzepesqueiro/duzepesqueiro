@@ -18,6 +18,7 @@ import {
   Bell,
   HelpCircle,
   Headphones,
+  ArrowRightLeft,
   Menu,
 } from "lucide-react";
 import {
@@ -53,6 +54,7 @@ interface HeaderProps {
 const Header = ({ transparent = false, searchScope }: HeaderProps) => {
   const { theme, setTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdminValidated, setIsAdminValidated] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -78,6 +80,34 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
       ),
     );
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const validateAdmin = async () => {
+      if (typeof window === "undefined") return;
+      const token =
+        window.localStorage.getItem("auth_token") ||
+        window.localStorage.getItem("auth_access_token");
+      if (!token) {
+        if (mounted) setIsAdminValidated(false);
+        return;
+      }
+      try {
+        await api.get("/api/auth/admin-check");
+        if (mounted) setIsAdminValidated(true);
+      } catch {
+        if (mounted) setIsAdminValidated(false);
+      }
+    };
+    if (isLoggedIn) {
+      validateAdmin();
+    } else {
+      setIsAdminValidated(false);
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [isLoggedIn]);
 
   const fetchProfile = async () => {
     if (!authEmail) return;
@@ -119,6 +149,12 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     window.localStorage.removeItem("auth_role");
     toast.success("Você saiu da sua conta.");
     window.location.assign("/auth/");
+  };
+
+  const handleSwitchToAdminFrontend = () => {
+    if (!isAdminValidated) return;
+    const target = String(import.meta.env.VITE_ADMIN_APP_URL ?? "/admin/");
+    window.location.assign(target || "/admin/");
   };
 
   // ===== Busca em tempo real =====
@@ -322,7 +358,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
         </Link>
 
         {/* Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
+        <nav className="hidden min-[769px]:flex items-center space-x-8">
           <RouterLink
             to="/events"
             className="font-medium hover:text-[#F2C14E] transition-colors duration-200"
@@ -350,7 +386,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
         </nav>
 
         {/* Right Side Controls */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden min-[769px]:flex items-center space-x-4">
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/70" />
@@ -466,6 +502,21 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
           </HoverCard>
 
           {/* Theme Toggle */}
+          {isAdminValidated && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSwitchToAdminFrontend}
+              aria-label="Trocar para frontend de administrador"
+              className={
+                transparent
+                  ? "border-white/20 bg-blue/10 text-white hover:bg-white/10 hover:text-[#F2C14E]"
+                  : "border-border bg-background/80 text-foreground hover:bg-accent hover:text-accent-foreground"
+              }
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -477,12 +528,12 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
         </div>
 
         {/* Mobile Menu */}
-        <Button 
-          variant="outline" 
-          size="icon" 
-          className={`md:hidden ml-2 ${
-            transparent 
-              ? "border-white/30 text-white hover:bg-white/10" 
+        <Button
+          variant="outline"
+          size="icon"
+          className={`min-[769px]:hidden ml-2 bg-transparent ${
+            transparent
+              ? "border-white/30 text-white hover:bg-black/20"
               : "border-border text-foreground hover:bg-accent"
           }`}
           onClick={() => setMobileMenuOpen(true)}
@@ -545,6 +596,22 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                 <MapPin className="h-5 w-5" />
                 Hospedagem
               </RouterLink>
+              <div className="-mt-1 pl-11">
+                <RouterLink
+                  to="/hospedagem/rooms"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent rounded-md transition-colors"
+                >
+                  Quartos
+                </RouterLink>
+                <RouterLink
+                  to="/hospedagem/my-reservations"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent rounded-md transition-colors"
+                >
+                  Minhas reservas
+                </RouterLink>
+              </div>
               <RouterLink
                 to="/about"
                 onClick={() => setMobileMenuOpen(false)}
@@ -570,6 +637,20 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
               </Button>
+
+              {isAdminValidated && (
+                <Button
+                  variant="ghost"
+                  className="justify-start gap-3 px-3 text-lg font-medium"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleSwitchToAdminFrontend();
+                  }}
+                >
+                  <ArrowRightLeft className="h-5 w-5" />
+                  Administração
+                </Button>
+              )}
 
               <Button
                 variant="ghost"

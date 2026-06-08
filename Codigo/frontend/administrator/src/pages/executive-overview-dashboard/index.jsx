@@ -18,7 +18,7 @@ const ExecutiveOverviewDashboard = () => {
   const [revenueData, setRevenueData] = useState([]);
   const [topChales, setTopChales] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
-  const [timeframe, setTimeframe] = useState('weekly');
+  const [timeframe, setTimeframe] = useState('yearly');
   const [reloadTick, setReloadTick] = useState(0);
 
   const getBackendPeriodo = () => {

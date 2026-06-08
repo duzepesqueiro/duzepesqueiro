@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { RentalCard } from "./RentalCard";
 import { RentalItem } from "@/pages/FishingGear";
 import { getRentalProductsPage } from "@/lib/api";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ArrowUpAZ, Package, DollarSign, ArrowDown, ArrowUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface RentalSectionProps {
   onBooked: (payload: { dto: any; itemName: string; renterName: string; customerPhone: string }) => void;
@@ -96,6 +96,20 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
   const formatCurrency = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const sortLabel = (mode: typeof sortMode) => {
+    switch (mode) {
+      case "alpha":
+        return "A–Z";
+      case "price_asc":
+        return "Preço ↑";
+      case "price_desc":
+        return "Preço ↓";
+      case "stock":
+      default:
+        return "Disponibilidade";
+    }
+  };
+
   const visibleItems = useMemo(() => {
     const [min, max] = priceRange;
     const filtered = items.filter((i) => Number(i.hourlyPrice) >= min && Number(i.hourlyPrice) <= max);
@@ -117,7 +131,28 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
   }, [items, priceRange, sortMode]);
 
   if (loading) {
-    return <div className="py-10 text-center text-muted-foreground">Carregando equipamentos para aluguel...</div>;
+    return (
+      <div className="space-y-6">
+        <Card className="border border-border/50 bg-card/90 backdrop-blur-sm shadow-sm">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="h-5 w-44 animate-pulse rounded-md bg-muted" />
+            <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <Card key={idx} className="overflow-hidden border border-border/50 bg-card/90 backdrop-blur-sm">
+              <div className="aspect-square animate-pulse bg-muted" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
+                <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted" />
+                <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
   if (error) {
     return <div className="py-10 text-center text-destructive">{error}</div>;
@@ -125,68 +160,84 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
 
   return (
     <div className="space-y-8">
-      {/* Barra de controles: ordenação por ícones e faixa de preço */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Ordenar</span>
-          <Select value={sortMode} onValueChange={(v) => setSortMode(v as any)}>
-            <SelectTrigger aria-label="Ordenação" className="w-12 justify-center">
-              {sortMode === "alpha" && <ArrowUpAZ className="h-4 w-4" />}
-              {sortMode === "stock" && <Package className="h-4 w-4" />}
-              {sortMode === "price_asc" && <div className="flex items-center gap-0.5"><DollarSign className="h-4 w-4" /><ArrowDown className="h-3 w-3" /></div>}
-              {sortMode === "price_desc" && <div className="flex items-center gap-0.5"><DollarSign className="h-4 w-4" /><ArrowUp className="h-3 w-3" /></div>}
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="alpha">
-                <ArrowUpAZ className="h-4 w-4" />
-              </SelectItem>
-              <SelectItem value="stock">
-                <Package className="h-4 w-4" />
-              </SelectItem>
-              <SelectItem value="price_asc">
-                <div className="flex items-center gap-1"><DollarSign className="h-4 w-4" /><ArrowDown className="h-3 w-3" /></div>
-              </SelectItem>
-              <SelectItem value="price_desc">
-                <div className="flex items-center gap-1"><DollarSign className="h-4 w-4" /><ArrowUp className="h-3 w-3" /></div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <Card className="border border-border/50 bg-card/90 backdrop-blur-sm shadow-sm">
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Ordenar</span>
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as any)}>
+                <SelectTrigger aria-label="Ordenação" className="h-11 w-44 justify-between">
+                  <span className="flex items-center gap-2">
+                    {sortMode === "alpha" && <ArrowUpAZ className="h-4 w-4" />}
+                    {sortMode === "stock" && <Package className="h-4 w-4" />}
+                    {sortMode === "price_asc" && <DollarSign className="h-4 w-4" />}
+                    {sortMode === "price_desc" && <DollarSign className="h-4 w-4" />}
+                    <span className="text-sm font-medium">{sortLabel(sortMode)}</span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="stock">
+                    <span className="flex items-center gap-2">
+                      <Package className="h-4 w-4" /> Disponibilidade
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="alpha">
+                    <span className="flex items-center gap-2">
+                      <ArrowUpAZ className="h-4 w-4" /> A–Z
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="price_asc">
+                    <span className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" /> Preço <ArrowDown className="h-3 w-3" />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="price_desc">
+                    <span className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" /> Preço <ArrowUp className="h-3 w-3" />
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div className="flex-1 sm:max-w-md">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Faixa de preço (dia)</span>
-            <span className="text-xs text-muted-foreground">
-              {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
-            </span>
+            <div className="flex-1 sm:max-w-md">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Faixa de preço (dia)</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
+                </span>
+              </div>
+              <Slider
+                value={priceRange}
+                min={0}
+                max={items.length ? Math.max(...items.map((i) => Number(i.hourlyPrice || 0))) : 0}
+                step={1}
+                onValueChange={(vals) => setPriceRange(vals as number[])}
+              />
+            </div>
           </div>
-          <Slider
-            value={priceRange}
-            min={0}
-            max={items.length ? Math.max(...items.map((i) => Number(i.hourlyPrice || 0))) : 0}
-            step={1}
-            onValueChange={(vals) => setPriceRange(vals as number[])}
-          />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visibleItems.map((item) => (
-          <RentalCard
-            key={item.id}
-            item={item}
-            onSelect={() => {
-              // if (!isAuthenticated()) {
-              //   redirectToLogin(`rent_item:${item.id}`);
-              //   return;
-              // }
-              navigate(`/store/rental/${item.id}`);
-            }}
-          />
-        ))}
+        {visibleItems.length ? (
+          visibleItems.map((item) => (
+            <RentalCard
+              key={item.id}
+              item={item}
+              onSelect={() => {
+                navigate(`/store/rental/${item.id}`);
+              }}
+            />
+          ))
+        ) : (
+          <div className="col-span-full rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
+            Nenhum item encontrado para os filtros selecionados.
+          </div>
+        )}
       </div>
 
       <Pagination className="mt-2">
-        <PaginationContent>
+        <PaginationContent className="flex-wrap justify-center">
           <PaginationItem>
             <PaginationPrevious
               onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 1)); }}

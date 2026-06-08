@@ -26,7 +26,7 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: #e9f2f1;
+  background: hsl(var(--muted));
 }
 
 .searchCard {

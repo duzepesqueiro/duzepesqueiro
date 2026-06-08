@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, ChevronLeft, Clock, MapPin, User as UserIcon, Users } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Clock, ImageOff, MapPin, User as UserIcon, Users } from "lucide-react";
 import { format as formatDate } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import Header from "@/components/Header";
@@ -144,7 +144,7 @@ const EventDetail = () => {
       <div className="min-h-screen bg-background">
         <Header searchScope="events" />
         <div className="pt-28 pb-20 px-4 md:px-8">
-          <div className="max-w-5xl mx-auto py-16">
+          <div className="max-w-6xl mx-auto py-16">
             <LoadingSpinner />
           </div>
         </div>
@@ -157,8 +157,8 @@ const EventDetail = () => {
       <div className="min-h-screen bg-background">
         <Header searchScope="events" />
         <div className="pt-28 pb-20 px-4 md:px-8">
-          <div className="max-w-5xl mx-auto">
-            <Button variant="ghost" className="mb-6" onClick={() => navigate("/events")}>
+          <div className="max-w-6xl mx-auto">
+            <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/events")}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
@@ -176,15 +176,15 @@ const EventDetail = () => {
       <Header searchScope="events" />
 
       <div className="pt-28 pb-20 px-4 md:px-8">
-        <div className="max-w-5xl mx-auto">
-          <Button variant="ghost" className="mb-6" onClick={() => navigate("/events")}>
+        <div className="max-w-6xl mx-auto">
+          <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/events")}>
             <ChevronLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <div className="lg:col-span-3 space-y-6">
-              <Card className="overflow-hidden border border-border/40 bg-card">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-7 space-y-6">
+              <Card className="overflow-hidden border border-border/50 bg-card/90 backdrop-blur-sm">
                 <div className="relative aspect-video bg-muted">
                   <AnimatePresence mode="wait">
                     {activeImage ? (
@@ -212,13 +212,13 @@ const EventDetail = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.01 }}
                         transition={{ duration: 0.35 }}
-                        className="flex h-full w-full items-center justify-center bg-muted"
+                        className="flex h-full w-full items-center justify-center bg-muted/50"
                       >
-                        <div className="text-center space-y-2">
-                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-muted-foreground/35 text-muted-foreground/80">
-                            <span className="text-xl">+</span>
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70">
+                            <ImageOff className="h-5 w-5" aria-hidden="true" />
                           </div>
-                          <p className="text-xs text-muted-foreground/70">Imagem reservada</p>
+                          <p className="text-xs">Sem imagem</p>
                         </div>
                       </motion.div>
                     )}
@@ -229,18 +229,18 @@ const EventDetail = () => {
                       <button
                         type="button"
                         onClick={goToPreviousImage}
-                        className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+                        className="absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground backdrop-blur-md transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         aria-label="Imagem anterior"
                       >
-                        &lt;
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <button
                         type="button"
                         onClick={goToNextImage}
-                        className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-background/80 text-sm font-semibold text-foreground backdrop-blur-sm transition hover:bg-background"
+                        className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground backdrop-blur-md transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         aria-label="Próxima imagem"
                       >
-                        &gt;
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border/50 bg-background/80 px-3 py-1 text-[11px] font-medium text-foreground backdrop-blur-sm">
                         {activeImageIndex + 1}/{carouselImages.length}
@@ -248,15 +248,17 @@ const EventDetail = () => {
                     </>
                   )}
                   <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="shadow-sm">
                       {availableSlots > 0 ? `${availableSlots} vagas` : "Esgotado"}
                     </Badge>
-                    <Badge variant="outline">{String(event?.status ?? "")}</Badge>
+                    <Badge variant="outline" className="bg-background/70 backdrop-blur-sm">
+                      {String(event?.status ?? "")}
+                    </Badge>
                   </div>
                 </div>
 
                 <div className="p-6 space-y-4">
-                  <h1 className="text-3xl font-bold leading-tight">{event.title}</h1>
+                  <h1 className="font-display text-3xl font-semibold leading-tight">{event.title}</h1>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -281,14 +283,14 @@ const EventDetail = () => {
                 </div>
               </Card>
 
-              <Card className="border border-border/40 bg-card p-6 space-y-3">
+              <Card className="border border-border/50 bg-card/90 backdrop-blur-sm p-6 space-y-3">
                 <h2 className="text-xl font-bold">Descrição</h2>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {String(event?.description ?? "")}
                 </p>
               </Card>
 
-              <Card className="border border-border/40 bg-card p-6 space-y-3">
+              <Card className="border border-border/50 bg-card/90 backdrop-blur-sm p-6 space-y-3">
                 <h2 className="text-xl font-bold">Regras</h2>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {String(event?.rules ?? "")}
@@ -296,8 +298,8 @@ const EventDetail = () => {
               </Card>
             </div>
 
-            <div className="lg:col-span-2 space-y-6">
-              <div className="rounded-2xl border border-border/40 bg-card p-6">
+            <div className="lg:col-span-5 space-y-6">
+              <div className="rounded-2xl border border-border/50 bg-card/90 backdrop-blur-sm p-6 lg:sticky lg:top-28">
                 <h2 className="text-xl font-bold mb-4">Avaliações</h2>
 
                 <div className="flex items-center justify-between gap-3">

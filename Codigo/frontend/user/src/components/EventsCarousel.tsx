@@ -64,7 +64,7 @@ export const EventsCarousel = ({ onRegister, events }: EventsCarouselProps) => {
             variant="secondary"
             size="icon"
             onClick={scrollPrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 shadow-lg pointer-events-auto cursor-pointer opacity-80 hover:opacity-100"
+            className="absolute left-2 top-1/2 -translate-y-1/2 shadow-lg pointer-events-auto cursor-pointer opacity-85 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Anterior"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -73,7 +73,7 @@ export const EventsCarousel = ({ onRegister, events }: EventsCarouselProps) => {
             variant="secondary"
             size="icon"
             onClick={scrollNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 shadow-lg pointer-events-auto cursor-pointer opacity-80 hover:opacity-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 shadow-lg pointer-events-auto cursor-pointer opacity-85 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Próximo"
           >
             <ChevronRight className="h-5 w-5" />
@@ -84,12 +84,14 @@ export const EventsCarousel = ({ onRegister, events }: EventsCarouselProps) => {
       <div className="flex justify-center gap-2 mt-6">
         {scrollSnaps.map((_, index) => (
           <button
+            type="button"
             key={index}
             className={cn(
-              "w-2 h-2 rounded-full transition-all duration-300 cursor-pointer",
+              "h-2 w-2 rounded-full transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               index === selectedIndex ? "bg-primary w-8" : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
             )}
             onClick={() => scrollTo(index)}
+            aria-label={`Ir para o item ${index + 1}`}
           />
         ))}
       </div>

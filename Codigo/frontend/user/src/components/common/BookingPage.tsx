@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import type { BookingData, Guest, Room } from '@/types/booking';
 import { formatBRL } from '@/lib/currency';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const steps = ['Reserva', 'Hospedes', 'Responsavel', 'Revisao'];
 
@@ -187,6 +188,7 @@ const BookingPage = () => {
   const [fieldErrors, setFieldErrors] = useState<BookingErrors>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+  const isMobile = useIsMobile();
 
   const locationState = location.state as BookingLocationState | null | undefined;
   const locationRoom = locationState?.room;
@@ -420,8 +422,8 @@ const BookingPage = () => {
   if (!room) {
     return (
       <div className="relative min-h-screen bg-background">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} />
-        <div className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
+        <div className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="pt-24 pb-16 px-4 text-center">
             <p className="text-muted-foreground mt-16">Selecione um quarto primeiro.</p>
             <button
@@ -836,9 +838,9 @@ const BookingPage = () => {
 
   return (
     <div className="relative min-h-screen bg-[#F2F2F2]">
-      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
+      {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
-      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-3xl">
           {/* Stepper */}

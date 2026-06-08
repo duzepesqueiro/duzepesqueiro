@@ -356,8 +356,8 @@ const OccupationMap = () => {
     async (payload) => {
       await createBlock({
         chaletId: payload.chaletId,
-        startDate: payload.dataInicio,
-        endDate: payload.dataFim,
+        dataInicio: payload.dataInicio,
+        dataFim: payload.dataFim,
         reason: payload.reason,
         notes: payload.notes,
         isActive: payload.isActive,

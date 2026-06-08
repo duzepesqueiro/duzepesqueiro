@@ -3,7 +3,7 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RentalSection } from "@/components/fishing/RentalSection";
 import { ShoppingSection } from "@/components/fishing/ShoppingSection";
-import { ShoppingCart, History, Filter, Calendar } from "lucide-react";
+import { Calendar, Filter, History, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import { RentalHistory, RentalDTO } from "@/components/fishing/RentalHistory";
@@ -202,21 +202,25 @@ const FishingGear = () => {
         }
       />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-12 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto text-center space-y-4 animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-bold">
-            Equipamentos de Pesca
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Alugue ou compre equipamentos de pesca de qualidade para sua próxima aventura
-          </p>
-        </div>
-      </section>
+      <main className="pt-24">
+        <section className="relative overflow-hidden border-b border-border/40 bg-gradient-to-b from-muted/40 to-background">
+          <div className="mx-auto max-w-7xl px-4 md:px-8 py-10 sm:py-12">
+            <div className="mx-auto max-w-3xl text-center space-y-4 animate-fade-in-up">
+              <p className="text-sm font-semibold tracking-wide text-primary">DuZe Pesqueiro</p>
+              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight">
+                Loja de pesca
+              </h1>
+              <p className="text-base sm:text-lg text-muted-foreground">
+                Alugue ou compre equipamentos com praticidade. Tudo em um só lugar: produtos, carrinho e histórico.
+              </p>
+            </div>
+          </div>
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--secondary))_0%,transparent_60%)] opacity-25 blur-3xl" />
+        </section>
 
       {/* Main Content */}
-      <section className="py-12 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto">
+        <section className="py-10 sm:py-12">
+          <div className="mx-auto max-w-7xl px-4 md:px-8">
           {globalLoading && (
             <div className="py-24">
               <LoadingSpinner />
@@ -232,18 +236,20 @@ const FishingGear = () => {
                   className="w-full"
                   style={globalLoading ? { display: "none" } : undefined}
                 >
-                  <div className="flex items-center justify-between mb-8">
-                    <TabsList className="grid max-w-md grid-cols-2">
-                      <TabsTrigger value="rental">Aluguel de equipamentos</TabsTrigger>
-                      <TabsTrigger value="purchase" className="relative">
-                        Comprar produtos
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+                    <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/80 backdrop-blur-sm border border-border/50 p-1 h-12">
+                      <TabsTrigger value="rental" className="font-semibold">Aluguel</TabsTrigger>
+                      <TabsTrigger value="purchase" className="relative font-semibold">
+                        Compras
                         {totalItems > 0 && (
-                          <Badge
-                            variant="destructive"
-                            className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                          >
-                            {totalItems}
-                          </Badge>
+                          <span className="absolute -top-2 -right-2">
+                            <Badge
+                              variant="secondary"
+                              className="h-6 min-w-6 rounded-full px-2 py-0 text-[11px] font-semibold shadow-sm"
+                            >
+                              {totalItems}
+                            </Badge>
+                          </span>
                         )}
                       </TabsTrigger>
                     </TabsList>
@@ -251,13 +257,13 @@ const FishingGear = () => {
                     <div className="flex items-center gap-2">
                       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
                         <SheetTrigger asChild>
-                          <Button variant="outline" size="icon" className="relative">
+                          <Button variant="outline" size="icon" className="relative h-11 w-11">
                             <ShoppingCart className="h-5 w-5" />
                             {totalItems > 0 && (
                               <span className="absolute -top-1 -right-1">
                                 <Badge
-                                  variant="destructive"
-                                  className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                                  variant="secondary"
+                                  className="h-6 min-w-6 rounded-full px-2 py-0 text-[11px] font-semibold shadow-sm"
                                 >
                                   {totalItems}
                                 </Badge>
@@ -267,58 +273,63 @@ const FishingGear = () => {
                         </SheetTrigger>
                         <SheetContent
                           side="right"
-                          className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] overflow-y-auto transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
+                          className="w-full sm:max-w-lg md:max-w-xl h-[100dvh] overflow-hidden border-l border-border/50 bg-card/95 backdrop-blur-sm p-0"
                         >
-                          <SheetHeader>
-                            <SheetTitle className="sr-only">Carrinho</SheetTitle>
-                            <SheetDescription className="sr-only">Resumo do carrinho e compra</SheetDescription>
-                          </SheetHeader>
-                          <CartSummary
-                            cartItems={cartItems}
-                            onUpdateQuantity={updateCartQuantity}
-                            onPurchased={(buyerName, items) => {
-                              setCartOpen(false);
-                              setLastBuyerName(buyerName);
-                              if (items.length > 0) {
-                                items.forEach((it) => enqueueRatingPrompt({ type: "product", id: it.id, name: it.name }));
-                                const first = items[0];
-                                const prompt = { type: "product" as const, id: first.id, name: first.name };
-                                setTimeout(() => {
-                                  showRatingToast(prompt, {
-                                    onSubmit: async (rating, comment) => {
-                                      try {
-                                        await submitUserRating({ targetType: "PRODUCT", targetId: prompt.id, rating, comment });
-                                        toast.success("Obrigado pela sua avaliação!");
-                                      } catch (e) {
-                                        toast.error("Não foi possível enviar sua avaliação.");
-                                      } finally {
-                                        dequeueRatingPrompt(prompt.id);
-                                      }
-                                    },
-                                    onClose: () => dequeueRatingPrompt(prompt.id),
-                                  });
-                                }, 300);
-                              }
-                            }}
-                          />
+                          <div className="flex h-full flex-col">
+                            <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+                              <SheetTitle className="font-display text-2xl font-semibold">Carrinho</SheetTitle>
+                              <SheetDescription>Revise seus itens e finalize o pedido.</SheetDescription>
+                            </SheetHeader>
+                            <div className="flex-1 overflow-y-auto px-6 py-6">
+                              <CartSummary
+                                cartItems={cartItems}
+                                onUpdateQuantity={updateCartQuantity}
+                                onPurchased={(buyerName, items) => {
+                                  setCartOpen(false);
+                                  setLastBuyerName(buyerName);
+                                  if (items.length > 0) {
+                                    items.forEach((it) => enqueueRatingPrompt({ type: "product", id: it.id, name: it.name }));
+                                    const first = items[0];
+                                    const prompt = { type: "product" as const, id: first.id, name: first.name };
+                                    setTimeout(() => {
+                                      showRatingToast(prompt, {
+                                        onSubmit: async (rating, comment) => {
+                                          try {
+                                            await submitUserRating({ targetType: "PRODUCT", targetId: prompt.id, rating, comment });
+                                            toast.success("Obrigado pela sua avaliação!");
+                                          } catch (e) {
+                                            toast.error("Não foi possível enviar sua avaliação.");
+                                          } finally {
+                                            dequeueRatingPrompt(prompt.id);
+                                          }
+                                        },
+                                        onClose: () => dequeueRatingPrompt(prompt.id),
+                                      });
+                                    }, 300);
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
                         </SheetContent>
                       </Sheet>
 
                       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
                         <SheetTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setHistoryOpen(true)} aria-label="Abrir histórico">
+                          <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => setHistoryOpen(true)} aria-label="Abrir histórico">
                             <History className="h-5 w-5" />
                           </Button>
                         </SheetTrigger>
                         <SheetContent
                           side="right"
-                          className="w-[80vw] sm:w-[80vw] md:w-[80vw] lg:w-[80vw] xl:w-[80vw] 2xl:w-[80vw] max-w-none sm:max-w-none md:max-w-none lg:max-w-none xl:max-w-none 2xl:max-w-none h-[100dvh] max-h-[100dvh] overflow-y-auto overflow-x-hidden transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-right-1/2"
+                          className="w-full sm:max-w-lg md:max-w-xl h-[100dvh] overflow-hidden border-l border-border/50 bg-card/95 backdrop-blur-sm p-0"
                         >
-                          <SheetHeader>
-                            <SheetTitle>Histórico</SheetTitle>
-                            <SheetDescription>Compras e Aluguéis do usuário</SheetDescription>
-                          </SheetHeader>
-                          <div className="mt-4 space-y-4">
+                          <div className="flex h-full flex-col">
+                            <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+                              <SheetTitle className="font-display text-2xl font-semibold">Histórico</SheetTitle>
+                              <SheetDescription>Compras e aluguéis do usuário.</SheetDescription>
+                            </SheetHeader>
+                            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className="flex items-center gap-2">
                                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -352,8 +363,8 @@ const FishingGear = () => {
                             <Separator />
 
                             <Tabs value={historyTab} onValueChange={(v) => setHistoryTab(v as "orders" | "rentals")} className="w-full">
-                              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2">
-                                <TabsList className="grid w-full max-w-md grid-cols-2">
+                              <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm py-2">
+                                <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/70 backdrop-blur-sm border border-border/50 p-1 h-12">
                                   <TabsTrigger value="orders">Histórico de Compras</TabsTrigger>
                                   <TabsTrigger value="rentals">Histórico de Aluguéis</TabsTrigger>
                                 </TabsList>
@@ -385,6 +396,7 @@ const FishingGear = () => {
                                 />
                               </TabsContent>
                             </Tabs>
+                            </div>
                           </div>
                         </SheetContent>
                       </Sheet>
@@ -483,7 +495,8 @@ const FishingGear = () => {
             />
           </Routes>
         </div>
-      </section>
+        </section>
+      </main>
 
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border/50">

@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarIcon, Users, PawPrint, Search } from 'lucide-react';
@@ -156,7 +156,7 @@ const SearchBox = ({
                 {dateRange?.from ? (
                   dateRange.to ? (
                     <span className="text-sm text-[#E9F2F1]">
-                      {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {' '}
+                      {format(dateRange.from, 'dd/MM', { locale: ptBR })} -{' '}
                       {format(dateRange.to, 'dd/MM', { locale: ptBR })}
                     </span>
                   ) : (
@@ -224,7 +224,7 @@ const SearchBox = ({
               onCheckedChange={(checked) =>
                 setBooking((prev) => ({ ...prev, pets: checked }))
               }
-              className="data-[state=unchecked]:bg-black/40" // Ajuste de contraste adicionado aqui
+              className="data-[state=unchecked]:bg-black/40"
             />
             <span className="text-sm text-[#E9F2F1]">
               {booking.pets ? 'Sim' : 'Nao'}

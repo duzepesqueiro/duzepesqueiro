@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Calendar, MapPin, Clock, Star } from "lucide-react";
+import { Calendar, Clock, ImageOff, MapPin, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api, createReview, getReviewBySubject } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
@@ -42,10 +42,10 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  CONFIRMED: "bg-green-100 text-green-800 border-green-200",
-  CANCELLED: "bg-red-100 text-red-800 border-red-200",
-  PAID: "bg-blue-100 text-blue-800 border-blue-200",
+  PENDING: "border-secondary/40 bg-secondary/20 text-secondary-foreground",
+  CONFIRMED: "border-primary/30 bg-primary/10 text-primary",
+  CANCELLED: "border-destructive/30 bg-destructive/10 text-destructive",
+  PAID: "border-primary/30 bg-primary/10 text-primary",
 };
 
 const formatDate = (iso: string) => {
@@ -170,71 +170,82 @@ export const MyEventsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setConfirmingId(null); onOpenChange(v); }}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Meus Eventos</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden border border-border/50 bg-card/95 backdrop-blur-sm p-0">
+        <div className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <DialogTitle className="font-display text-2xl font-semibold">Meus eventos</DialogTitle>
+          </DialogHeader>
 
-        {isLoading ? (
-          <div className="py-12 text-center text-muted-foreground">Carregando...</div>
-        ) : registrations.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
-            Você ainda não está inscrito em nenhum evento.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {active.length > 0 && (
+          <div className="px-6 py-6">
+            {isLoading ? (
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Inscrições ativas ({active.length})
-                </p>
-                {active.map((reg) => (
-                  (() => {
-                    const didOccur = isEventPast(reg.event?.eventDate, reg.event?.eventTime);
-                    const hasReviewInfo = Object.prototype.hasOwnProperty.call(
-                      hasReviewByRegistrationId,
-                      reg.registrationId
-                    );
-                    const alreadyReviewed = hasReviewInfo ? hasReviewByRegistrationId[reg.registrationId] : false;
-                    const canReview = didOccur && hasReviewInfo && !alreadyReviewed;
-                    return (
-                  <RegistrationCard
-                    key={reg.registrationId}
-                    reg={reg}
-                    isConfirming={confirmingId === reg.registrationId}
-                    isCancelling={cancellingId === reg.registrationId}
-                    onCancelClick={() => handleCancelClick(reg.registrationId)}
-                    onDismissConfirm={() => setConfirmingId(null)}
-                    canReview={canReview}
-                    onReviewClick={() => setReviewReg(reg)}
-                  />
-                    );
-                  })()
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="h-[92px] w-full animate-pulse rounded-2xl border border-border/50 bg-muted/40" />
                 ))}
               </div>
-            )}
-
-            {cancelled.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Canceladas ({cancelled.length})
+            ) : registrations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                <p className="text-sm font-semibold">Você ainda não está inscrito em nenhum evento.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Quando você se inscrever, suas confirmações e histórico aparecem aqui.
                 </p>
-                {cancelled.map((reg) => (
-                  <RegistrationCard
-                    key={reg.registrationId}
-                    reg={reg}
-                    isConfirming={false}
-                    isCancelling={false}
-                    onCancelClick={() => {}}
-                    onDismissConfirm={() => {}}
-                    canReview={false}
-                    onReviewClick={() => {}}
-                  />
-                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {active.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Inscrições ativas ({active.length})
+                    </p>
+                    {active.map((reg) => (
+                      (() => {
+                        const didOccur = isEventPast(reg.event?.eventDate, reg.event?.eventTime);
+                        const hasReviewInfo = Object.prototype.hasOwnProperty.call(
+                          hasReviewByRegistrationId,
+                          reg.registrationId
+                        );
+                        const alreadyReviewed = hasReviewInfo ? hasReviewByRegistrationId[reg.registrationId] : false;
+                        const canReview = didOccur && hasReviewInfo && !alreadyReviewed;
+                        return (
+                          <RegistrationCard
+                            key={reg.registrationId}
+                            reg={reg}
+                            isConfirming={confirmingId === reg.registrationId}
+                            isCancelling={cancellingId === reg.registrationId}
+                            onCancelClick={() => handleCancelClick(reg.registrationId)}
+                            onDismissConfirm={() => setConfirmingId(null)}
+                            canReview={canReview}
+                            onReviewClick={() => setReviewReg(reg)}
+                          />
+                        );
+                      })()
+                    ))}
+                  </div>
+                )}
+
+                {cancelled.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Canceladas ({cancelled.length})
+                    </p>
+                    {cancelled.map((reg) => (
+                      <RegistrationCard
+                        key={reg.registrationId}
+                        reg={reg}
+                        isConfirming={false}
+                        isCancelling={false}
+                        onCancelClick={() => {}}
+                        onDismissConfirm={() => {}}
+                        canReview={false}
+                        onReviewClick={() => {}}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </DialogContent>
 
       {reviewReg ? (
@@ -289,8 +300,8 @@ const RegistrationCard = ({
   const canCancel = reg.status !== "CANCELLED";
 
   return (
-    <div className="flex gap-3 p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors">
-      <div className="w-16 h-16 rounded-md overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+    <div className="flex gap-4 p-4 rounded-2xl border border-border/50 bg-card/90 backdrop-blur-sm hover:bg-muted/20 transition-colors">
+      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-muted flex items-center justify-center">
         {reg.event.imageUrl ? (
           <img
             src={reg.event.imageUrl}
@@ -299,7 +310,7 @@ const RegistrationCard = ({
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
         ) : (
-          <span className="text-[10px] text-muted-foreground text-center px-1">Sem imagem</span>
+          <ImageOff className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
         )}
       </div>
 
@@ -334,15 +345,15 @@ const RegistrationCard = ({
             {canReview ? (
               <Button
                 size="sm"
-                variant="outline"
-                className="h-7 text-xs px-3 border-[#F2AB27]/60 bg-[#F2BF27]/25 text-[#284003] hover:bg-[#F2BF27]/35 hover:border-[#F2AB27] font-bold shadow-sm"
+                variant="secondary"
+                className="h-9 text-xs px-3 font-semibold shadow-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onReviewClick();
                 }}
                 title="Avaliar evento"
               >
-                <Star className="h-4 w-4 mr-2" /> Avaliar
+                <Star className="h-4 w-4" /> Avaliar
               </Button>
             ) : null}
 
@@ -351,7 +362,7 @@ const RegistrationCard = ({
                 <Button
                   size="sm"
                   variant="destructive"
-                  className="h-7 text-xs px-3 whitespace-nowrap"
+                  className="h-9 text-xs px-3 whitespace-nowrap"
                   disabled={isCancelling}
                   onClick={onCancelClick}
                 >
@@ -360,7 +371,7 @@ const RegistrationCard = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 text-xs px-3"
+                  className="h-9 text-xs px-3"
                   onClick={onDismissConfirm}
                 >
                   Voltar
@@ -370,7 +381,7 @@ const RegistrationCard = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-xs px-3 text-destructive border-destructive/30 hover:bg-destructive/5"
+                className="h-9 text-xs px-3 text-destructive border-destructive/30 hover:bg-destructive/5"
                 disabled={isCancelling}
                 onClick={onCancelClick}
               >

@@ -116,79 +116,86 @@ export const RegistrationFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Inscrição no Evento</DialogTitle>
-          {initialEventTitle && (
-            <DialogDescription className="text-base font-medium text-foreground">
-              {initialEventTitle}
-            </DialogDescription>
-          )}
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden border border-border/50 bg-card/95 backdrop-blur-sm p-0">
+        <div className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <DialogTitle className="font-display text-2xl font-semibold">Inscrição no evento</DialogTitle>
+            {initialEventTitle ? (
+              <DialogDescription className="text-sm sm:text-base font-medium text-foreground">
+                {initialEventTitle}
+              </DialogDescription>
+            ) : (
+              <DialogDescription className="text-sm sm:text-base">
+                Preencha seus dados para concluir a inscrição.
+              </DialogDescription>
+            )}
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome completo</FormLabel>
+                      <FormControl>
+                        <Input className="h-11" placeholder="João da Silva" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="h-11"
+                          placeholder="(99) 99999-9999"
+                          inputMode="numeric"
+                          maxLength={16}
+                          {...field}
+                          value={formatPhoneBR(field.value)}
+                          onChange={(e) => field.onChange(unmaskPhone(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="fullName"
+                name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome completo</FormLabel>
+                    <FormLabel>Idade</FormLabel>
                     <FormControl>
-                      <Input placeholder="João da Silva" {...field} />
+                      <Input className="h-11" type="number" placeholder="25" min={1} max={120} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="phoneNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="(99) 99999-9999"
-                        inputMode="numeric"
-                        maxLength={16}
-                        {...field}
-                        value={formatPhoneBR(field.value)}
-                        onChange={(e) => field.onChange(unmaskPhone(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="age"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Idade</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="25" min={1} max={120} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button
-              type="submit"
-              className="w-full bg-[#f2c14e] hover:bg-[#d9ad46] text-[#1a2832] font-bold"
-              size="lg"
-              disabled={isSubmitting || !initialEventId}
-            >
-              {isSubmitting ? "Enviando..." : "Concluir inscrição"}
-            </Button>
-          </form>
-        </Form>
+              <div className="space-y-2">
+                <Button type="submit" variant="secondary" className="w-full h-11 font-semibold" disabled={isSubmitting || !initialEventId}>
+                  {isSubmitting ? "Enviando..." : "Concluir inscrição"}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Seus dados são usados apenas para registrar a inscrição.
+                </p>
+              </div>
+            </form>
+          </Form>
+        </div>
       </DialogContent>
     </Dialog>
   );

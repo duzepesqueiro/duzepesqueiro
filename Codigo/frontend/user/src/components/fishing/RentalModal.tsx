@@ -77,7 +77,8 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
 
   const galleryImages = (item.images?.length ? item.images : [item.image]).filter(Boolean).slice(0, 10);
   const currentImage = galleryImages[imageIndex] || item.image;
-  const totalPrice = (item.hourlyPrice * (quantity > 0 ? quantity : 0)).toFixed(2);
+  const formatCurrency = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const totalPrice = formatCurrency(item.hourlyPrice * (quantity > 0 ? quantity : 0));
 
   const handleConfirmRental = async () => {
     try {
@@ -140,26 +141,32 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{item.name}</DialogTitle>
-          <DialogDescription>{item.description}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden border border-border/50 bg-card/95 backdrop-blur-sm p-0">
+        <div className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <DialogTitle className="font-display text-2xl font-semibold">{item.name}</DialogTitle>
+            <DialogDescription>{item.description}</DialogDescription>
+          </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-6">
+          <div className="px-6 py-6 grid md:grid-cols-2 gap-6">
           {/* Coluna Esquerda - Imagem e Descrição */}
           <div className="space-y-4">
             <div className="space-y-3">
-              <div className="relative rounded-lg overflow-hidden bg-muted/20">
-                <img src={currentImage} alt={item.name} className="w-full h-64 object-contain p-4" />
+              <div className="relative rounded-2xl overflow-hidden bg-muted/20 border border-border/50">
+                <div className="aspect-[4/3]">
+                  <img src={currentImage} alt={item.name} className="w-full h-full object-contain p-6" />
+                </div>
                 {galleryImages.length > 1 && (
                   <>
                     <Button
                       type="button"
                       variant="secondary"
                       size="icon"
-                      className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2"
-                      onClick={() => setImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}
+                      className="absolute left-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length);
+                      }}
                       aria-label="Imagem anterior"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -168,8 +175,11 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                       type="button"
                       variant="secondary"
                       size="icon"
-                      className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
-                      onClick={() => setImageIndex((current) => (current + 1) % galleryImages.length)}
+                      className="absolute right-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImageIndex((current) => (current + 1) % galleryImages.length);
+                      }}
                       aria-label="Próxima imagem"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -183,8 +193,11 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                     <button
                       key={`${src}-${index}`}
                       type="button"
-                      className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border bg-muted/20 ${index === imageIndex ? "border-primary" : "border-border"}`}
-                      onClick={() => setImageIndex(index)}
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-muted/20 ${index === imageIndex ? "border-primary" : "border-border/60"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImageIndex(index);
+                      }}
                       aria-label={`Ver imagem ${index + 1}`}
                     >
                       <img src={src} alt={`${item.name} ${index + 1}`} className="h-full w-full object-cover" />
@@ -197,9 +210,9 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
               <h3 className="font-semibold mb-2">Descrição</h3>
               <p className="text-sm text-muted-foreground">{item.fullDescription}</p>
             </div>
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-4 p-4 bg-muted/20 border border-border/50 rounded-2xl">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">R${item.hourlyPrice}</div>
+                <div className="text-xl font-semibold text-primary">{formatCurrency(item.hourlyPrice)}</div>
                 <div className="text-sm text-muted-foreground">por dia</div>
               </div>
               <Separator orientation="vertical" className="h-12" />
@@ -225,7 +238,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full pl-3 text-left font-normal",
+                        "w-full h-11 pl-3 text-left font-normal",
                         !startDate && "text-muted-foreground"
                       )}
                     >
@@ -255,6 +268,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                   Quantidade
                 </Label>
                 <Input
+                  className="h-11"
                   type="number"
                   min={1}
                   max={item.available ?? undefined}
@@ -267,6 +281,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
             <div>
               <Label className="mb-2">Nome do locatário</Label>
               <Input
+                className="h-11"
                 placeholder="Digite seu nome"
                 value={renterName}
                 onChange={(e) => setRenterName(e.target.value)}
@@ -277,6 +292,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
             <div>
               <Label className="flex items-center gap-2 mb-2"><Phone className="h-4 w-4" /> Telefone</Label>
               <Input
+                className="h-11"
                 type="tel"
                 inputMode="numeric"
                 maxLength={14}
@@ -293,7 +309,7 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Taxa por dia:</span>
-                <span className="font-medium">R${item.hourlyPrice}</span>
+                <span className="font-medium">{formatCurrency(item.hourlyPrice)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Período:</span>
@@ -309,13 +325,14 @@ export const RentalModal = ({ item, open, onOpenChange, onBooked }: RentalModalP
                   <DollarSign className="h-5 w-5" />
                   Total:
                 </span>
-                <span className="text-2xl font-bold text-primary">R${totalPrice}</span>
+                <span className="text-2xl font-semibold text-primary">{totalPrice}</span>
               </div>
             </div>
 
-            <Button onClick={handleConfirmRental} className="w-full" size="lg" variant="secondary" disabled={submitting}>
+            <Button onClick={handleConfirmRental} className="w-full h-11 font-semibold" size="lg" variant="secondary" disabled={submitting}>
               {submitting ? "Confirmando..." : "Confirmar Aluguel"}
             </Button>
+          </div>
           </div>
         </div>
       </DialogContent>

@@ -28,6 +28,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type RoomLocationState = {
   room?: Room;
@@ -105,6 +106,7 @@ const RoomDetailPage = () => {
   const apiRoom = useMemo(() => (apiRoomData ? mapApiChaletToRoom(apiRoomData) : null), [apiRoomData]);
   const room = apiRoom ?? (locationRoom && locationRoom.id === id ? locationRoom : null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [activeSlide, setActiveSlide] = useState(0);
   const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
@@ -288,15 +290,15 @@ const RoomDetailPage = () => {
   const activeSlideImage = carouselSlides[activeSlide];
 
   return (
-    <div className="relative min-h-screen bg-[#F2F2F2]">
-      <Header open={sidebarOpen} setOpen={setSidebarOpen} />
+    <div className="relative min-h-screen bg-muted">
+      {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
-      <main className={`relative z-10 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="pt-24 pb-16 px-4">
-          <div className="mx-auto w-[95vw] lg:w-[80vw]">
+          <div className="container mx-auto max-w-[1400px]">
             <button
               onClick={() => navigate('/hospedagem/rooms')}
-              className="mb-6 inline-flex items-center gap-1 rounded-lg border border-[#024059]/25 bg-[#F2BF27]/25 px-3 py-2 text-sm font-medium text-[#024059] transition-colors hover:bg-[#F2BF27]/40"
+              className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <ChevronLeft className="h-4 w-4" /> Voltar aos quartos
             </button>
@@ -306,44 +308,33 @@ const RoomDetailPage = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="mb-8 overflow-hidden rounded-2xl border-2 border-[#F2AB27]/60 bg-[#F2F2F2]"
+                  className="mb-8 overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
                 >
-                  <div className="relative h-[340px] overflow-hidden sm:h-[430px] lg:h-[520px]">
-                    <AnimatePresence mode="wait">
-                      {activeSlideImage ? (
-                        <motion.img
-                          key={`${room.id}-${activeSlide}`}
-                          initial={{ opacity: 0, scale: 1.03 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.45 }}
-                          src={activeSlideImage}
-                          alt={`${room.name} - imagem ${activeSlide + 1}`}
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      ) : (
-                        <motion.div
-                          key={`blank-${room.id}-${activeSlide}`}
-                          initial={{ opacity: 0, scale: 1.01 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.45 }}
-                          className="absolute inset-0 flex items-center justify-center bg-[#F2F2F2]"
-                        >
-                          <div className="text-center space-y-3">
-                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-[#024059]/40 text-[#024059]/75">
-                              <span className="text-2xl">+</span>
-                            </div>
-                            <p className="text-sm text-[#024059]/75">Espaço reservado para imagem</p>
+                  <div className="relative h-[340px] overflow-hidden bg-muted sm:h-[430px] lg:h-[520px]">
+                    {activeSlideImage ? (
+                      <img
+                        src={activeSlideImage}
+                        alt={`${room.name} - imagem ${activeSlide + 1}`}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                        <div className="space-y-3 text-center">
+                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
+                            <span className="text-2xl">+</span>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          <p className="text-sm text-muted-foreground">Espaço reservado para imagem</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
                     <button
                       type="button"
                       onClick={goToPreviousSlide}
-                      className="absolute left-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/45 bg-[#024059]/85 text-lg font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
+                      className="absolute left-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black/30"
                       aria-label="Imagem anterior"
                     >
                       &lt;
@@ -351,13 +342,13 @@ const RoomDetailPage = () => {
                     <button
                       type="button"
                       onClick={goToNextSlide}
-                      className="absolute right-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#F2F2F2]/45 bg-[#024059]/85 text-lg font-semibold text-[#F2F2F2] transition hover:bg-[#024059]"
+                      className="absolute right-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black/30"
                       aria-label="Próxima imagem"
                     >
                       &gt;
                     </button>
 
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-[#F2F2F2]/35 bg-[#024059]/85 px-4 py-1.5 text-xs font-medium text-[#F2F2F2]">
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/45 px-4 py-1.5 text-xs font-medium text-white">
                       {activeSlide + 1}/{carouselSlides.length}
                     </div>
                   </div>
@@ -369,120 +360,132 @@ const RoomDetailPage = () => {
                   transition={{ delay: 0.1 }}
                 >
                   <div className="mb-3 flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center rounded-full border border-[#284003]/35 bg-[#F2BF27]/25 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#284003]">
+                    <span className="inline-flex items-center rounded-full border border-border bg-secondary/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
                       {ROOM_TYPE_LABEL[room.type]}
                     </span>
-                    <h1 className="font-display text-3xl font-bold text-[#024059]">{room.name}</h1>
+                    <h1 className="font-display text-3xl font-bold text-foreground">{room.name}</h1>
                     {room.petFriendly && (
-                      <Badge className="gap-1 bg-[#F2AB27] text-[#024059]">
+                      <Badge variant="secondary" className="gap-1">
                         <PawPrint className="h-3 w-3" /> Pet friendly
                       </Badge>
                     )}
                   </div>
 
-                  <p className="mb-8 rounded-xl border border-[#024059]/20 bg-[#F2F2F2] p-4 leading-relaxed text-[#024059]/85">
+                  <div className="mb-8 rounded-2xl border border-border bg-card p-5 text-sm leading-relaxed text-muted-foreground shadow-sm">
                     {room.description}
-                  </p>
+                  </div>
 
-                  <div className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-lg mb-8 w-fit">
-                    <Flame className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      Este quarto está quase lotado para as próximas semanas
-                    </span>
+                  <div className="mb-8 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm">
+                    <Flame className="h-4 w-4 text-secondary-foreground" />
+                    <span className="font-semibold">Alta procura:</span>
+                    <span className="text-muted-foreground">reserve com antecedência para garantir disponibilidade.</span>
                   </div>
 
                   <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="rounded-xl border-2 border-[#F2AB27]/60 bg-[#F2F2F2] p-5">
-                      <h3 className="mb-2 font-display font-semibold text-[#024059]">Camas</h3>
-                      <p className="text-sm text-[#284003]/80">{room.beds}</p>
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Camas</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{room.beds}</p>
                     </div>
-                    <div className="rounded-xl border-2 border-[#F2AB27]/60 bg-[#F2F2F2] p-5">
-                      <h3 className="mb-2 font-display font-semibold text-[#024059]">Banheiro</h3>
-                      <p className="text-sm text-[#284003]/80">{room.bathroom}</p>
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Banheiro</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{room.bathroom}</p>
                     </div>
-                    <div className="rounded-xl border-2 border-[#F2AB27]/60 bg-[#F2F2F2] p-5">
-                      <h3 className="mb-2 font-display font-semibold text-[#024059]">Capacidade</h3>
-                      <p className="flex items-center gap-1 text-sm text-[#284003]/80">
-                        <Users className="h-4 w-4 text-[#024059]" /> Até {room.capacity} pessoas
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Capacidade</p>
+                      <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Users className="h-4 w-4 text-primary" /> Até {room.capacity} pessoas
                       </p>
                     </div>
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Comodidades</h3>
+                  <div className="mb-4">
+                    <h3 className="font-display text-xl font-semibold text-foreground">Comodidades</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">O que você encontra neste quarto.</p>
+                  </div>
                   <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                     {room.amenities.map((amenity) => (
                       <div
                         key={amenity}
-                        className="flex items-center gap-2 rounded-lg border border-[#024059]/18 bg-[#F2BF27]/18 px-3 py-2 text-sm font-medium text-[#284003]"
+                        className="flex items-center gap-2 rounded-xl border border-border bg-secondary/10 px-3 py-2 text-sm font-medium text-foreground"
                       >
-                        <Check className="h-4 w-4 text-[#024059]" /> {amenity}
+                        <Check className="h-4 w-4 text-primary" /> {amenity}
                       </div>
                     ))}
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Inclusos</h3>
+                  <div className="mb-4">
+                    <h3 className="font-display text-xl font-semibold text-foreground">Inclusos</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Itens e facilidades já incluídos na estadia.</p>
+                  </div>
                   <div className="mb-8 flex flex-wrap gap-2">
                     {room.extras.map((extra) => (
-                      <Badge key={extra} className="border border-[#F2AB27]/70 bg-[#F2BF27]/22 text-[#284003]">
+                      <Badge key={extra} variant="outline" className="bg-card text-foreground">
                         {extra}
                       </Badge>
                     ))}
                   </div>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Regras</h3>
-                  <ul className="mb-8 space-y-2 rounded-xl border border-[#024059]/20 bg-[#F2F2F2] p-4">
+                  <div className="mb-4">
+                    <h3 className="font-display text-xl font-semibold text-foreground">Regras</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Orientações para uma hospedagem tranquila.</p>
+                  </div>
+                  <ul className="mb-8 space-y-2 rounded-2xl border border-border bg-card p-5 text-sm text-foreground shadow-sm">
                     {room.rules.map((rule) => (
-                      <li key={rule} className="text-sm text-[#284003]/88">
-                        • {rule}
+                      <li key={rule} className="flex gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
+                        <span className="text-muted-foreground">{rule}</span>
                       </li>
                     ))}
                   </ul>
 
-                  <h3 className="mb-4 font-display text-xl font-semibold text-[#024059]">Avaliações</h3>
-                  <div className="mb-8 rounded-2xl border border-[#024059]/18 bg-white p-5">
+                  <div className="mb-4">
+                    <h3 className="font-display text-xl font-semibold text-foreground">Avaliações</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Experiências de quem já se hospedou.</p>
+                  </div>
+                  <div className="mb-8 rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <RatingStarsDisplay value={Number(reviewsSummary?.averageRating ?? 0)} className="flex gap-1" />
                         <div className="flex flex-col leading-tight">
-                          <span className="text-lg font-extrabold text-[#024059]">
+                          <span className="text-lg font-extrabold text-foreground">
                             {Number(reviewsSummary?.averageRating ?? 0).toFixed(1)}
                           </span>
-                          <span className="text-xs font-medium text-[#284003]/70">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {Number(reviewsSummary?.reviewsCount ?? 0)} avaliações
                           </span>
                         </div>
                       </div>
                       {Number(reviewsSummary?.reviewsCount ?? 0) > 0 ? (
-                        <span className="text-xs text-[#284003]/70">Mais recentes primeiro</span>
+                        <span className="text-xs text-muted-foreground">Mais recentes primeiro</span>
                       ) : null}
                     </div>
 
                     <div className="mt-5 space-y-4">
                       {isLoadingReviews ? (
                         <div className="space-y-3">
-                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
-                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
-                          <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100" />
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
+                          <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
                         </div>
                       ) : reviews.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
-                          <p className="text-sm font-medium text-slate-600">Ainda não há avaliações para este chalé.</p>
+                        <div className="rounded-xl border border-dashed border-border bg-muted px-4 py-6 text-center">
+                          <p className="text-sm font-medium text-muted-foreground">Ainda não há avaliações para este quarto.</p>
                         </div>
                       ) : (
                         reviews.map((review) => (
                           <div
                             key={review.id}
-                            className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
+                            className="rounded-xl border border-border bg-muted/60 p-4"
                           >
                             <div className="flex items-start gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-card text-muted-foreground shadow-sm">
                                 <UserIcon className="h-5 w-5" />
                               </div>
                               <div className="flex-1">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-slate-800">{review.authorName}</p>
-                                    <p className="text-[11px] text-slate-500">
+                                    <p className="truncate text-sm font-bold text-foreground">{review.authorName}</p>
+                                    <p className="text-[11px] text-muted-foreground">
                                       {review.createdAt ? format(new Date(review.createdAt), 'dd/MM/yyyy') : ''}
                                     </p>
                                   </div>
@@ -491,7 +494,7 @@ const RoomDetailPage = () => {
                                   </div>
                                 </div>
                                 {review.comment ? (
-                                  <p className="mt-2 text-sm text-slate-700">"{review.comment}"</p>
+                                  <p className="mt-2 text-sm text-foreground">"{review.comment}"</p>
                                 ) : null}
                               </div>
                             </div>
@@ -538,10 +541,10 @@ const RoomDetailPage = () => {
                   initial={{ opacity: 0, y: 28, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: 0.16, duration: 0.45, ease: 'easeOut' }}
-                  className="rounded-2xl border-2 border-[#F2AB27]/70 bg-[#024059] p-8 text-[#F2F2F2]"
+                  className="rounded-2xl border border-border bg-primary p-6 text-primary-foreground shadow-sm sm:p-8"
                 >
                   <div className="mb-5">
-                    <span className="text-sm uppercase tracking-[0.14em] text-[#F2F2F2]/80">A partir de</span>
+                    <span className="text-sm uppercase tracking-[0.14em] text-primary-foreground/80">Total estimado</span>
                     <div className="flex items-baseline gap-1">
                       <AnimatePresence mode="wait">
                         <motion.span
@@ -549,45 +552,45 @@ const RoomDetailPage = () => {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="text-5xl font-bold leading-none text-[#F2BF27]"
+                          className="text-5xl font-bold leading-none text-secondary"
                         >
                           {formatBRL(totalPrice)}
                         </motion.span>
                       </AnimatePresence>
-                      <span className="text-sm text-[#F2F2F2]/80">
-                        / {Math.max(nights, 1)} {nights === 1 ? 'noite' : 'noites'}
+                      <span className="text-sm text-primary-foreground/80">
+                        para {Math.max(nights, 1)} {nights === 1 ? 'noite' : 'noites'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mb-6 space-y-3 rounded-xl border border-[#F2F2F2]/18 bg-[#F2F2F2]/8 p-4 text-sm">
-                    <div className="rounded-lg border border-[#F2F2F2]/20 bg-[#F2F2F2]/8 p-3">
-                      <p className="mb-2 text-xs uppercase tracking-[0.12em] text-[#F2F2F2]/80">
-                        Selecione Check-in / Check-out
+                  <div className="mb-6 space-y-3 rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 p-4 text-sm">
+                    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 p-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground/80">
+                        Selecione o período da hospedagem
                       </p>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             className={cn(
-                              'w-full justify-start text-left font-normal h-12 border-[#F2F2F2]/30 bg-[#F2F2F2]/10 text-[#F2F2F2] hover:bg-[#F2F2F2]/16 hover:text-[#F2F2F2]',
-                              !selectedRange?.from && 'text-[#F2F2F2]/75'
+                              'h-12 w-full justify-start rounded-xl border-primary-foreground/20 bg-primary-foreground/10 text-left font-semibold text-primary-foreground shadow-sm hover:bg-primary-foreground/15 hover:text-primary-foreground focus-visible:ring-primary-foreground/70',
+                              !selectedRange?.from && 'text-primary-foreground/80'
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-[#F2F2F2]" />
+                            <CalendarIcon className="mr-2 h-4 w-4 text-primary-foreground" />
                             {selectedRange?.from ? (
                               selectedRange.to ? (
-                                <span className="text-sm text-[#F2F2F2]">
+                                <span className="text-sm text-primary-foreground">
                                   {format(selectedRange.from, 'dd/MM', { locale: ptBR })} -{' '}
                                   {format(selectedRange.to, 'dd/MM', { locale: ptBR })}
                                 </span>
                               ) : (
-                                <span className="text-sm text-[#F2F2F2]">
+                                <span className="text-sm text-primary-foreground">
                                   {format(selectedRange.from, 'dd MMM', { locale: ptBR })}
                                 </span>
                               )
                             ) : (
-                              <span className="text-sm text-[#F2F2F2]/75">Selecione as datas</span>
+                              <span className="text-sm text-primary-foreground/80">Escolher datas</span>
                             )}
                           </Button>
                         </PopoverTrigger>
@@ -655,16 +658,16 @@ const RoomDetailPage = () => {
                           />
                         </PopoverContent>
                       </Popover>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                        <span className="inline-flex items-center gap-2 text-[#F2F2F2]/90">
-                          <span className="h-3 w-3 rounded-sm bg-gray-400" />
-                          Indisponível
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-primary-foreground/90">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-sm bg-muted-foreground" />
+                          Datas indisponíveis
                         </span>
                       </div>
                     </div>
-                    <div className="flex justify-between border-b border-[#F2F2F2]/14 pb-2">
-                      <span className="text-[#F2F2F2]/75">Check-in</span>
-                      <span className="font-medium text-[#F2F2F2]">
+                    <div className="flex justify-between border-b border-primary-foreground/15 pb-2">
+                      <span className="text-primary-foreground/80">Check-in</span>
+                      <span className="font-semibold text-primary-foreground">
                         {selectedRange?.from
                           ? format(selectedRange.from, 'dd MMM yyyy', { locale: ptBR })
                           : booking.checkIn
@@ -672,9 +675,9 @@ const RoomDetailPage = () => {
                             : '—'}
                       </span>
                     </div>
-                    <div className="flex justify-between border-b border-[#F2F2F2]/14 pb-2">
-                      <span className="text-[#F2F2F2]/75">Check-out</span>
-                      <span className="font-medium text-[#F2F2F2]">
+                    <div className="flex justify-between border-b border-primary-foreground/15 pb-2">
+                      <span className="text-primary-foreground/80">Check-out</span>
+                      <span className="font-semibold text-primary-foreground">
                         {selectedRange?.to
                           ? format(selectedRange.to, 'dd MMM yyyy', { locale: ptBR })
                           : booking.checkOut
@@ -682,25 +685,23 @@ const RoomDetailPage = () => {
                             : '—'}
                       </span>
                     </div>
-                    <div className="flex justify-between border-b border-[#F2F2F2]/14 pb-2">
-                      <span className="text-[#F2F2F2]/75">Hóspedes</span>
-                      <span className="font-medium text-[#F2F2F2]">{booking.guests}</span>
+                    <div className="flex justify-between border-b border-primary-foreground/15 pb-2">
+                      <span className="text-primary-foreground/80">Hóspedes</span>
+                      <span className="font-semibold text-primary-foreground">{booking.guests}</span>
                     </div>
-                    {booking.pets && (
-                      <div className="flex justify-between">
-                        <span className="text-[#F2F2F2]/75">Pets</span>
-                        <span className="font-medium text-[#F2F2F2]">Sim</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-primary-foreground/80">Pets</span>
+                      <span className="font-semibold text-primary-foreground">{booking.pets ? 'Sim' : 'Não'}</span>
+                    </div>
                   </div>
 
                   {booking.guests > room.capacity && (
-                    <p className="text-destructive text-sm mb-4">
-                      ⚠ Este quarto comporta até {room.capacity} pessoas
+                    <p className="mb-4 text-sm font-semibold text-secondary">
+                      Este quarto comporta até {room.capacity} pessoa(s).
                     </p>
                   )}
                   {calendarError && (
-                    <p className="text-[#F2BF27] text-sm mb-4">{calendarError}</p>
+                    <p className="mb-4 text-sm font-semibold text-secondary">{calendarError}</p>
                   )}
 
                   <motion.button
@@ -708,13 +709,13 @@ const RoomDetailPage = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={handleBookNow}
                     disabled={booking.guests > room.capacity || isCheckingAvailability}
-                    className="flex h-14 w-full items-center justify-center rounded-xl border border-[#F2AB27] bg-[#F2AB27] text-base font-bold text-[#024059] transition-colors hover:bg-[#F2BF27] disabled:cursor-not-allowed disabled:border-[#F2AB27]/40 disabled:bg-[#F2AB27]/40 disabled:text-[#024059]/70"
+                    className="flex h-14 w-full items-center justify-center rounded-xl border border-secondary bg-secondary text-base font-extrabold text-secondary-foreground transition-colors hover:bg-secondary/90 disabled:cursor-not-allowed disabled:border-secondary/40 disabled:bg-secondary/40 disabled:text-secondary-foreground/70"
                   >
                     {isCheckingAvailability ? 'Validando datas...' : 'Reservar agora'}
                   </motion.button>
 
-                  <p className="mt-3 text-center text-xs text-[#F2F2F2]/78">
-                    Melhor preço garantido · Cancelamento flexível
+                  <p className="mt-3 text-center text-xs text-primary-foreground/80">
+                    Confirmação rápida · Ajuste datas e hóspedes antes de reservar
                   </p>
                 </motion.div>
 
@@ -722,8 +723,12 @@ const RoomDetailPage = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.24 }}
-                  className="rounded-2xl bg-[#E9F2F1] p-4 sm:p-5"
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
                 >
+                  <div className="mb-4">
+                    <h2 className="font-display text-lg font-semibold text-foreground">Galeria</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Toque em uma foto para ampliar.</p>
+                  </div>
                   {galleryImages.length ? (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {galleryImages.map((image, index) => (
@@ -739,8 +744,8 @@ const RoomDetailPage = () => {
                           transition={{ delay: 0.03 * index }}
                           className={`group relative overflow-hidden rounded-xl border-2 transition ${
                             activeSlide === index
-                              ? 'border-[#F2AB27] ring-2 ring-[#F2AB27]/45'
-                              : 'border-[#024059]/20 hover:border-[#024059]/45'
+                              ? 'border-secondary ring-2 ring-secondary/40'
+                              : 'border-border hover:border-primary/30'
                           } ${index % 5 === 0 ? 'col-span-2 row-span-2 min-h-[230px]' : 'min-h-[140px]'}`}
                           aria-label={`Visualizar foto ${index + 1}`}
                         >
@@ -753,8 +758,8 @@ const RoomDetailPage = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-[#024059]/30 bg-[#F2F2F2] p-10 text-center text-sm text-[#024059]/75">
-                      Nenhuma imagem cadastrada para este chalé.
+                    <div className="rounded-xl border border-dashed border-border bg-muted p-10 text-center text-sm text-muted-foreground">
+                      Nenhuma imagem cadastrada para este quarto.
                     </div>
                   )}
                 </motion.section>
