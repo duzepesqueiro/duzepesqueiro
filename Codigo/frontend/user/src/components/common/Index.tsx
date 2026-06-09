@@ -57,10 +57,10 @@ const Index = () => {
   const isMobile = useIsMobile();
 
   const { data: blockedDates = [], isLoading: loadingBlocked } = useQuery<BlockedDate[]>({
-    queryKey: ['hosting-blocked-dates'],
+    queryKey: ['hosting-blocked-dates', 'global'],
     queryFn: async (): Promise<BlockedDate[]> => {
       try {
-        const { data, status } = await api.get('/api/bloqueios', {
+        const { data, status } = await api.get('/api/bloqueios/global', {
           params: { isActive: true },
           validateStatus: () => true,
         });

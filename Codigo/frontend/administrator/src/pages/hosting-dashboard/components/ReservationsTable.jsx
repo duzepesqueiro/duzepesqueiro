@@ -53,11 +53,20 @@ const toDateOnly = (value) => {
 
 const canStartCheckIn = (reservation) => {
   const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+  const checkOutDate = toDateOnly(reservation?.checkOutDate || reservation?.checkOutAt);
   if (!checkInDate) {
-    return true;
+    if (!checkOutDate) {
+      return true;
+    }
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return today.getTime() <= checkOutDate.getTime();
   }
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (checkOutDate && today.getTime() > checkOutDate.getTime()) {
+    return false;
+  }
   return today.getTime() >= checkInDate.getTime();
 };
 

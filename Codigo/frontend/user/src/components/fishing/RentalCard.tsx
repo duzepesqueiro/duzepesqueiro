@@ -95,10 +95,10 @@ export const RentalCard = ({ item, onSelect }: RentalCardProps) => {
 
       <div className="p-4 flex flex-col flex-grow space-y-3">
         <div className="space-y-1">
-          <h3 className="font-semibold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="min-h-10 font-semibold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
             {item.name}
           </h3>
-          <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+          <p className="min-h-4 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
         </div>
 
         <div className="mt-auto pt-2 space-y-3">
@@ -107,12 +107,12 @@ export const RentalCard = ({ item, onSelect }: RentalCardProps) => {
               <span className="text-2xl font-semibold text-foreground">{formatCurrency(Number(item.hourlyPrice || 0))}</span>
               <span className="text-xs text-muted-foreground">/dia</span>
             </div>
-            <Badge variant="outline" className="bg-background/70 backdrop-blur-sm">
+            <Badge variant="outline" className="bg-background/70 backdrop-blur-sm whitespace-nowrap">
               {item.available > 0 ? `${item.available} disponíveis` : "Sem estoque"}
             </Badge>
           </div>
 
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <div className="min-h-4 text-xs text-muted-foreground flex items-center gap-1">
             <Package className="w-3 h-3" />
             {item.available > 0 ? "Disponível para aluguel" : "Indisponível no momento"}
           </div>

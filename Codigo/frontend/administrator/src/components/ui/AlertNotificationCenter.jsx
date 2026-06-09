@@ -20,7 +20,7 @@ const AlertNotificationCenter = ({ className = '' }) => {
 
     (async () => {
       try {
-        const response = await listNotifications({ status: 'ALL', limit: 50 });
+        const response = await listNotifications({ status: 'UNREAD', limit: 50 });
         const incoming = Array.isArray(response?.items) ? response.items : [];
         if (!mounted) return;
         setBackendAlerts(incoming.map((item) => ({ ...item, __origin: 'backend' })));
@@ -84,6 +84,7 @@ const AlertNotificationCenter = ({ className = '' }) => {
     const byId = new Map();
     [...backendAlerts].forEach((item) => {
       if (!item?.id || dismissedAlertIds.includes(item.id)) return;
+      if (item?.isRead) return;
       if (!byId.has(item.id)) {
         byId.set(item.id, item);
       }
@@ -93,7 +94,7 @@ const AlertNotificationCenter = ({ className = '' }) => {
     );
   }, [backendAlerts, dismissedAlertIds]);
 
-  const unreadCount = alerts?.filter((alert) => !alert?.isRead)?.length;
+  const unreadCount = alerts?.length;
 
   const togglePanel = () => {
     setIsOpen(!isOpen);

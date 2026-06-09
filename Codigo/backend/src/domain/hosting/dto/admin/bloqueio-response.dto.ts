@@ -14,3 +14,8 @@ export class BloqueioDTO {
 }
 
 export class BloqueioListDTO extends BloqueioDTO {}
+
+export class BloqueioGlobalRangeDTO {
+  startDate: string;
+  endDate: string;
+}

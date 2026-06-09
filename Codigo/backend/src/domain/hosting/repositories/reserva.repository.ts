@@ -27,7 +27,7 @@ export class ReservaRepository {
 
     return this.prisma.hostingReservation.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ checkInDate: 'asc' }, { createdAt: 'desc' }],
     });
   }
 
@@ -261,6 +261,15 @@ export class ReservaRepository {
     const existing = await this.findById(id);
     if (!existing) {
       throw new NotFoundException('Reserva não encontrada.');
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const checkOutDate = existing.checkOutDate
+      ? new Date(existing.checkOutDate.getFullYear(), existing.checkOutDate.getMonth(), existing.checkOutDate.getDate())
+      : null;
+    if (checkOutDate && today.getTime() > checkOutDate.getTime()) {
+      throw new BadRequestException('Não é possível realizar check-in após a data de checkout.');
     }
 
     const shouldAutoAcceptPoliciesForManual = existing.origin === 'ADMIN' && !existing.policiesAccepted;

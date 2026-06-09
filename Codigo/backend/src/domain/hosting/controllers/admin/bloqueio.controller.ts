@@ -23,6 +23,7 @@ import { JwtAuthGuard } from '../../../../application/auth/guards/jwt-auth.guard
 import { RolesGuard } from '../../../../application/auth/guards/roles.guard';
 import {
   BloqueioDTO,
+  BloqueioGlobalRangeDTO,
   BloqueioListDTO,
   CreateBloqueioRequestDTO,
   ListBloqueiosQueryDTO,
@@ -56,6 +57,19 @@ export class BloqueioController {
   async listar(@Query() query: ListBloqueiosQueryDTO): Promise<BloqueioListDTO[]> {
     return this.bloqueioService.listarBloqueios({
       chaleId: query.chaleId,
+      isActive: query.isActive,
+      reason: query.reason,
+      dataInicioFrom: query.dataInicioFrom?.toISOString(),
+      dataFimTo: query.dataFimTo?.toISOString(),
+    });
+  }
+
+  @Get('global')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Listar bloqueios globais (quando todos os chalés estão bloqueados)' })
+  @ApiResponse({ status: 200, type: BloqueioGlobalRangeDTO, isArray: true })
+  async listarGlobais(@Query() query: ListBloqueiosQueryDTO): Promise<BloqueioGlobalRangeDTO[]> {
+    return this.bloqueioService.listarBloqueiosGlobais({
       isActive: query.isActive,
       reason: query.reason,
       dataInicioFrom: query.dataInicioFrom?.toISOString(),

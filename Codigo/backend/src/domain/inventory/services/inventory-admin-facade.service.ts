@@ -216,13 +216,20 @@ export class InventoryAdminFacadeService {
   }
 
   async getInventoryHeatmap(): Promise<
-    Array<{ category: string; location: string; stockLevel: number; inventoryValue: number }>
+    Array<{
+      sku: string;
+      product: string;
+      category: string;
+      stockLevel: number;
+      inventoryValue: number;
+    }>
   > {
     const products = await this.prisma.product.findMany({
       where: { deletedAt: null },
       select: {
+        sku: true,
+        name: true,
         category: true,
-        location: true,
         stockQuantity: true,
         costPrice: true,
       },
@@ -232,8 +239,9 @@ export class InventoryAdminFacadeService {
       const stock = Number(product.stockQuantity);
       const value = Number(product.costPrice) * stock;
       return {
+        sku: product.sku,
+        product: product.name,
         category: this.toFrontendCategory(product.category),
-        location: product.location ?? 'Sem localização',
         stockLevel: stock,
         inventoryValue: Number(value.toFixed(2)),
       };

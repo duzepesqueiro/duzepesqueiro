@@ -446,7 +446,7 @@ const RoomsPage = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {filteredRooms.map(({ room, unavailable }, i) => (
                     <RoomCard key={room.id} room={room} index={i} unavailable={unavailable} onSelect={handleSelectRoom} />
                   ))}

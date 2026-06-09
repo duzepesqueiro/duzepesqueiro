@@ -21,7 +21,7 @@ export class NotificationsController {
     @Query('cursor') cursor?: string,
   ) {
     return this.notificationsService.listForUser(user.id, {
-      status: status === 'UNREAD' ? 'UNREAD' : 'ALL',
+      status: status === 'ALL' ? 'ALL' : 'UNREAD',
       limit: limit ? Number(limit) : undefined,
       cursor,
     });

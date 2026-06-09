@@ -45,11 +45,20 @@ const toDateOnly = (value) => {
 
 const canStartCheckIn = (reservation) => {
   const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+  const checkOutDate = toDateOnly(reservation?.checkOutDate || reservation?.checkOutAt);
   if (!checkInDate) {
-    return true;
+    if (!checkOutDate) {
+      return true;
+    }
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return today.getTime() <= checkOutDate.getTime();
   }
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (checkOutDate && today.getTime() > checkOutDate.getTime()) {
+    return false;
+  }
   return today.getTime() >= checkInDate.getTime();
 };
 
@@ -181,6 +190,11 @@ const ReservationsManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [processingAction, setProcessingAction] = useState({ reservationId: null, type: null });
   const [errorPopup, setErrorPopup] = useState({ open: false, title: '', message: '' });
+  const [lateCheckInAlert, setLateCheckInAlert] = useState({
+    open: false,
+    dismissed: false,
+    reservations: [],
+  });
 
   const chaletNameMap = useMemo(
     () =>
@@ -191,6 +205,25 @@ const ReservationsManagementPage = () => {
     [chalets]
   );
 
+  const getLateCheckInReservations = useCallback((items) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return items.filter((reservation) => {
+      if (reservation.checkInDone) {
+        return false;
+      }
+      if (['Finalizada', 'Cancelada', 'No-show'].includes(reservation.status)) {
+        return false;
+      }
+      const checkInDate = toDateOnly(reservation.checkInDate || reservation.checkInAt);
+      if (!checkInDate) {
+        return false;
+      }
+      return today.getTime() > checkInDate.getTime();
+    });
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -200,14 +233,24 @@ const ReservationsManagementPage = () => {
         acc[chalet.id] = chalet.name;
         return acc;
       }, {});
+      const normalizedReservations = reservationsResponse.map((reservation) =>
+        normalizeReservation(reservation, normalizedMap)
+      );
       setChalets(normalizedChalets);
-      setReservations(reservationsResponse.map((reservation) => normalizeReservation(reservation, normalizedMap)));
+      setReservations(normalizedReservations);
+
+      const lateReservations = getLateCheckInReservations(normalizedReservations);
+      setLateCheckInAlert((prev) => ({
+        ...prev,
+        reservations: lateReservations,
+        open: lateReservations.length > 0 && !prev.dismissed,
+      }));
     } catch (error) {
       alert(toErrorMessage(error, 'Não foi possível carregar os dados de reservas.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getLateCheckInReservations]);
 
   useEffect(() => {
     loadData();
@@ -259,7 +302,19 @@ const ReservationsManagementPage = () => {
       return;
     }
     if (!canStartCheckIn(reservation)) {
-      alert('Check-in só pode ser realizado a partir da data da reserva.');
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const checkInDate = toDateOnly(reservation?.checkInDate || reservation?.checkInAt);
+      const checkOutDate = toDateOnly(reservation?.checkOutDate || reservation?.checkOutAt);
+      if (checkOutDate && today.getTime() > checkOutDate.getTime()) {
+        alert('Não é possível realizar check-in após a data de checkout.');
+        return;
+      }
+      if (checkInDate && today.getTime() < checkInDate.getTime()) {
+        alert('Check-in só pode ser realizado a partir da data da reserva.');
+        return;
+      }
+      alert('Não foi possível realizar o check-in para esta reserva.');
       return;
     }
     setProcessingAction({ reservationId: reservation.id, type: 'checkin' });
@@ -455,6 +510,97 @@ const ReservationsManagementPage = () => {
               <Button
                 type="button"
                 onClick={() => setErrorPopup({ open: false, title: '', message: '' })}
+              >
+                Entendi
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {lateCheckInAlert.open ? (
+        <div className="fixed inset-0 z-[1425] bg-black/45 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-card border border-border rounded-lg shadow-soft-lg">
+            <div className="p-5 border-b border-border flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-base font-semibold text-foreground">Check-ins em atraso</h4>
+                <p className="text-sm text-muted-foreground">
+                  Existem reservas cuja data de check-in já passou e ainda não tiveram o check-in realizado.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  setLateCheckInAlert((prev) => ({
+                    ...prev,
+                    open: false,
+                    dismissed: true,
+                  }))
+                }
+                aria-label="Fechar"
+                title="Fechar"
+              >
+                <Icon name="X" size={16} />
+              </Button>
+            </div>
+
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-auto">
+              {lateCheckInAlert.reservations.map((reservation) => {
+                const checkInDate = toDateOnly(reservation.checkInDate || reservation.checkInAt);
+                const checkInLabel = checkInDate
+                  ? new Intl.DateTimeFormat('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }).format(checkInDate)
+                  : '-';
+
+                return (
+                  <div
+                    key={reservation.id}
+                    className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">{reservation.code}</span>
+                        <span className="text-xs text-muted-foreground">{reservation.chaletName}</span>
+                      </div>
+                      <div className="text-sm text-foreground">{reservation.guest.name}</div>
+                      <div className="text-xs text-muted-foreground">Check-in previsto: {checkInLabel}</div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setLateCheckInAlert((prev) => ({ ...prev, open: false }));
+                          handleView(reservation);
+                        }}
+                      >
+                        Ver detalhes
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {!lateCheckInAlert.reservations.length ? (
+                <p className="text-sm text-muted-foreground">Nenhuma reserva em atraso encontrada.</p>
+              ) : null}
+            </div>
+
+            <div className="p-5 border-t border-border flex justify-end gap-2">
+              <Button
+                type="button"
+                onClick={() =>
+                  setLateCheckInAlert((prev) => ({
+                    ...prev,
+                    open: false,
+                    dismissed: true,
+                  }))
+                }
               >
                 Entendi
               </Button>

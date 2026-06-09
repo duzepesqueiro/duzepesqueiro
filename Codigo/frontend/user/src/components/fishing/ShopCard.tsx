@@ -93,22 +93,22 @@ export const ShopCard = ({ item, onSelect }: ShopCardProps) => {
       <div className="p-4 flex flex-col flex-grow space-y-3">
         <div className="space-y-1">
           <div className="flex justify-between items-start gap-2">
-             <h3 className="font-medium text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+             <h3 className="min-h-10 font-medium text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                {item.name}
              </h3>
           </div>
-          <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+          <p className="min-h-4 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
         </div>
 
         <div className="mt-auto pt-2 space-y-3">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-2xl font-semibold text-foreground">{formatCurrency(Number(item.price || 0))}</span>
-            <Badge variant="outline" className="bg-background/70 backdrop-blur-sm">
+            <Badge variant="outline" className="bg-background/70 backdrop-blur-sm whitespace-nowrap">
               {item.stock > 0 ? `${item.stock} em estoque` : "Sem estoque"}
             </Badge>
           </div>
 
-          <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+          <div className="min-h-4 text-xs text-muted-foreground font-medium flex items-center gap-1">
             <Package className="w-3 h-3" />
             {item.stock > 0 ? "Disponível para compra" : "Indisponível"}
           </div>

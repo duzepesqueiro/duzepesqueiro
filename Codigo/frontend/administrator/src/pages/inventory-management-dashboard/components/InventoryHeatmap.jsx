@@ -4,7 +4,6 @@ import Button from '../../../components/ui/Button';
 
 const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedLocation, setSelectedLocation] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -18,8 +17,9 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
   const heatmapData = useMemo(() => {
     const arr = Array.isArray(items) ? items : [];
     return arr.map((it) => ({
+      sku: it?.sku || '-',
+      product: it?.product || it?.name || 'Produto sem nome',
       category: it?.category || 'Sem categoria',
-      location: it?.location || 'Desconhecido',
       stock: Number(it?.stockLevel || 0),
       inventoryValue: Number(it?.inventoryValue || 0),
       status: deriveStatus(it?.stockLevel),
@@ -27,12 +27,10 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
   }, [items]);
 
   const categories = ['all', ...new Set(heatmapData.map((item) => item.category))];
-  const locations = ['all', ...new Set(heatmapData.map((item) => item.location))];
 
   const filteredData = heatmapData?.filter(item => {
       const categoryMatch = selectedCategory === 'all' || item.category === selectedCategory;
-      const locationMatch = selectedLocation === 'all' || item.location === selectedLocation;
-    return categoryMatch && locationMatch;
+    return categoryMatch;
   });
 
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / itemsPerPage));
@@ -41,7 +39,7 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedLocation, filteredData.length]);
+  }, [selectedCategory, filteredData.length]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -144,21 +142,6 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
               ))}
             </select>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-muted-foreground">Localização:</label>
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e?.target?.value)}
-              className="px-3 py-1 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {locations?.map(location => (
-                <option key={location} value={location}>
-                  {location === 'all' ? 'Todas as localizações' : location}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
       {/* Heatmap Grid */}
@@ -166,7 +149,7 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginatedData?.map((item, index) => (
             <div
-              key={`${item.category}-${item.location}-${index}`}
+              key={`${item.sku}-${index}`}
               className="border border-border rounded-lg p-4 hover:shadow-soft-md transition-smooth cursor-pointer"
             >
               <div className="flex items-center justify-between mb-3">
@@ -178,8 +161,9 @@ const InventoryHeatmap = ({ items, loading, error, onRetry }) => {
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-body font-medium text-foreground">{item.category}</h3>
-                <p className="text-sm text-muted-foreground">{item.location}</p>
+                <h3 className="font-body font-medium text-foreground">{item.product}</h3>
+                <p className="text-sm text-muted-foreground">{item.sku}</p>
+                <p className="text-xs text-muted-foreground">{item.category}</p>
                 
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">

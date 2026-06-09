@@ -139,7 +139,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
             <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
           </CardContent>
         </Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid items-stretch grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, idx) => (
             <Card key={idx} className="overflow-hidden border border-border/50 bg-card/90 backdrop-blur-sm">
               <div className="aspect-square animate-pulse bg-muted" />
@@ -218,7 +218,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
           </div>
         </CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid items-stretch grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {visibleItems.length ? (
           visibleItems.map((item) => (
             <RentalCard
