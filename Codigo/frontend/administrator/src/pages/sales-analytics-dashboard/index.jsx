@@ -4,7 +4,6 @@ import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter
 import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import SalesKPICards from './components/SalesKPICards';
 import SalesChart from './components/SalesChart';
-import SalesFilters from './components/SalesFilters';
 import SalesManagementTable from './components/SalesManagementTable';
 import CustomerAnalytics from './components/CustomerAnalytics';
 
@@ -19,17 +18,13 @@ import {
 import { exportAdminData } from '../../utils/exportService';
 
 const SalesAnalyticsDashboard = () => {
-  const [salesFilters, setSalesFilters] = useState({});
+  const [range, setRange] = useState('month');
   const [isLoading, setIsLoading] = useState(true);
 
   const [kpiData, setKpiData] = useState([]);
   const [salesChartData, setSalesChartData] = useState([]);
-  const [customerBehaviorData, setCustomerBehaviorData] = useState([]);
+  const [customerBehaviorData, setCustomerBehaviorData] = useState({});
   const [customerSegmentData, setCustomerSegmentData] = useState([]);
-
-  const handleSalesFiltersChange = useCallback((filters) => {
-    setSalesFilters(filters);
-  }, []);
 
   const handleExport = useCallback(async (format) => {
     try {
@@ -44,15 +39,15 @@ const SalesAnalyticsDashboard = () => {
     setIsLoading(true);
     try {
       const [kpiRes, perfRes, custRes] = await Promise.all([
-        getSalesKpis(),
-        getSalesPerformance(),
-        getCustomerAnalytics()
+        getSalesKpis(range),
+        getSalesPerformance(range),
+        getCustomerAnalytics(range)
       ]);
 
       setKpiData(kpiRes.data);
       setSalesChartData(perfRes.data);
 
-      setCustomerBehaviorData(custRes.data.customerData || []);
+      setCustomerBehaviorData(custRes.data.customerData || {});
       setCustomerSegmentData(custRes.data.segmentData || []);
     } catch (error) {
       console.error("Erro ao buscar dados de analytics:", error);
@@ -63,7 +58,7 @@ const SalesAnalyticsDashboard = () => {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [fetchAnalyticsData]);
+  }, [fetchAnalyticsData, range]);
 
   if (isLoading) {
     return (
@@ -122,7 +117,12 @@ const SalesAnalyticsDashboard = () => {
             {/* Sales Perfomance */}
             <div className="xl:col-span-12 flex flex-col gap-8">
               <div>
-                <SalesChart chartData={salesChartData} />
+                <SalesChart
+                  chartData={salesChartData}
+                  range={range}
+                  onRangeChange={(next) => setRange(next)}
+                  growthValue={Number((kpiData || []).find((kpi) => kpi?.id === 'growth')?.value || 0)}
+                />
               </div>
               <CustomerAnalytics 
                 customerData={customerBehaviorData} 

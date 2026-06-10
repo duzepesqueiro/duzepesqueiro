@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Package, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { ShopItem } from "@/pages/FishingGear";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import RatingStarsDisplay from "@/components/reviews/RatingStarsDisplay";
 
 interface ShopCardProps {
   item: ShopItem;
@@ -98,6 +99,17 @@ export const ShopCard = ({ item, onSelect }: ShopCardProps) => {
              </h3>
           </div>
           <p className="min-h-4 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+          <div className="min-h-4 flex items-center gap-2 text-xs text-muted-foreground">
+            {Number(item.reviewsCount ?? 0) > 0 ? (
+              <>
+                <RatingStarsDisplay value={Number(item.averageRating ?? 0)} className="flex gap-0.5" />
+                <span className="font-semibold text-foreground/90">{Number(item.averageRating ?? 0).toFixed(1)}</span>
+                <span>({Number(item.reviewsCount ?? 0)})</span>
+              </>
+            ) : (
+              <span>Sem avaliações</span>
+            )}
+          </div>
         </div>
 
         <div className="mt-auto pt-2 space-y-3">

@@ -10,10 +10,12 @@ import ExecutiveOverviewDashboard from './pages/executive-overview-dashboard';
 import SalesAnalyticsDashboard from './pages/sales-analytics-dashboard';
 import EventsManagementDashboard from "./pages/events-management-dashboard";
 import UsersManagementDashboard from "./pages/users-management-dashboard";
+import MarketingDashboard from "./pages/marketing-dashboard";
 import HostingDashboard from "./pages/hosting-dashboard";
 import ChaletsManagementPage from "./pages/hosting-dashboard/ChaletsManagementPage";
 import ReservationsManagementPage from "./pages/hosting-dashboard/ReservationsManagementPage";
 import PricingManagementPage from "./pages/hosting-dashboard/PricingManagementPage";
+import DataManagementDashboard from "./pages/data-management-dashboard";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -48,6 +50,8 @@ const Routes = () => {
         <Route path="/sales-analytics-dashboard" element={<RequireAdmin><SalesAnalyticsDashboard /></RequireAdmin>} />
         <Route path="/events-management-dashboard" element={<RequireAdmin><EventsManagementDashboard /></RequireAdmin>} />
         <Route path="/users-management-dashboard" element={<RequireAdmin><UsersManagementDashboard /></RequireAdmin>} />
+        <Route path="/data-management-dashboard" element={<RequireAdmin><DataManagementDashboard /></RequireAdmin>} />
+        <Route path="/marketing-dashboard" element={<RequireAdmin><MarketingDashboard /></RequireAdmin>} />
         <Route path="/hospedagem" element={<RequireAdmin><HostingDashboard /></RequireAdmin>} />
         <Route path="/hospedagem/chales" element={<RequireAdmin><ChaletsManagementPage /></RequireAdmin>} />
         <Route path="/hospedagem/reservas" element={<RequireAdmin><ReservationsManagementPage /></RequireAdmin>} />
@@ -56,6 +60,8 @@ const Routes = () => {
         <Route path="/admin/hospedagem/chales" element={<RequireAdmin><ChaletsManagementPage /></RequireAdmin>} />
         <Route path="/admin/hospedagem/reservas" element={<RequireAdmin><ReservationsManagementPage /></RequireAdmin>} />
         <Route path="/admin/hospedagem/precos" element={<RequireAdmin><PricingManagementPage /></RequireAdmin>} />
+        <Route path="/admin/marketing-dashboard" element={<RequireAdmin><MarketingDashboard /></RequireAdmin>} />
+        <Route path="/admin/data-management-dashboard" element={<RequireAdmin><DataManagementDashboard /></RequireAdmin>} />
         <Route path="*" element={<NotFound />} />
       </RouterRoutes>
       )}

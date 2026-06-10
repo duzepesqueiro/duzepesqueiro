@@ -1,9 +1,177 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
 
+type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview';
+type ExportFormat = 'csv' | 'excel' | 'json';
+
+type ExportResource = {
+  key: string;
+  fetch: () => Promise<unknown[]>;
+};
+
 @Injectable()
 export class ExportService {
   constructor(private readonly prisma: PrismaService) {}
+
+  listResources(dataset: Dataset): ExportResource[] {
+    switch (dataset) {
+      case 'events':
+        return [
+          {
+            key: 'events',
+            fetch: () => this.prisma.event.findMany({ where: { deletedAt: null } }),
+          },
+          {
+            key: 'event_registrations',
+            fetch: () => this.prisma.eventRegistration.findMany(),
+          },
+          {
+            key: 'event_images',
+            fetch: () => this.prisma.eventImage.findMany(),
+          },
+          {
+            key: 'event_kpi_goals',
+            fetch: () => this.prisma.eventKpiGoal.findMany(),
+          },
+        ];
+      case 'users':
+        return [
+          {
+            key: 'users',
+            fetch: () => this.prisma.user.findMany(),
+          },
+          {
+            key: 'user_profiles',
+            fetch: () => this.prisma.userProfile.findMany(),
+          },
+          {
+            key: 'user_emails',
+            fetch: () => this.prisma.userEmail.findMany(),
+          },
+          {
+            key: 'user_phones',
+            fetch: () => this.prisma.userPhone.findMany(),
+          },
+        ];
+      case 'inventory':
+        return [
+          {
+            key: 'products',
+            fetch: () => this.prisma.product.findMany({ where: { deletedAt: null } }),
+          },
+          {
+            key: 'product_images',
+            fetch: () => this.prisma.productImage.findMany(),
+          },
+          {
+            key: 'inventory_movements',
+            fetch: () => this.prisma.inventoryMovement.findMany(),
+          },
+          {
+            key: 'purchase_orders',
+            fetch: () => this.prisma.purchaseOrder.findMany(),
+          },
+          {
+            key: 'purchase_order_items',
+            fetch: () => this.prisma.purchaseOrderItem.findMany(),
+          },
+          {
+            key: 'suppliers',
+            fetch: () => this.prisma.supplier.findMany(),
+          },
+        ];
+      case 'rentals':
+        return [
+          {
+            key: 'rental_inventory',
+            fetch: () => this.prisma.rentalInventory.findMany(),
+          },
+          {
+            key: 'rental_items',
+            fetch: () => this.prisma.rentalItem.findMany(),
+          },
+          {
+            key: 'rental_carts',
+            fetch: () => this.prisma.rentalCart.findMany(),
+          },
+          {
+            key: 'rental_cart_items',
+            fetch: () => this.prisma.rentalCartItem.findMany(),
+          },
+          {
+            key: 'rental_audit_logs',
+            fetch: () => this.prisma.rentalAuditLog.findMany(),
+          },
+          {
+            key: 'payments',
+            fetch: () =>
+              this.prisma.payment.findMany({
+                where: { domain: 'RENTAL' as any },
+              }),
+          },
+          {
+            key: 'reviews',
+            fetch: () =>
+              this.prisma.review.findMany({
+                where: { domain: 'RENTAL' as any },
+              }),
+          },
+        ];
+      case 'sales':
+        return [
+          {
+            key: 'sales_orders',
+            fetch: () => this.prisma.salesOrder.findMany(),
+          },
+          {
+            key: 'sales_order_items',
+            fetch: () => this.prisma.salesOrderItem.findMany(),
+          },
+          {
+            key: 'payments',
+            fetch: () =>
+              this.prisma.payment.findMany({
+                where: { domain: 'SALES' as any },
+              }),
+          },
+          {
+            key: 'reviews',
+            fetch: () =>
+              this.prisma.review.findMany({
+                where: { domain: 'SALES' as any },
+              }),
+          },
+        ];
+      case 'overview':
+        return [
+          {
+            key: 'overview',
+            fetch: () => this.getOverviewData(),
+          },
+        ];
+      default:
+        return [];
+    }
+  }
+
+  async getResourceData(dataset: Dataset, resourceKey: string): Promise<Record<string, unknown>[]> {
+    const resource = this.listResources(dataset).find((item) => item.key === resourceKey);
+    if (!resource) return [];
+    const raw = await resource.fetch();
+    return this.normalizeRows(raw);
+  }
+
+  serialize(rows: Record<string, unknown>[], format: ExportFormat): Buffer {
+    if (format === 'json') {
+      return Buffer.from(JSON.stringify(rows, null, 2), 'utf-8');
+    }
+    if (format === 'excel') {
+      const html = this.toExcelHtml(rows);
+      return Buffer.from(html, 'utf-8');
+    }
+    const csv = this.toCsv(rows);
+    return Buffer.from(csv, 'utf-8');
+  }
 
   async getEventsData(): Promise<Record<string, unknown>[]> {
     const prisma = this.prisma as any;
@@ -115,14 +283,35 @@ export class ExportService {
     ];
   }
 
+  private normalizeRows(rows: unknown[]): Record<string, unknown>[] {
+    const normalized = rows.map((row) => JSON.parse(JSON.stringify(row ?? {})) as Record<string, unknown>);
+    const keyOrder: string[] = [];
+    const seen = new Set<string>();
+    for (const row of normalized) {
+      Object.keys(row).forEach((key) => {
+        if (seen.has(key)) return;
+        seen.add(key);
+        keyOrder.push(key);
+      });
+    }
+    return normalized.map((row) => {
+      const ordered: Record<string, unknown> = {};
+      keyOrder.forEach((key) => {
+        ordered[key] = row[key];
+      });
+      return ordered;
+    });
+  }
+
   toCsv(rows: Record<string, unknown>[]): string {
     if (!rows.length) return '';
     const headers = Object.keys(rows[0]);
     const escape = (v: unknown) => {
-      const s = String(v ?? '');
-      return s.includes(',') || s.includes('"') || s.includes('\n')
-        ? `"${s.replace(/"/g, '""')}"`
-        : s;
+      const value =
+        v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return value.includes(',') || value.includes('"') || value.includes('\n')
+        ? `"${value.replace(/"/g, '""')}"`
+        : value;
     };
     const lines = [
       headers.join(','),
@@ -138,7 +327,14 @@ export class ExportService {
     const trs = rows
       .map(
         (r) =>
-          `<tr>${headers.map((h) => `<td>${r[h] ?? ''}</td>`).join('')}</tr>`,
+          `<tr>${headers
+            .map((h) => {
+              const v = r[h];
+              const value =
+                v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+              return `<td>${value}</td>`;
+            })
+            .join('')}</tr>`,
       )
       .join('');
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office"

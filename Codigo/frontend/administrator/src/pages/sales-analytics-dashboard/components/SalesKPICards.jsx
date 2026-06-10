@@ -50,27 +50,29 @@ const SalesKPICards = ({ kpiData, className = '' }) => {
             <p className="text-sm text-muted-foreground">{kpi?.label}</p>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>vs. {kpi?.period}</span>
-              <span className="font-medium">{kpi?.target}</span>
+              {kpi?.target ? <span className="font-medium">{kpi?.target}</span> : null}
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Progresso</span>
-              <span>{kpi?.progress}%</span>
+          {typeof kpi?.progress === 'number' ? (
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span>Progresso</span>
+                <span>{kpi?.progress}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    kpi?.progress >= 100 ? 'bg-success' : 
+                    kpi?.progress >= 75 ? 'bg-accent' : 
+                    kpi?.progress >= 50 ? 'bg-warning' : 'bg-secondary'
+                  }`}
+                  style={{ width: `${Math.min(kpi?.progress, 100)}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  kpi?.progress >= 100 ? 'bg-success' : 
-                  kpi?.progress >= 75 ? 'bg-accent' : 
-                  kpi?.progress >= 50 ? 'bg-warning' : 'bg-secondary'
-                }`}
-                style={{ width: `${Math.min(kpi?.progress, 100)}%` }}
-              />
-            </div>
-          </div>
+          ) : null}
         </div>
       ))}
     </div>

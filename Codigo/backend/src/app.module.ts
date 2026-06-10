@@ -20,6 +20,7 @@ import { InventoryModule } from './domain/inventory';
 import { SalesModule } from './domain/sales';
 import { UsersModule } from './domain/users';
 import { HostingModule } from './domain/hosting';
+import { MarketingModule } from './domain/marketing';
 import { WebsocketModule } from './infrastructure/websocket/websocket.module';
 
 @Module({
@@ -55,6 +56,7 @@ import { WebsocketModule } from './infrastructure/websocket/websocket.module';
     SalesModule,
     UsersModule,
     HostingModule,
+    MarketingModule,
     WebsocketModule,
   ],
   controllers: [AppController],

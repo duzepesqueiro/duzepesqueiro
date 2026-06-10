@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EventStatus, PaymentDomain, PaymentStatus, Prisma, ReservationStatus, ReviewDomain, RentalStatus } from '@prisma/client';
+import { EventStatus, PaymentDomain, PaymentStatus, Prisma, ReservationStatus, ReviewDomain, RentalStatus, SalesOrderStatus } from '@prisma/client';
 import { MailService } from '../../mail/services/mail.service';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { CreateReviewRequestDTO, ListReviewsQueryDTO, ReviewDTO, ReviewSummaryDTO } from '../dto';
@@ -289,12 +289,36 @@ export class ReviewsService {
     }
 
     if (domain === ReviewDomain.SALES) {
+      const orderItem = await tx.salesOrderItem.findUnique({
+        where: { id: subjectId },
+        select: {
+          id: true,
+          productId: true,
+          nameSnapshot: true,
+          order: { select: { userId: true, status: true, paymentStatus: true } },
+        },
+      });
+
+      if (orderItem) {
+        if (orderItem.order.userId !== userId) {
+          throw new BadRequestException('Usuário não pode avaliar um item de compra que não é seu.');
+        }
+        if (orderItem.order.status !== SalesOrderStatus.CONFIRMED) {
+          throw new BadRequestException('Avaliação só é permitida após compra confirmada.');
+        }
+        const allowedPaymentStatuses: PaymentStatus[] = [PaymentStatus.PAID, PaymentStatus.APPROVED];
+        if (!allowedPaymentStatuses.includes(orderItem.order.paymentStatus)) {
+          throw new BadRequestException('Avaliação só é permitida após pagamento confirmado.');
+        }
+        return { targetId: orderItem.productId, targetName: orderItem.nameSnapshot ?? null };
+      }
+
       const payment = await tx.payment.findUnique({
         where: { id: subjectId },
         select: { id: true, userId: true, domain: true, status: true, entityId: true },
       });
       if (!payment || payment.domain !== PaymentDomain.SALES) {
-        throw new NotFoundException('Pagamento de vendas não encontrado.');
+        throw new NotFoundException('Registro de venda não encontrado para avaliação.');
       }
       if (payment.userId !== userId) {
         throw new BadRequestException('Usuário não pode avaliar um pagamento que não é seu.');

@@ -3,62 +3,13 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 
 import Button from '../../../components/ui/Button';
 
-const SalesChart = ({ chartData, className = '' }) => {
+const SalesChart = ({ chartData, range, onRangeChange, growthValue = 0, className = '' }) => {
   const [chartType, setChartType] = useState('combined');
-  const [timeframe, setTimeframe] = useState('daily');
 
-  // Agrupa os dados conforme granularidade selecionada
   const groupedData = useMemo(() => {
     const data = Array.isArray(chartData) ? chartData : [];
-    if (timeframe === 'daily') {
-      // Garantir ordenação por data
-      return [...data].sort((a, b) => String(a?.period).localeCompare(String(b?.period)));
-    }
-
-    const toDate = (str) => {
-      const d = str ? new Date(str) : null;
-      return d && !isNaN(d.getTime()) ? d : null;
-    };
-
-    const map = new Map();
-
-    for (const row of data) {
-      const d = toDate(row?.period);
-      if (!d) continue;
-      let key;
-      if (timeframe === 'weekly') {
-        // calcular início da semana (segunda-feira)
-        const day = d.getDay(); // 0=domingo
-        const diff = (day + 6) % 7; // transforma para offset desde segunda
-        const start = new Date(d);
-        start.setDate(d.getDate() - diff);
-        const yyyy = start.getFullYear();
-        const mm = String(start.getMonth() + 1).padStart(2, '0');
-        const dd = String(start.getDate()).padStart(2, '0');
-        key = `Semana de ${yyyy}-${mm}-${dd}`;
-      } else {
-        // monthly
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        key = `${yyyy}-${mm}`;
-      }
-
-      const prev = map.get(key) || { revenue: 0, profitMarginSum: 0, count: 0 };
-      prev.revenue += (row?.revenue || 0);
-      prev.profitMarginSum += (row?.profitMargin || 0);
-      prev.count += 1;
-      map.set(key, prev);
-    }
-
-    const agg = Array.from(map.entries()).map(([period, agg]) => ({
-      period,
-      revenue: Math.round(agg.revenue),
-      profitMargin: Number((agg.profitMarginSum / (agg.count || 1)).toFixed(1)),
-    }));
-
-    // Ordenar por período (lexicográfico funciona para nossos formatos)
-    return agg.sort((a, b) => String(a.period).localeCompare(String(b.period)));
-  }, [chartData, timeframe]);
+    return [...data].sort((a, b) => String(a?.period).localeCompare(String(b?.period)));
+  }, [chartData]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -67,10 +18,6 @@ const SalesChart = ({ chartData, className = '' }) => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     })?.format(value);
-  };
-
-  const formatPercentage = (value) => {
-    return `${value}%`;
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -88,10 +35,9 @@ const SalesChart = ({ chartData, className = '' }) => {
                 <span className="text-sm text-muted-foreground">{entry?.dataKey}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
-                {entry?.dataKey === 'profitMargin' ? 
-                  formatPercentage(entry?.value) : 
-                  formatCurrency(entry?.value)
-                }
+                  entry?.dataKey === 'orders'
+                    ? Number(entry?.value || 0).toLocaleString('pt-BR')
+                    : formatCurrency(entry?.value)
               </span>
             </div>
           ))}
@@ -107,23 +53,23 @@ const SalesChart = ({ chartData, className = '' }) => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-1">Desempenho das Vendas</h3>
-          <p className="text-sm text-muted-foreground">Tendências de Receita com Análise de Margem de Lucro</p>
+          <p className="text-sm text-muted-foreground">Tendências de Receita e Quantidade de Pedidos</p>
         </div>
         
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           {/* Timeframe Toggle */}
           <div className="flex bg-muted rounded-lg p-1">
-            {['daily', 'weekly', 'monthly']?.map((period) => (
+            {['week', 'month', 'year']?.map((period) => (
               <button
                 key={period}
-                onClick={() => setTimeframe(period)}
+                onClick={() => onRangeChange?.(period)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-smooth capitalize ${
-                  timeframe === period
+                  range === period
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {period}
+                {period === 'week' ? 'Semana' : period === 'year' ? 'Ano' : 'Mês'}
               </button>
             ))}
           </div>
@@ -172,7 +118,7 @@ const SalesChart = ({ chartData, className = '' }) => {
               orientation="right"
               stroke="var(--color-muted-foreground)"
               fontSize={12}
-              tickFormatter={formatPercentage}
+              tickFormatter={(value) => Number(value || 0).toLocaleString('pt-BR')}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
@@ -182,7 +128,7 @@ const SalesChart = ({ chartData, className = '' }) => {
                 yAxisId="left"
                 dataKey="revenue" 
                 fill="var(--color-primary)"
-                name="Revenue"
+                name="Receita"
                 radius={[4, 4, 0, 0]}
               />
             )}
@@ -191,11 +137,11 @@ const SalesChart = ({ chartData, className = '' }) => {
               <Line 
                 yAxisId="right"
                 type="monotone" 
-                dataKey="profitMargin" 
+                dataKey="orders" 
                 stroke="var(--color-accent)"
                 strokeWidth={3}
                 dot={{ fill: 'var(--color-accent)', strokeWidth: 2, r: 4 }}
-                name="Profit Margin (%)"
+                name="Pedidos"
               />
             )}
           </ComposedChart>
@@ -211,13 +157,13 @@ const SalesChart = ({ chartData, className = '' }) => {
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground">
-            {(groupedData?.reduce((sum, item) => sum + item?.profitMargin, 0) / (groupedData?.length || 1))?.toFixed(1)}%
+            {groupedData?.reduce((sum, item) => sum + (item?.orders || 0), 0)?.toLocaleString('pt-BR')}
           </div>
-          <div className="text-sm text-muted-foreground">Margem de Lucro Média</div>
+          <div className="text-sm text-muted-foreground">Total de Pedidos</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl font-bold text-success">
-            +12.5%
+          <div className={`text-2xl font-bold ${growthValue >= 0 ? 'text-success' : 'text-error'}`}>
+            {`${growthValue >= 0 ? '+' : ''}${Number(growthValue || 0).toFixed(1)}%`}
           </div>
           <div className="text-sm text-muted-foreground">Taxa de Crescimento</div>
         </div>

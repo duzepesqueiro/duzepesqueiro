@@ -129,7 +129,7 @@ const ExportControlPanel = ({
                 {/* Data Scope */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Escopo de Dados:</span>
-                  <span className="text-foreground font-medium">Dados visíveis</span>
+                  <span className="text-foreground font-medium">Todos os registros</span>
                 </div>
 
                 {/* File Size Estimate */}

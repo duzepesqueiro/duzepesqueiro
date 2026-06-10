@@ -19,9 +19,10 @@ const Header = () => {
     { label: 'Aluguéis', path: '/rental-operations-dashboard', icon: 'Calendar' },
     { label: 'Eventos', path: '/events-management-dashboard', icon: 'Ticket' },
     { label: 'Usuários', path: '/users-management-dashboard', icon: 'Users' },
+    { label: 'Dados', path: '/data-management-dashboard', icon: 'Database' },
   ];
 
-  const normalizedPath = location?.pathname?.replace(/^\/admin(?=\/hospedagem)/, '') || '';
+  const normalizedPath = location?.pathname?.replace(/^\/admin(?=\/)/, '') || '';
   const isActivePath = (path) => normalizedPath === path || normalizedPath?.startsWith(`${path}/`);
 
   const toggleMobileMenu = () => {

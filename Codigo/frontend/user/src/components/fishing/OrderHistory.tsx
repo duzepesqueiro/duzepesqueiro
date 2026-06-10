@@ -4,8 +4,10 @@ import { Calendar, XCircle, Search, ChevronLeft, ChevronRight } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { listSalesOrdersPage, cancelOrder } from "@/lib/api";
+import { listSalesOrdersPage, cancelOrder, createReview, getReviewBySubject } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
+import { ReviewModal } from "@/components/reviews/ReviewModal";
 
 export interface SaleDTO {
   id: string;
@@ -43,6 +45,9 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [total, setTotal] = useState<number>(0);
   const pageSize = 10;
+  const [reviewedSubjects, setReviewedSubjects] = useState<Record<string, boolean>>({});
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedReviewItem, setSelectedReviewItem] = useState<{ subjectId: string; name: string } | null>(null);
 
   const refreshOrders = async () => {
     try {
@@ -51,19 +56,44 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
       const sales: SaleDTO[] = Array.isArray(result?.items) ? result.items : [];
       setTotalPages(Math.max(1, Number(result?.totalPages ?? 1)));
       setTotal(Number(result?.total ?? sales.length) || 0);
-      setOrders(
-        (sales || []).map((dto: any) => {
-          const first = Array.isArray(dto.items) ? dto.items[0] : undefined;
-          return {
-            dto,
-            item: {
-              name: String(first?.nameSnapshot ?? "Pedido"),
-              image: typeof first?.imageSnapshot === "string" ? first.imageSnapshot : undefined,
-              price: typeof first?.unitPrice === "number" ? first.unitPrice : undefined,
-            },
-          };
-        }),
-      );
+      const mappedOrders = (sales || []).map((dto: any) => {
+        const first = Array.isArray(dto.items) ? dto.items[0] : undefined;
+        return {
+          dto,
+          item: {
+            name: String(first?.nameSnapshot ?? "Pedido"),
+            image: typeof first?.imageSnapshot === "string" ? first.imageSnapshot : undefined,
+            price: typeof first?.unitPrice === "number" ? first.unitPrice : undefined,
+          },
+        };
+      });
+      setOrders(mappedOrders);
+
+      const confirmedItemIds = sales
+        .filter((dto) => String(dto?.status) === "CONFIRMED")
+        .flatMap((dto) => (Array.isArray(dto.items) ? dto.items.map((it) => String(it.id)) : []))
+        .filter(Boolean);
+
+      if (confirmedItemIds.length) {
+        const results = await Promise.all(
+          confirmedItemIds.map(async (subjectId) => {
+            try {
+              await getReviewBySubject({ domain: "SALES", subjectId });
+              return subjectId;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        setReviewedSubjects((prev) => {
+          const next = { ...prev };
+          for (const id of results) {
+            if (!id) continue;
+            next[id] = true;
+          }
+          return next;
+        });
+      }
     } catch (err) {
       console.error("Falha ao buscar pedidos do usuário", err);
     } finally {
@@ -157,40 +187,79 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
             {filtered.map(({ dto, item }) => (
               <li key={dto.id}>
                 <Card className="border border-border/50 bg-card/90 backdrop-blur-sm">
-                  <CardContent className="p-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10">
-                        {item.image ? (
-                          <AvatarImage src={item.image} alt={item.name} />
-                        ) : (
-                          <AvatarFallback className="font-semibold bg-muted/60">{initials(item.name)}</AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold line-clamp-1">{item.name}</div>
-                        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
-                          <Calendar className="h-3 w-3" /> Realizado em: {formatDateTime(dto.createdAt)}
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-10 w-10">
+                          {item.image ? (
+                            <AvatarImage src={item.image} alt={item.name} />
+                          ) : (
+                            <AvatarFallback className="font-semibold bg-muted/60">{initials(item.name)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold line-clamp-1">{item.name}</div>
+                          <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                            <Calendar className="h-3 w-3" /> Realizado em: {formatDateTime(dto.createdAt)}
+                          </div>
                         </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        <Badge variant="secondary" className="font-semibold">
+                          Itens: {(dto.items || []).reduce((acc, i) => acc + Number(i.quantity || 0), 0)}
+                        </Badge>
+                        <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
+                          R${formatCurrency(dto.totalAmount)}
+                        </Badge>
+                        {String(dto.status) === "PENDING" && String(dto.paymentStatus) === "PENDING" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCancel(dto.id)}
+                            className="h-9 flex items-center gap-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+                          >
+                            <XCircle className="h-4 w-4" /> Cancelar
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      <Badge variant="secondary" className="font-semibold">
-                        Itens: {(dto.items || []).reduce((acc, i) => acc + Number(i.quantity || 0), 0)}
-                      </Badge>
-                      <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
-                        R${formatCurrency(dto.totalAmount)}
-                      </Badge>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCancel(dto.id)}
-                        className="h-9 flex items-center gap-2 text-destructive border-destructive/40 hover:bg-destructive/10"
-                      >
-                        <XCircle className="h-4 w-4" /> Cancelar
-                      </Button>
-                    </div>
+                    {String(dto.status) === "CONFIRMED" ? (
+                      <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                        <div className="text-xs font-semibold text-muted-foreground">Avaliar produtos</div>
+                        <div className="space-y-2">
+                          {(dto.items || []).map((it) => {
+                            const subjectId = String(it.id);
+                            const alreadyReviewed = Boolean(reviewedSubjects[subjectId]);
+                            return (
+                              <div key={subjectId} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium line-clamp-1">{it.nameSnapshot}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Quantidade: {Number(it.quantity || 0)}
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant={alreadyReviewed ? "outline" : "secondary"}
+                                  size="sm"
+                                  className="h-9 font-semibold"
+                                  disabled={alreadyReviewed}
+                                  onClick={() => {
+                                    setSelectedReviewItem({ subjectId, name: String(it.nameSnapshot || "Produto") });
+                                    setReviewModalOpen(true);
+                                  }}
+                                >
+                                  {alreadyReviewed ? "Avaliado" : "Avaliar"}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               </li>
@@ -224,6 +293,33 @@ export const OrderHistory = ({ initialBuyerName }: OrderHistoryProps) => {
           </div>
         </>
       )}
+
+      <ReviewModal
+        open={reviewModalOpen}
+        onOpenChange={(open) => {
+          setReviewModalOpen(open);
+          if (!open) setSelectedReviewItem(null);
+        }}
+        title={selectedReviewItem ? `Avaliar ${selectedReviewItem.name}` : "Avaliar produto"}
+        description="Conte como foi sua experiência com este produto."
+        onSubmit={async ({ rating, comment }) => {
+          if (!selectedReviewItem?.subjectId) return;
+          try {
+            await createReview({
+              domain: "SALES",
+              subjectId: selectedReviewItem.subjectId,
+              rating,
+              comment,
+            });
+            setReviewedSubjects((prev) => ({ ...prev, [selectedReviewItem.subjectId]: true }));
+            toast.success("Avaliação enviada com sucesso.");
+          } catch (err: any) {
+            const message = err?.response?.data?.message || "Não foi possível enviar sua avaliação.";
+            toast.error(Array.isArray(message) ? message.join(" ") : String(message));
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 };

@@ -9,25 +9,32 @@ export class LogsMongoRepository implements OnModuleInit, OnModuleDestroy {
   private client: MongoClient | null = null;
   private db: Db | null = null;
   private enabled = false;
+  private lastInitError: string | null = null;
+  private urlConfigured = false;
 
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
     const mongoUrl = this.configService.get<string>('database.mongodb.url');
     if (!mongoUrl) {
+      this.urlConfigured = false;
+      this.lastInitError = 'MONGODB_URL não configurada.';
       this.logger.warn('MONGODB_URL não configurada. Persistência de logs desabilitada.');
       return;
     }
+    this.urlConfigured = true;
 
     try {
       this.client = new MongoClient(mongoUrl);
       await this.client.connect();
       this.db = this.client.db();
       this.enabled = true;
+      this.lastInitError = null;
       await this.ensureIndexes();
       this.logger.log('MongoDB de logs conectado com sucesso.');
     } catch (error) {
       this.enabled = false;
+      this.lastInitError = this.sanitizeErrorMessage((error as Error)?.message);
       this.logger.error('Falha ao conectar MongoDB de logs', error as Error);
     }
   }
@@ -49,6 +56,31 @@ export class LogsMongoRepository implements OnModuleInit, OnModuleDestroy {
       payload: this.sanitize(entry.payload),
       meta: this.sanitize(entry.meta),
     });
+  }
+
+  async listCollections(prefix = 'logs_'): Promise<string[]> {
+    if (!this.enabled || !this.db) {
+      return [];
+    }
+
+    const collections = await this.db.listCollections({}, { nameOnly: true }).toArray();
+    return collections
+      .map((c) => c?.name)
+      .filter((name): name is string => typeof name === 'string' && name.startsWith(prefix))
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  async fetchAllDocuments(collectionName: string): Promise<any[]> {
+    if (!this.enabled || !this.db) {
+      return [];
+    }
+
+    const collection = this.db.collection(collectionName);
+    return collection.find({}).sort({ timestamp: -1, _id: -1 }).toArray();
+  }
+
+  getStatus(): { enabled: boolean; urlConfigured: boolean; lastError: string | null } {
+    return { enabled: this.enabled && Boolean(this.db), urlConfigured: this.urlConfigured, lastError: this.lastInitError };
   }
 
   private getCollection(context: LogContext): Collection {
@@ -92,5 +124,10 @@ export class LogsMongoRepository implements OnModuleInit, OnModuleDestroy {
       return undefined;
     }
     return JSON.parse(JSON.stringify(value));
+  }
+
+  private sanitizeErrorMessage(message?: string | null): string | null {
+    if (!message) return null;
+    return message.replace(/mongodb(\+srv)?:\/\/\S+/gi, '[redacted]');
   }
 }

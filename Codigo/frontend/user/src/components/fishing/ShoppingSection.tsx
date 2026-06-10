@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShopCard } from "./ShopCard";
 import { ShopItem, CartItem } from "@/pages/FishingGear";
-import { getSaleProductsPage } from "@/lib/api";
+import { getReviewsSummary, getSaleProductsPage } from "@/lib/api";
 import { toast } from "sonner";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -53,8 +53,23 @@ export const ShoppingSection = ({
             images: images.length ? images : [image],
           };
         });
+
+        const itemsWithReviews: ShopItem[] = await Promise.all(
+          data.map(async (item) => {
+            try {
+              const summary = await getReviewsSummary({ domain: "SALES", targetId: item.id });
+              return {
+                ...item,
+                averageRating: Number(summary?.averageRating ?? 0),
+                reviewsCount: Number(summary?.reviewsCount ?? 0),
+              };
+            } catch {
+              return { ...item, averageRating: 0, reviewsCount: 0 };
+            }
+          }),
+        );
         // Default: ordenar por estoque (itens sem estoque por último)
-        const sorted = [...data].sort((a, b) => {
+        const sorted = [...itemsWithReviews].sort((a, b) => {
           if (b.stock !== a.stock) return b.stock - a.stock;
           return a.name.localeCompare(b.name);
         });
@@ -100,7 +115,7 @@ export const ShoppingSection = ({
         return "Preço ↓";
       case "stock":
       default:
-        return "Disponibilidade";
+        return "Padrão";
     }
   };
 
@@ -144,7 +159,7 @@ export const ShoppingSection = ({
                 <SelectContent align="start">
                   <SelectItem value="stock">
                     <span className="flex items-center gap-2">
-                      <Package className="h-4 w-4" /> Disponibilidade
+                      <Package className="h-4 w-4" /> Padrão
                     </span>
                   </SelectItem>
                   <SelectItem value="alpha">

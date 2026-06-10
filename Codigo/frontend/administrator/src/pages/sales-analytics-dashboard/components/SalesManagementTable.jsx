@@ -4,6 +4,8 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { listAdminSales, confirmAdminSale, cancelAdminSale } from '../../../utils/salesManagementService';
+import CreateSaleOrderModal from './CreateSaleOrderModal';
+import SaleOrderDetailsModal from './SaleOrderDetailsModal';
 
 const SalesManagementTable = ({ onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,16 +16,30 @@ const SalesManagementTable = ({ onRefresh }) => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [orders, setOrders] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [detailsId, setDetailsId] = useState('');
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    listAdminSales()
-      .then((data) => {
+    listAdminSales({
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm || undefined,
+      status: statusFilter,
+      sortField,
+      sortDirection,
+    })
+      .then((res) => {
         if (!mounted) return;
-        setOrders(Array.isArray(data) ? data : []);
+        const payload = res?.data;
+        setOrders(Array.isArray(payload?.items) ? payload.items : []);
+        setTotalPages(Number(payload?.totalPages || 1));
+        setTotal(Number(payload?.total || 0));
       })
       .catch((err) => {
         console.error('Falha ao carregar ordens de compra:', err);
@@ -35,7 +51,7 @@ const SalesManagementTable = ({ onRefresh }) => {
         setLoading(false);
       });
     return () => { mounted = false; };
-  }, []);
+  }, [currentPage, itemsPerPage, searchTerm, statusFilter, sortField, sortDirection]);
 
   const tableColumns = [
     { key: 'id', label: 'ID da Ordem' },
@@ -47,41 +63,7 @@ const SalesManagementTable = ({ onRefresh }) => {
     { key: 'createdAt', label: 'Data do Pedido' },
   ];
 
-  const filteredAndSortedData = useMemo(() => {
-    let data = orders.filter(o => {
-      const matchesSearch =
-        (o.buyerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(o.id || '').includes(searchTerm);
-      const matchesStatus = statusFilter === 'all' || (o.status || '').toLowerCase() === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-
-    data.sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-      if (sortField === 'createdAt') {
-        aValue = aValue ? new Date(aValue) : new Date(0);
-        bValue = bValue ? new Date(bValue) : new Date(0);
-      }
-      if (typeof aValue === 'string' && sortField !== 'createdAt') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-      return sortDirection === 'asc'
-        ? (aValue < bValue ? -1 : aValue > bValue ? 1 : 0)
-        : (aValue > bValue ? -1 : aValue < bValue ? 1 : 0);
-    });
-
-    return data;
-  }, [orders, searchTerm, statusFilter, sortField, sortDirection]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredAndSortedData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredAndSortedData, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage) || 1;
+  const paginatedData = useMemo(() => orders, [orders]);
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-500/10 text-gray-600';
@@ -105,8 +87,18 @@ const SalesManagementTable = ({ onRefresh }) => {
 
   const refreshOrders = async () => {
     try {
-      const data = await listAdminSales();
-      setOrders(Array.isArray(data) ? data : []);
+      const res = await listAdminSales({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined,
+        status: statusFilter,
+        sortField,
+        sortDirection,
+      });
+      const payload = res?.data;
+      setOrders(Array.isArray(payload?.items) ? payload.items : []);
+      setTotalPages(Number(payload?.totalPages || 1));
+      setTotal(Number(payload?.total || 0));
     } catch (err) {
       console.error('Erro ao atualizar ordens:', err);
       setError('Falha ao atualizar ordens.');
@@ -160,27 +152,40 @@ const SalesManagementTable = ({ onRefresh }) => {
     <div className="bg-card border border-border rounded-lg">
       {/* Header */}
       <div className="p-6 border-b border-border">
-        <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-          <h2 className="text-xl font-heading font-semibold text-foreground">Gerenciar Vendas</h2>
-          <Input
-            type="search"
-            placeholder="Buscar por cliente, produto ou ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-64"
-          />
-          <Select
-            options={[
-              { value: 'all', label: 'Todos' },
-              { value: 'pendente', label: 'Pendente' },
-              { value: 'efetivada', label: 'Efetivada' },
-              { value: 'cancelada', label: 'Cancelada' },
-            ]}
-            placeholder="Filtrar por status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            className="w-full md:w-48"
-          />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between md:gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:gap-4">
+            <h2 className="text-xl font-heading font-semibold text-foreground">Gerenciar Vendas</h2>
+            <Input
+              type="search"
+              placeholder="Buscar por cliente, produto ou ID..."
+              value={searchTerm}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setSearchTerm(e.target.value);
+              }}
+              className="w-full md:w-64"
+            />
+            <Select
+              options={[
+                { value: 'all', label: 'Todos' },
+                { value: 'pendente', label: 'Pendente' },
+                { value: 'efetivada', label: 'Efetivada' },
+                { value: 'cancelada', label: 'Cancelada' },
+              ]}
+              placeholder="Filtrar por status"
+              value={statusFilter}
+              onChange={(v) => {
+                setCurrentPage(1);
+                setStatusFilter(v);
+              }}
+              className="w-full md:w-48"
+            />
+          </div>
+          <div className="mt-4 md:mt-0">
+            <Button variant="default" iconName="Plus" onClick={() => setIsCreateOpen(true)}>
+              Nova venda
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -193,7 +198,15 @@ const SalesManagementTable = ({ onRefresh }) => {
                 <th
                   key={col.key}
                   className="p-4 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground whitespace-nowrap"
-                  onClick={() => setSortField(col.key)}
+                  onClick={() => {
+                    if (sortField === col.key) {
+                      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+                    } else {
+                      setSortField(col.key);
+                      setSortDirection('asc');
+                    }
+                    setCurrentPage(1);
+                  }}
                 >
                   {col.label}
                 </th>
@@ -204,7 +217,14 @@ const SalesManagementTable = ({ onRefresh }) => {
           <tbody className="divide-y divide-border">
             {paginatedData.map(order => (
               <tr key={order.id} className="hover:bg-muted/50 transition-smooth">
-                <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{order.id}</td>
+                <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
+                  <button
+                    className="text-primary hover:underline"
+                    onClick={() => setDetailsId(order.id)}
+                  >
+                    {order.id}
+                  </button>
+                </td>
                 <td className="p-4 font-medium text-foreground whitespace-nowrap">{order.buyerName}</td>
                 <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{order.productName || '-'}</td>
                 <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{order.quantity}</td>
@@ -247,7 +267,7 @@ const SalesManagementTable = ({ onRefresh }) => {
       {/* Paginação */}
       <div className="px-6 pb-6 flex items-center justify-between">
         <span className="text-sm text-muted-foreground">
-          Página {currentPage} de {Math.max(1, totalPages)}
+          Página {currentPage} de {Math.max(1, totalPages)} • {total.toLocaleString('pt-BR')} registros
         </span>
         <div className="flex items-center gap-2">
           <Button
@@ -270,6 +290,25 @@ const SalesManagementTable = ({ onRefresh }) => {
           </Button>
         </div>
       </div>
+
+      <CreateSaleOrderModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={async () => {
+          await refreshOrders();
+          onRefresh?.();
+        }}
+      />
+
+      <SaleOrderDetailsModal
+        isOpen={Boolean(detailsId)}
+        saleId={detailsId}
+        onClose={() => setDetailsId('')}
+        onChanged={async () => {
+          await refreshOrders();
+          onRefresh?.();
+        }}
+      />
     </div>
   );
 };

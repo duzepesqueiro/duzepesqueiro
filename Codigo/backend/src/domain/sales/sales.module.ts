@@ -4,14 +4,14 @@ import { ExceptionModule } from '../../application/exception/exception.module';
 import { LogsModule } from '../../application/logs/logs.module';
 import { SecurityModule } from '../../application/security/security.module';
 import { PrismaModule } from '../../infrastructure/database/prisma/prisma.module';
-import { SalesOrdersController } from './controllers';
+import { SalesAdminController, SalesOrdersController } from './controllers';
 import { SalesOrderRepository } from './repositories';
-import { SalesOrdersService } from './services';
+import { SalesAdminService, SalesOrdersService } from './services';
 
 @Module({
   imports: [PrismaModule, AuthModule, ExceptionModule, SecurityModule, LogsModule],
-  controllers: [SalesOrdersController],
-  providers: [SalesOrderRepository, SalesOrdersService],
+  controllers: [SalesOrdersController, SalesAdminController],
+  providers: [SalesOrderRepository, SalesOrdersService, SalesAdminService],
   exports: [SalesOrderRepository, SalesOrdersService],
 })
 export class SalesModule {}

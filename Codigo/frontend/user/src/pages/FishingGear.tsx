@@ -42,6 +42,8 @@ export interface ShopItem {
   stock: number;
   image: string;
   images: string[];
+  averageRating?: number;
+  reviewsCount?: number;
 }
 
 export interface CartItem extends ShopItem {

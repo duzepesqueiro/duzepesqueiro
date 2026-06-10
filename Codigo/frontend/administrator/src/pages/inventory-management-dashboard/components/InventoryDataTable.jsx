@@ -7,8 +7,8 @@ import { createSaleItem, updateSaleItem, deleteSaleItem, listSuppliers, createSu
 import { createRentalItem } from '../../../utils/rentalService';
 
 const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange, onRefresh }) => {
-  const [sortField, setSortField] = useState('product');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortField, setSortField] = useState('recent');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -313,7 +313,11 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
     filtered.sort((a, b) => {
       let aValue;
       let bValue;
-      if (sortField === 'product') {
+      if (sortField === 'recent') {
+        const aTime = new Date(a?.updatedAt ?? a?.createdAt ?? 0).getTime();
+        const bTime = new Date(b?.updatedAt ?? b?.createdAt ?? 0).getTime();
+        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+      } else if (sortField === 'product') {
         aValue = a?.product ?? a?.name ?? '';
         bValue = b?.product ?? b?.name ?? '';
       } else if (sortField === 'category') {
@@ -610,7 +614,14 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
                 <th
                   key={col.key}
                   className="p-4 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground whitespace-nowrap"
-                  onClick={() => setSortField(col.key)}
+                  onClick={() => {
+                    if (sortField === col.key) {
+                      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+                      return;
+                    }
+                    setSortField(col.key);
+                    setSortDirection('asc');
+                  }}
                 >
                   {col.label}
                 </th>

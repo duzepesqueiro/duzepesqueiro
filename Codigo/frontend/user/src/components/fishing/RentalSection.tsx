@@ -106,7 +106,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
         return "Preço ↓";
       case "stock":
       default:
-        return "Disponibilidade";
+        return "Padrão";
     }
   };
 
@@ -178,7 +178,7 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
                 <SelectContent align="start">
                   <SelectItem value="stock">
                     <span className="flex items-center gap-2">
-                      <Package className="h-4 w-4" /> Disponibilidade
+                      <Package className="h-4 w-4" /> Padrão
                     </span>
                   </SelectItem>
                   <SelectItem value="alpha">

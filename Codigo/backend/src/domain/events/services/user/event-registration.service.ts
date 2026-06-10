@@ -42,7 +42,7 @@ export class EventRegistrationService {
 
     const existing = await this.registrationRepository.findByUserAndEvent(userId, eventId);
     if (existing && existing.status !== 'CANCELLED') {
-      throw new ConflictException('Usuário já inscrito neste evento');
+      this.throwAlreadyRegistered();
     }
 
     try {
@@ -95,7 +95,7 @@ export class EventRegistrationService {
           throw new ConflictException('Não há vagas disponíveis para este evento');
         }
         if (error.message === 'ALREADY_REGISTERED') {
-          throw new ConflictException('Usuário já inscrito neste evento');
+          this.throwAlreadyRegistered();
         }
       }
       throw error;
@@ -216,5 +216,12 @@ export class EventRegistrationService {
       email,
       name: user.profile?.fullName ?? user.username,
     };
+  }
+
+  private throwAlreadyRegistered(): never {
+    throw new ConflictException({
+      code: 'EVENT_ALREADY_REGISTERED',
+      message: 'User already registered in this event',
+    });
   }
 }

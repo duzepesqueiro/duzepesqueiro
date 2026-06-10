@@ -7,7 +7,7 @@ import { UserRole } from '@prisma/client';
 import { ExportService } from './export.service';
 
 type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview';
-type Format = 'csv' | 'excel';
+type Format = 'csv' | 'excel' | 'json';
 
 @Controller('api/admin/export')
 @ApiTags('Admin - Export')
@@ -17,13 +17,61 @@ type Format = 'csv' | 'excel';
 export class ExportController {
   constructor(private readonly exportService: ExportService) {}
 
+  @Get(':dataset/:format/manifest')
+  @ApiOperation({ summary: 'Listar arquivos disponíveis para exportação do módulo' })
+  async manifest(@Param('dataset') dataset: Dataset, @Param('format') format: Format) {
+    if (!['csv', 'excel', 'json'].includes(format as string)) {
+      throw new BadRequestException(`Formato '${format}' não suportado. Use 'csv', 'excel' ou 'json'.`);
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    const ext = format === 'excel' ? 'xls' : format;
+    const resources = this.exportService.listResources(dataset);
+
+    return {
+      files: resources.map((resource) => ({
+        key: resource.key,
+        filename: `${resource.key}-${date}.${ext}`,
+        url: `/api/admin/export/${dataset}/${format}/file/${resource.key}`,
+      })),
+    };
+  }
+
+  @Get(':dataset/:format/file/:resource')
+  @ApiOperation({ summary: 'Baixar arquivo exportado de uma tabela/recurso do módulo' })
+  async exportResource(
+    @Param('dataset') dataset: Dataset,
+    @Param('format') format: Format,
+    @Param('resource') resource: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!['csv', 'excel', 'json'].includes(format as string)) {
+      throw new BadRequestException(`Formato '${format}' não suportado. Use 'csv', 'excel' ou 'json'.`);
+    }
+
+    const rows = await this.exportService.getResourceData(dataset, resource);
+    const date = new Date().toISOString().split('T')[0];
+    const ext = format === 'excel' ? 'xls' : format;
+    const filename = `${resource}-${date}.${ext}`;
+
+    if (format === 'excel') {
+      res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8');
+    } else if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    } else {
+      res.setHeader('Content-Type', 'text/csv; charset=UTF-8');
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(this.exportService.serialize(rows, format));
+  }
+
   @Get(':dataset/:format')
   @ApiOperation({ summary: 'Exportar dados administrativos em CSV ou Excel' })
   @ApiParam({ name: 'dataset', enum: ['events', 'users', 'inventory', 'rentals', 'sales', 'overview'] })
   @ApiParam({ name: 'format', enum: ['csv', 'excel'] })
   async export(
     @Param('dataset') dataset: Dataset,
-    @Param('format') format: Format,
+    @Param('format') format: Extract<Format, 'csv' | 'excel'>,
     @Res() res: Response,
   ): Promise<void> {
     if (!['csv', 'excel'].includes(format as string)) {

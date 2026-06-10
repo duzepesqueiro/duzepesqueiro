@@ -107,8 +107,13 @@ export const RegistrationFormModal = ({
         onRegistered?.({ eventId: initialEventId, eventTitle: initialEventTitle });
       } catch {}
     } catch (error: any) {
-      const msg = error?.response?.data?.message;
-      toast.error(msg || "Erro ao realizar inscrição!");
+      const code = error?.response?.data?.code;
+      if (code === "EVENT_ALREADY_REGISTERED") {
+        toast.error("Você já está inscrito neste evento.");
+      } else {
+        const msg = error?.response?.data?.message;
+        toast.error(msg || "Erro ao realizar inscrição!");
+      }
     } finally {
       setIsSubmitting(false);
     }

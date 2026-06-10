@@ -2,7 +2,7 @@ import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import Button from '../../../components/ui/Button';
 
-const CustomerAnalytics = ({ segmentData, className = '' }) => {
+const CustomerAnalytics = ({ customerData, segmentData, className = '' }) => {
   const COLORS = ['var(--color-primary)', 'var(--color-secondary)', 'var(--color-accent)', 'var(--color-warning)'];
 
   const formatCurrency = (value) => {
@@ -84,6 +84,25 @@ const CustomerAnalytics = ({ segmentData, className = '' }) => {
       </div>
       {/* Content */}
       <div className="p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="text-sm text-muted-foreground">Clientes ativos</div>
+            <div className="text-2xl font-bold text-foreground">{Number(customerData?.activeCustomers || 0).toLocaleString('pt-BR')}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="text-sm text-muted-foreground">Clientes recorrentes</div>
+            <div className="text-2xl font-bold text-foreground">{Number(customerData?.returningCustomers || 0).toLocaleString('pt-BR')}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="text-sm text-muted-foreground">Novos clientes</div>
+            <div className="text-2xl font-bold text-foreground">{Number(customerData?.newCustomers || 0).toLocaleString('pt-BR')}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="text-sm text-muted-foreground">Frequência de compra</div>
+            <div className="text-2xl font-bold text-foreground">{Number(customerData?.purchaseFrequency || 0).toLocaleString('pt-BR')}</div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
           <div>

@@ -97,6 +97,34 @@ export class MailService {
     }
   }
 
+  async sendMarketingCampaignEmail(params: {
+    to: string;
+    subject: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<boolean> {
+    const { to, subject, content, metadata } = params;
+    try {
+      await this.sendTemplatedEmail(
+        {
+          to,
+          subject,
+          template: 'marketing-campaign',
+          context: {
+            content,
+            year: new Date().getFullYear(),
+          },
+          event: 'MarketingCampaignEmail',
+          metadata,
+        },
+        true,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @OnEvent(EventTypes.USER_REGISTERED)
   async handleUserRegistered(payload: UserRegisteredPayload) {
     if (payload.requiresEmailConfirmation) {

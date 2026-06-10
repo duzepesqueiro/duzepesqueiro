@@ -14,17 +14,21 @@ function triggerDownload(blob, filename) {
 
 // Export admin dataset in specified format
 export async function exportAdminData(dataset, format) {
-  const path = `/api/admin/export/${dataset}/${format}`;
-  const response = await api.get(path, { responseType: 'blob' });
+  const manifestPath = `/api/admin/export/${dataset}/${format}/manifest`;
+  const manifestResponse = await api.get(manifestPath);
+  const files = Array.isArray(manifestResponse?.data?.files) ? manifestResponse.data.files : [];
 
-  // Try to read filename from Content-Disposition, fallback to default
-  const ext = format === 'excel' ? 'xlsx' : format;
-  let filename = `export-${dataset}.${ext}`;
-  const cd = response.headers && (response.headers['content-disposition'] || response.headers['Content-Disposition']);
-  if (cd && typeof cd === 'string') {
-    const match = cd.match(/filename="?([^";]+)"?/i);
-    if (match && match[1]) filename = match[1];
+  for (const file of files) {
+    const path = typeof file?.url === 'string' ? file.url : `/api/admin/export/${dataset}/${format}`;
+    const response = await api.get(path, { responseType: 'blob' });
+
+    const cd = response.headers && (response.headers['content-disposition'] || response.headers['Content-Disposition']);
+    let filename = typeof file?.filename === 'string' ? file.filename : 'export.dat';
+    if (cd && typeof cd === 'string') {
+      const match = cd.match(/filename="?([^";]+)"?/i);
+      if (match && match[1]) filename = match[1];
+    }
+
+    triggerDownload(response.data, filename);
   }
-
-  triggerDownload(response.data, filename);
 }
