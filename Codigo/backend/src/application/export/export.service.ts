@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
 
-type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview';
+type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview' | 'hosting';
 type ExportFormat = 'csv' | 'excel' | 'json';
 
 type ExportResource = {
@@ -149,6 +149,73 @@ export class ExportService {
             fetch: () => this.getOverviewData(),
           },
         ];
+      case 'hosting':
+        return [
+          {
+            key: 'hosting_chalets',
+            fetch: () => this.prisma.hostingChalet.findMany({ where: { deletedAt: null } }),
+          },
+          {
+            key: 'hosting_amenities',
+            fetch: () => this.prisma.hostingAmenity.findMany(),
+          },
+          {
+            key: 'hosting_chalet_amenities',
+            fetch: () => this.prisma.hostingChaletAmenity.findMany(),
+          },
+          {
+            key: 'hosting_chalet_images',
+            fetch: () => this.prisma.hostingChaletImage.findMany(),
+          },
+          {
+            key: 'hosting_chalet_availability',
+            fetch: () => this.prisma.hostingChaletAvailability.findMany(),
+          },
+          {
+            key: 'hosting_pricing_rules',
+            fetch: () => this.prisma.hostingPricingRule.findMany({ where: { deletedAt: null } }),
+          },
+          {
+            key: 'hosting_pricing_rule_chalets',
+            fetch: () => this.prisma.hostingPricingRuleChalet.findMany(),
+          },
+          {
+            key: 'hosting_cancellation_policies',
+            fetch: () => this.prisma.hostingCancellationPolicy.findMany(),
+          },
+          {
+            key: 'hosting_reservations',
+            fetch: () => this.prisma.hostingReservation.findMany(),
+          },
+          {
+            key: 'hosting_chalet_blocks',
+            fetch: () => this.prisma.hostingChaletBlock.findMany(),
+          },
+          {
+            key: 'hosting_reservation_vouchers',
+            fetch: () => this.prisma.hostingReservationVoucher.findMany(),
+          },
+          {
+            key: 'hosting_reservation_guests',
+            fetch: () => this.prisma.hostingReservationGuest.findMany(),
+          },
+          {
+            key: 'hosting_reservation_reviews',
+            fetch: () => this.prisma.hostingReservationReview.findMany(),
+          },
+          {
+            key: 'hosting_notification_logs',
+            fetch: () => this.prisma.hostingNotificationLog.findMany(),
+          },
+          {
+            key: 'hosting_audit_logs',
+            fetch: () => this.prisma.hostingAuditLog.findMany(),
+          },
+          {
+            key: 'hosting_kpis',
+            fetch: () => this.prisma.hostingKpi.findMany(),
+          },
+        ];
       default:
         return [];
     }
@@ -281,6 +348,31 @@ export class ExportService {
       { Métrica: 'Total de Eventos', Valor: totalEvents },
       { Métrica: 'Total de Inscrições Ativas', Valor: totalRegistrations },
     ];
+  }
+
+  async getHostingData(): Promise<Record<string, unknown>[]> {
+    const prisma = this.prisma as any;
+    const reservations =
+      (await prisma.hostingReservation
+        .findMany({
+          include: { chalet: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1000,
+        })
+        .catch(() => [])) ?? [];
+
+    return reservations.map((r: any) => ({
+      Código: r.code,
+      Status: r.status,
+      Origem: r.origin,
+      Chalé: r.chalet?.name ?? '',
+      'Check-in': r.checkInDate ? r.checkInDate.toISOString().split('T')[0] : '',
+      'Check-out': r.checkOutDate ? r.checkOutDate.toISOString().split('T')[0] : '',
+      Adultos: r.adults ?? 0,
+      Crianças: r.children ?? 0,
+      'Valor total (R$)': r.totalAmount != null ? Number(r.totalAmount).toFixed(2) : '',
+      'Criado em': r.createdAt ? r.createdAt.toISOString().split('T')[0] : '',
+    }));
   }
 
   private normalizeRows(rows: unknown[]): Record<string, unknown>[] {

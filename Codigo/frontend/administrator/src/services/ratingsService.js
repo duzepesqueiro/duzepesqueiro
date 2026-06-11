@@ -3,7 +3,7 @@ import api from "../utils/api";
 export async function listRatings({ page = 0, size = 10, targetType, targetId, userEmail } = {}) {
   const params = { page, size };
   if (targetType) params.targetType = targetType;
-  if (typeof targetId === 'number') params.targetId = targetId;
+  if (targetId !== undefined && targetId !== null && String(targetId).trim()) params.targetId = String(targetId).trim();
   if (userEmail && userEmail.trim()) params.userEmail = userEmail.trim();
   const res = await api.get("/api/admin/ratings", { params });
   return res?.data;

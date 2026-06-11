@@ -9,6 +9,7 @@ const TARGET_TYPES = [
   { value: 'PRODUCT', label: 'Produto' },
   { value: 'RENTAL', label: 'Aluguel' },
   { value: 'EVENT', label: 'Evento' },
+  { value: 'HOSTING', label: 'Hospedagem' },
 ];
 
 const UserRatingsManager = () => {
@@ -125,10 +126,9 @@ const UserRatingsManager = () => {
         <div className="grid grid-cols-12 bg-muted/40 text-xs font-medium text-muted-foreground px-3 py-2">
           <div className="col-span-3">Usuário</div>
           <div className="col-span-2">Tipo</div>
-          <div className="col-span-1">Alvo</div>
           <div className="col-span-2">Avaliação</div>
           <div className="col-span-3">Comentário</div>
-          <div className="col-span-1 text-right">Ações</div>
+          <div className="col-span-2 text-right">Ações</div>
         </div>
 
         {loading && (
@@ -143,16 +143,14 @@ const UserRatingsManager = () => {
               <div className="text-muted-foreground">{formatDateTime(r.createdAt) || '—'}</div>
             </div>
             <div className="col-span-2">{r.targetType || '—'}</div>
-            <div className="col-span-1">{r.targetId ?? '—'}</div>
             <div className="col-span-2">
               <span>{r.rating ?? '—'}</span>
             </div>
             <div className="col-span-3">
               <span className="text-muted-foreground">{r.comment || '—'}</span>
             </div>
-            <div className="col-span-1 text-right">
+            <div className="col-span-2 text-right">
               <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="ghost" disabled>Editar</Button>
                 <Button size="sm" variant="destructive" onClick={() => onDelete(r.id)} disabled={loading}>Excluir</Button>
               </div>
             </div>

@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../components/AppIcon';
+import ExportControlPanel from '../../components/ui/ExportControlPanel';
 import HostingLayout from './components/HostingLayout';
 import HostingKPICard from './components/HostingKPICard';
 import HostingRevenueChart from './components/HostingRevenueChart';
 import OccupationMap from './components/OccupationMap';
+import { exportAdminData } from '../../utils/exportService';
 import { getHostingDashboardKpis, getHostingDashboardRevenue } from '../../utils/hostingService';
 
 const periodOptions = [
@@ -36,6 +38,15 @@ const HostingDashboard = () => {
       currency: 'BRL',
       maximumFractionDigits: 0,
     });
+
+  const handleExport = async (format) => {
+    try {
+      await exportAdminData('hosting', format);
+    } catch (err) {
+      console.error('Falha ao exportar hospedagem:', err);
+      alert('Falha ao exportar. Verifique o servidor.');
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -143,21 +154,29 @@ const HostingDashboard = () => {
       title="Dashboard de Hospedagem"
       subtitle="KPIs, receita por chalé e mapa de ocupação em tempo real"
       actions={
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-          {periodOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSelectedPeriod(option.value)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-smooth ${
-                selectedPeriod === option.value
-                  ? 'bg-card text-foreground shadow-soft font-medium'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+            {periodOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setSelectedPeriod(option.value)}
+                className={`px-3 py-1.5 text-xs rounded-md transition-smooth ${
+                  selectedPeriod === option.value
+                    ? 'bg-card text-foreground shadow-soft font-medium'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <ExportControlPanel
+            onExport={handleExport}
+            availableFormats={['excel', 'csv', 'json']}
+            title="Exportar Dados de Hospedagem"
+          />
         </div>
       }
     >

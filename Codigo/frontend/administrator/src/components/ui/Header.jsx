@@ -20,6 +20,7 @@ const Header = () => {
     { label: 'Eventos', path: '/events-management-dashboard', icon: 'Ticket' },
     { label: 'Usuários', path: '/users-management-dashboard', icon: 'Users' },
     { label: 'Dados', path: '/data-management-dashboard', icon: 'Database' },
+    { label: 'Marketing', path: '/marketing-dashboard', icon: 'Mail' },
   ];
 
   const normalizedPath = location?.pathname?.replace(/^\/admin(?=\/)/, '') || '';

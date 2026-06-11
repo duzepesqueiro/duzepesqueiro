@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Package, Calendar, User as UserIcon, XCircle, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, Calendar, User as UserIcon, XCircle, Pencil, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { updateRental } from "@/lib/api";
+import { createReview, getReviewBySubject, updateRental } from "@/lib/api";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import ReviewModal from "@/components/reviews/ReviewModal";
 
 export interface RentalDTO {
   id: string | number;
@@ -75,6 +77,10 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
   const activeUpcoming = orders.filter(({ dto }) => !dto.returnTime && (toDate(dto.endDate)?.getTime() ?? 0) >= today.getTime());
   const overdue = orders.filter(({ dto }) => !dto.returnTime && (toDate(dto.endDate)?.getTime() ?? 0) < today.getTime());
   const past = orders.filter(({ dto }) => !!dto.returnTime);
+  const completedRentalItemIds = useMemo(
+    () => past.map(({ dto }) => String(dto.rentalItemId)).filter(Boolean),
+    [past],
+  );
 
   // Inline edit state
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -88,6 +94,7 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
   const [pageOverdue, setPageOverdue] = useState<number>(1);
   const [pagePast, setPagePast] = useState<number>(1);
   const pageSize = 5;
+  const [reviewOrder, setReviewOrder] = useState<{ rentalItemId: string; itemName: string } | null>(null);
 
   const totalActivePages = Math.max(1, Math.ceil(activeUpcoming.length / pageSize));
   const totalOverduePages = Math.max(1, Math.ceil(overdue.length / pageSize));
@@ -107,6 +114,33 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
     setPageOverdue(1);
     setPagePast(1);
   }, [orders]);
+
+  const { data: hasReviewByRentalItemId = {}, refetch: refetchReviewFlags } = useQuery<
+    Record<string, boolean>
+  >({
+    queryKey: ["rental-history-has-review", completedRentalItemIds.join("|")],
+    enabled: completedRentalItemIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        completedRentalItemIds.map(async (rentalItemId) => {
+          try {
+            await getReviewBySubject({ domain: "RENTAL", subjectId: rentalItemId });
+            return [rentalItemId, true] as const;
+          } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 404) {
+              return [rentalItemId, false] as const;
+            }
+            return [rentalItemId, false] as const;
+          }
+        }),
+      );
+      return Object.fromEntries(responses);
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (pageActive > totalActivePages) setPageActive(totalActivePages);
@@ -388,6 +422,23 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
                       <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
                         {formatCurrency(dto.totalPrice)}
                       </Badge>
+                      {Object.prototype.hasOwnProperty.call(hasReviewByRentalItemId, String(dto.rentalItemId)) ? (
+                        hasReviewByRentalItemId[String(dto.rentalItemId)] ? (
+                          <Badge variant="outline" className="bg-background/70 backdrop-blur-sm font-semibold">
+                            Avaliado
+                          </Badge>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-9 flex items-center gap-2"
+                            onClick={() => setReviewOrder({ rentalItemId: String(dto.rentalItemId), itemName })}
+                          >
+                            <Star className="h-4 w-4" /> Avaliar
+                          </Button>
+                        )
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
@@ -418,6 +469,34 @@ export const RentalHistory = ({ orders, onCancel, onUpdated }: RentalHistoryProp
           </>
         )}
       </div>
+
+      {reviewOrder ? (
+        <ReviewModal
+          open={!!reviewOrder}
+          onOpenChange={(next) => !next && setReviewOrder(null)}
+          title="Avaliar aluguel"
+          description={`Conte como foi sua experiência com "${reviewOrder.itemName}".`}
+          onSubmit={async ({ rating, comment }) => {
+            try {
+              await createReview({
+                domain: "RENTAL",
+                subjectId: reviewOrder.rentalItemId,
+                rating,
+                comment,
+              });
+              toast.success("Avaliação enviada com sucesso!");
+              setReviewOrder(null);
+              await refetchReviewFlags();
+            } catch (err: any) {
+              const message = err?.response?.data?.message;
+              const text = Array.isArray(message)
+                ? message.join(", ")
+                : String(message || "Não foi possível enviar sua avaliação.");
+              toast.error(text);
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 };

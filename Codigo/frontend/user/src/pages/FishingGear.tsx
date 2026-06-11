@@ -32,6 +32,8 @@ export interface RentalItem {
   images: string[];
   fullDescription: string;
   unavailableDates: Date[];
+  averageRating?: number;
+  reviewsCount?: number;
 }
 
 export interface ShopItem {

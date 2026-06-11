@@ -8,8 +8,10 @@ function triggerDownload(blob, filename) {
   a.download = filename || 'export.dat';
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 // Export admin dataset in specified format
@@ -17,6 +19,9 @@ export async function exportAdminData(dataset, format) {
   const manifestPath = `/api/admin/export/${dataset}/${format}/manifest`;
   const manifestResponse = await api.get(manifestPath);
   const files = Array.isArray(manifestResponse?.data?.files) ? manifestResponse.data.files : [];
+  if (!files.length) {
+    throw new Error('Nenhum arquivo disponível para exportação.');
+  }
 
   for (const file of files) {
     const path = typeof file?.url === 'string' ? file.url : `/api/admin/export/${dataset}/${format}`;

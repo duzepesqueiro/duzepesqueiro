@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { ExportService } from './export.service';
 
-type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview';
+type Dataset = 'events' | 'users' | 'inventory' | 'rentals' | 'sales' | 'overview' | 'hosting';
 type Format = 'csv' | 'excel' | 'json';
 
 @Controller('api/admin/export')
@@ -27,6 +27,9 @@ export class ExportController {
     const date = new Date().toISOString().split('T')[0];
     const ext = format === 'excel' ? 'xls' : format;
     const resources = this.exportService.listResources(dataset);
+    if (!resources.length) {
+      throw new BadRequestException(`Dataset '${dataset}' não suportado.`);
+    }
 
     return {
       files: resources.map((resource) => ({
@@ -49,6 +52,14 @@ export class ExportController {
       throw new BadRequestException(`Formato '${format}' não suportado. Use 'csv', 'excel' ou 'json'.`);
     }
 
+    const resources = this.exportService.listResources(dataset);
+    if (!resources.length) {
+      throw new BadRequestException(`Dataset '${dataset}' não suportado.`);
+    }
+    if (!resources.some((item) => item.key === resource)) {
+      throw new BadRequestException(`Recurso '${resource}' não suportado para o dataset '${dataset}'.`);
+    }
+
     const rows = await this.exportService.getResourceData(dataset, resource);
     const date = new Date().toISOString().split('T')[0];
     const ext = format === 'excel' ? 'xls' : format;
@@ -67,7 +78,7 @@ export class ExportController {
 
   @Get(':dataset/:format')
   @ApiOperation({ summary: 'Exportar dados administrativos em CSV ou Excel' })
-  @ApiParam({ name: 'dataset', enum: ['events', 'users', 'inventory', 'rentals', 'sales', 'overview'] })
+  @ApiParam({ name: 'dataset', enum: ['events', 'users', 'inventory', 'rentals', 'sales', 'overview', 'hosting'] })
   @ApiParam({ name: 'format', enum: ['csv', 'excel'] })
   async export(
     @Param('dataset') dataset: Dataset,
@@ -101,6 +112,7 @@ export class ExportController {
       case 'rentals': return this.exportService.getRentalsData();
       case 'sales': return this.exportService.getSalesData();
       case 'overview': return this.exportService.getOverviewData();
+      case 'hosting': return this.exportService.getHostingData();
       default: return [];
     }
   }

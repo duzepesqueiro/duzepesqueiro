@@ -257,6 +257,32 @@ export class ReviewsService {
     }
 
     if (domain === ReviewDomain.RENTAL) {
+      const rentalItem = await tx.rentalItem.findUnique({
+        where: { id: subjectId },
+        select: {
+          id: true,
+          productId: true,
+          status: true,
+          deletedAt: true,
+          product: { select: { name: true } },
+          rental: { select: { userId: true, paymentStatus: true } },
+        },
+      });
+
+      if (rentalItem && !rentalItem.deletedAt) {
+        if (rentalItem.rental.userId !== userId) {
+          throw new BadRequestException('Usuário não pode avaliar um aluguel que não é seu.');
+        }
+        const allowedPaymentStatuses: PaymentStatus[] = [PaymentStatus.PAID, PaymentStatus.APPROVED];
+        if (!allowedPaymentStatuses.includes(rentalItem.rental.paymentStatus)) {
+          throw new BadRequestException('Avaliação só é permitida após pagamento confirmado.');
+        }
+        if (rentalItem.status !== RentalStatus.RETURNED && rentalItem.status !== RentalStatus.CANCELLED) {
+          throw new BadRequestException('Avaliação só é permitida após devolução concluída.');
+        }
+        return { targetId: rentalItem.productId, targetName: rentalItem.product?.name ?? null };
+      }
+
       const rental = await tx.rental.findUnique({
         where: { id: subjectId },
         select: {

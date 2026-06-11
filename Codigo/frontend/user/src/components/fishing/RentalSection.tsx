@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RentalCard } from "./RentalCard";
 import { RentalItem } from "@/pages/FishingGear";
-import { getRentalProductsPage } from "@/lib/api";
+import { getRentalProductsPage, getReviewsSummary } from "@/lib/api";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -50,8 +50,22 @@ export const RentalSection = ({ onBooked, initialRentalId }: RentalSectionProps)
             unavailableDates: (d.unavailableDates || []).map((s: string) => new Date(s)),
           };
         });
+        const itemsWithReviews: RentalItem[] = await Promise.all(
+          mapped.map(async (item) => {
+            try {
+              const summary = await getReviewsSummary({ domain: "RENTAL", targetId: item.id });
+              return {
+                ...item,
+                averageRating: Number(summary?.averageRating ?? 0),
+                reviewsCount: Number(summary?.reviewsCount ?? 0),
+              };
+            } catch {
+              return { ...item, averageRating: 0, reviewsCount: 0 };
+            }
+          }),
+        );
         // Default: ordenar por disponibilidade (sem disponibilidade por último)
-        const sorted = mapped.sort((a, b) => {
+        const sorted = itemsWithReviews.sort((a, b) => {
           if (b.available !== a.available) return b.available - a.available;
           return a.name.localeCompare(b.name);
         });

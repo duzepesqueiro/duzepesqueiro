@@ -116,21 +116,27 @@ const MarketingDashboard = () => {
       <Header />
       <div className="pt-16 pb-8">
         <div className="max-w mx-auto px-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 space-y-4 lg:space-y-0">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">Marketing</h1>
+              <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">Marketing</h1>
               <p className="text-muted-foreground">Criação e envio de campanhas de e-mail</p>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-3">
               <AlertNotificationCenter />
-              <Button variant="default" iconName="Send" iconPosition="left" onClick={send} disabled={sending}>
-                {sending ? 'Enviando...' : 'Enviar campanha'}
+              <Button
+                variant="default"
+                iconName="Send"
+                iconPosition="left"
+                onClick={send}
+                loading={sending}
+              >
+                Enviar campanha
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
             <div className="xl:col-span-8 space-y-6">
               <div className="bg-card border border-border rounded-lg p-6">
                 <h2 className="text-xl font-heading font-semibold text-foreground mb-4">Editor de e-mail</h2>
@@ -163,23 +169,23 @@ const MarketingDashboard = () => {
                 <h2 className="text-xl font-heading font-semibold text-foreground mb-4">Destinatários</h2>
 
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <input
+                  <label className="flex items-center gap-3 rounded-lg border border-border bg-background/60 p-3 hover:bg-muted/40 transition-smooth-fast text-sm text-foreground cursor-pointer">
+                    <Input
                       type="radio"
                       name="recipientMode"
                       checked={mode === 'all'}
                       onChange={() => setMode('all')}
                     />
-                    Todos os usuários
+                    <span>Todos os usuários</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <input
+                  <label className="flex items-center gap-3 rounded-lg border border-border bg-background/60 p-3 hover:bg-muted/40 transition-smooth-fast text-sm text-foreground cursor-pointer">
+                    <Input
                       type="radio"
                       name="recipientMode"
                       checked={mode === 'selected'}
                       onChange={() => setMode('selected')}
                     />
-                    Usuários selecionados
+                    <span>Usuários selecionados</span>
                   </label>
 
                   {mode === 'selected' ? (
@@ -201,7 +207,18 @@ const MarketingDashboard = () => {
                       <div className="border border-border rounded-lg overflow-hidden">
                         <div className="max-h-80 overflow-auto divide-y divide-border">
                           {loadingRecipients ? (
-                            <div className="p-4 text-sm text-muted-foreground">Carregando usuários...</div>
+                            <div className="p-3 space-y-3">
+                              {Array.from({ length: 6 }).map((_, idx) => (
+                                <div key={idx} className="flex items-start gap-3 animate-pulse">
+                                  <div className="h-4 w-4 rounded bg-muted mt-1" />
+                                  <div className="flex-1 space-y-2">
+                                    <div className="h-4 w-2/3 rounded bg-muted" />
+                                    <div className="h-3 w-5/6 rounded bg-muted" />
+                                    <div className="h-3 w-1/2 rounded bg-muted" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           ) : recipientRows.length ? (
                             recipientRows.map((row) => (
                               <div key={row.id} className="p-3">
@@ -251,10 +268,10 @@ const MarketingDashboard = () => {
                   ) : null}
                 </div>
               </div>
-
-              <QuickActions className="mt-4" />
             </div>
           </div>
+
+          <QuickActions className="mt-6" />
         </div>
       </div>
     </div>
@@ -262,4 +279,3 @@ const MarketingDashboard = () => {
 };
 
 export default MarketingDashboard;
-

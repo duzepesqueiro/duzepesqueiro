@@ -87,7 +87,7 @@ const RichTextEditor = ({ value, onChange }) => {
 
       <div
         ref={editorRef}
-        className="min-h-[260px] p-4 prose prose-sm max-w-none focus:outline-none"
+        className="min-h-[260px] p-4 text-sm text-foreground focus:outline-none [&_p]:my-2 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_u]:underline [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:tracking-tight [&_h2]:mt-3 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_td]:border [&_td]:border-border [&_td]:p-2 [&_img]:max-w-full [&_img]:h-auto"
         contentEditable
         onInput={commit}
         onBlur={commit}
@@ -98,4 +98,3 @@ const RichTextEditor = ({ value, onChange }) => {
 };
 
 export default RichTextEditor;
-

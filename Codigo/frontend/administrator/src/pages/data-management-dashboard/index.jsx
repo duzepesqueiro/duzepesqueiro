@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
+import QuickActions from '../../components/ui/QuickActions';
 import { exportLogCollection, listLogCollections } from '../../services/logsDataService';
 
 const DataManagementDashboard = () => {
@@ -155,6 +156,8 @@ const DataManagementDashboard = () => {
               A exportação buscará todos os documentos da coleção selecionada.
             </div>
           </div>
+
+          <QuickActions className="mt-6" />
         </div>
       </div>
     </div>
@@ -162,4 +165,3 @@ const DataManagementDashboard = () => {
 };
 
 export default DataManagementDashboard;
-

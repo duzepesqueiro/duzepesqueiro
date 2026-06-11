@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { RentalItem } from "@/pages/FishingGear";
+import RatingStarsDisplay from "@/components/reviews/RatingStarsDisplay";
 
 interface RentalCardProps {
   item: RentalItem;
@@ -99,6 +100,17 @@ export const RentalCard = ({ item, onSelect }: RentalCardProps) => {
             {item.name}
           </h3>
           <p className="min-h-4 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+          <div className="min-h-4 flex items-center gap-2 text-xs text-muted-foreground">
+            {Number(item.reviewsCount ?? 0) > 0 ? (
+              <>
+                <RatingStarsDisplay value={Number(item.averageRating ?? 0)} className="flex gap-0.5" />
+                <span className="font-semibold text-foreground/90">{Number(item.averageRating ?? 0).toFixed(1)}</span>
+                <span>({Number(item.reviewsCount ?? 0)})</span>
+              </>
+            ) : (
+              <span>Sem avaliações</span>
+            )}
+          </div>
         </div>
 
         <div className="mt-auto pt-2 space-y-3">

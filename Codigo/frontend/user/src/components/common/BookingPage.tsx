@@ -188,6 +188,10 @@ const BookingPage = () => {
   const [fieldErrors, setFieldErrors] = useState<BookingErrors>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+  const [termsPdfUrl, setTermsPdfUrl] = useState<string | null>(null);
+  const [termsPdfVersion, setTermsPdfVersion] = useState<string | null>(null);
+  const [isLoadingTermsPdf, setIsLoadingTermsPdf] = useState(false);
+  const [termsPdfError, setTermsPdfError] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   const locationState = location.state as BookingLocationState | null | undefined;
@@ -259,6 +263,55 @@ const BookingPage = () => {
   const termsFileName = `termos-reserva-${booking.policyVersion || 'atual'}.pdf`;
   const whatsappMessage = 'Precisa de mais espaço? Podemos combinar o número de hospedes!';
   const whatsappPhone = String(import.meta.env.VITE_STORE_WHATSAPP_PHONE ?? '');
+
+  const fetchTermsPdf = useCallback(
+    async (signal?: AbortSignal) => {
+      const version = String(activePolicy?.termsVersion ?? '').trim() || null;
+      setIsLoadingTermsPdf(true);
+      setTermsPdfError(null);
+
+      try {
+        const response = await api.get('/api/reservas/politica-ativa/arquivo', {
+          responseType: 'blob',
+          signal,
+        });
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        setTermsPdfUrl((prev) => {
+          if (prev) {
+            window.URL.revokeObjectURL(prev);
+          }
+          return url;
+        });
+        setTermsPdfVersion(version);
+      } catch {
+        setTermsPdfError('Nao foi possivel carregar o PDF de termos agora.');
+      } finally {
+        setIsLoadingTermsPdf(false);
+      }
+    },
+    [activePolicy?.termsVersion]
+  );
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (!hasTermsDocument) return;
+    const currentVersion = String(activePolicy?.termsVersion ?? '').trim() || null;
+    if (termsPdfUrl && termsPdfVersion === currentVersion) return;
+    const controller = new AbortController();
+    void fetchTermsPdf(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [activePolicy?.termsVersion, fetchTermsPdf, hasTermsDocument, step, termsPdfUrl, termsPdfVersion]);
+
+  useEffect(() => {
+    return () => {
+      if (termsPdfUrl) {
+        window.URL.revokeObjectURL(termsPdfUrl);
+      }
+    };
+  }, [termsPdfUrl]);
 
   useEffect(() => {
     if (!room) return;
@@ -803,32 +856,6 @@ const BookingPage = () => {
   const formTextareaClass = (key: string) =>
     `min-h-28 border-slate-300 bg-white text-base md:text-lg ${fieldClass(key)}`.trim();
 
-  const downloadTermsPdf = async () => {
-    try {
-      const response = await api.get('/api/reservas/politica-ativa/arquivo', {
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const contentDisposition = String(response.headers?.['content-disposition'] || '');
-      const dispositionMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-      const fileName = dispositionMatch?.[1] || termsFileName;
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast({
-        title: 'Erro ao baixar termos',
-        description: 'Nao foi possivel baixar o PDF de termos agora.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const redirectToWhatsApp = () => {
     const base = whatsappPhone ? `https://wa.me/${whatsappPhone}?text=` : 'https://wa.me/?text=';
     const url = `${base}${encodeURIComponent(whatsappMessage)}`;
@@ -1314,16 +1341,38 @@ const BookingPage = () => {
                       </h3>
                       <div className="space-y-3">
                         {hasTermsDocument ? (
-                          <a
-                            href="#"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              void downloadTermsPdf();
-                            }}
-                            className="inline-flex text-sm font-medium text-[#024059] underline underline-offset-2 hover:text-[#012f42]"
-                          >
-                            {termsFileName}
-                          </a>
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium text-[#024059]">{termsFileName}</p>
+                            <div className="rounded-lg border border-slate-200 bg-white">
+                              {isLoadingTermsPdf || (!termsPdfUrl && !termsPdfError) ? (
+                                <div className="flex items-center justify-center gap-3 px-4 py-10">
+                                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#024059] border-t-transparent" />
+                                  <p className="text-sm text-muted-foreground">Carregando termos...</p>
+                                </div>
+                              ) : null}
+                              {termsPdfError ? (
+                                <div className="flex flex-col gap-3 px-4 py-6">
+                                  <p className="text-sm text-destructive">{termsPdfError}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => void fetchTermsPdf()}
+                                    className="inline-flex w-fit items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-slate-50"
+                                  >
+                                    Tentar novamente
+                                  </button>
+                                </div>
+                              ) : null}
+                              {termsPdfUrl ? (
+                                <div className="h-[420px] w-full overflow-hidden md:h-[520px]">
+                                  <iframe
+                                    src={termsPdfUrl}
+                                    title="Termos da reserva"
+                                    className="h-full w-full"
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             Nao ha arquivo PDF de termos disponivel na politica ativa.
