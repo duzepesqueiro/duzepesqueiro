@@ -91,10 +91,10 @@ const Header = () => {
               <img src={logoSrc} alt="Logo DuZe pesqueiro" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-heading font-semibold text-foreground theme-transition">
+              <span className="text-[clamp(0.95rem,1.1vw,1.125rem)] font-heading font-semibold text-foreground theme-transition">
                 DuZé pesqueiro
               </span>
-              <span className="text-xs font-caption text-muted-foreground theme-transition">
+              <span className="text-[clamp(0.65rem,0.75vw,0.75rem)] font-caption text-muted-foreground theme-transition">
                 Inteligência de Negócios
               </span>
             </div>
@@ -106,7 +106,7 @@ const Header = () => {
               <Link
                 key={item?.path}
                 to={item?.path}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-body font-medium text-sm theme-transition ${
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-body font-medium text-[clamp(0.75rem,0.85vw,0.875rem)] whitespace-nowrap theme-transition ${
                   isActivePath(item?.path)
                     ? 'bg-secondary text-secondary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -166,10 +166,10 @@ const Header = () => {
                   <img src={logoSrc} alt="Logo DuZe pesqueiro" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-heading font-semibold text-foreground theme-transition">
+                  <span className="text-[clamp(0.95rem,1.1vw,1.125rem)] font-heading font-semibold text-foreground theme-transition">
                     DuZé pesqueiro
                   </span>
-                  <span className="text-xs font-caption text-muted-foreground theme-transition">
+                  <span className="text-[clamp(0.65rem,0.75vw,0.75rem)] font-caption text-muted-foreground theme-transition">
                     Inteligência de Negócios
                   </span>
                 </div>
@@ -211,7 +211,7 @@ const Header = () => {
                   key={item?.path}
                   to={item?.path}
                   onClick={closeMobileMenu}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-body font-medium text-base theme-transition ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-body font-medium text-[clamp(0.9rem,1vw,1rem)] theme-transition ${
                     isActivePath(item?.path)
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'

@@ -44,6 +44,13 @@ type AvailabilityResponse = {
   available: boolean;
 };
 
+const normalizeText = (value: string): string => {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 const parseLocalDateParam = (value: string): Date | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -72,6 +79,8 @@ const RoomsPage = () => {
   const navigate = useNavigate();
   const { booking, setBooking } = useBooking();
   const [searchParams] = useSearchParams();
+  const searchQueryRaw = searchParams.get('q') ?? '';
+  const searchQuery = useMemo(() => normalizeText(searchQueryRaw.trim()), [searchQueryRaw]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const [capacityFilter, setCapacityFilter] = useState<number>(0);
@@ -242,6 +251,18 @@ const RoomsPage = () => {
   const filteredRooms = useMemo(() => {
     return roomListWithReviews
       .filter((room) => {
+        if (searchQuery) {
+          const haystack = [
+            room.name,
+            room.description,
+            room.type,
+            room.beds,
+            room.bathroom,
+            ...room.amenities,
+            ...room.extras,
+          ].map((value) => normalizeText(String(value)));
+          if (!haystack.some((value) => value.includes(searchQuery))) return false;
+        }
         if (capacityFilter > 0 && room.capacity < capacityFilter) return false;
         if (petsOnly && !room.petFriendly) return false;
         if (priceFilterEnabled && (room.pricePerNight < priceRange[0] || room.pricePerNight > priceRange[1])) return false;
@@ -252,7 +273,7 @@ const RoomsPage = () => {
         room,
         unavailable: hasDateFilter ? Boolean(availabilityMap[room.id]) : false,
       }));
-  }, [roomListWithReviews, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
+  }, [roomListWithReviews, searchQuery, capacityFilter, petsOnly, priceRange, typeFilter, priceFilterEnabled, hasDateFilter, availabilityMap]);
 
   const summaryChips = [
     booking.checkIn && booking.checkOut

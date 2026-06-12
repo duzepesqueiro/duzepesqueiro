@@ -31,7 +31,7 @@ const Hosting = () => (
     <div className="hosting-theme">
       <TooltipProvider>
         <BookingProvider>
-            <Header searchScope="home" />
+            <Header searchScope="hosting" />
             <Toaster />
             <SonnerToaster position="top-right" richColors />
             <Suspense fallback={<PageLoader />}>

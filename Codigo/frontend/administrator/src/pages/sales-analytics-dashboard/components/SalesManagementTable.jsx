@@ -22,6 +22,8 @@ const SalesManagementTable = ({ onRefresh }) => {
   const [error, setError] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [detailsId, setDetailsId] = useState('');
+  const [confirmingId, setConfirmingId] = useState('');
+  const [cancellingId, setCancellingId] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -42,9 +44,9 @@ const SalesManagementTable = ({ onRefresh }) => {
         setTotal(Number(payload?.total || 0));
       })
       .catch((err) => {
-        console.error('Falha ao carregar ordens de compra:', err);
+        console.error('Falha ao carregar vendas:', err);
         if (!mounted) return;
-        setError('Não foi possível carregar as ordens de compra.');
+        setError('Não foi possível carregar as vendas.');
       })
       .finally(() => {
         if (!mounted) return;
@@ -58,9 +60,9 @@ const SalesManagementTable = ({ onRefresh }) => {
     { key: 'buyerName', label: 'Cliente' },
     { key: 'productName', label: 'Produto(s)' },
     { key: 'quantity', label: 'Quantidade' },
-    { key: 'totalPrice', label: 'Valor Total' },
-    { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Data do Pedido' },
+    { key: 'totalPrice', label: 'Valor Total', sortField: 'totalAmount' },
+    { key: 'status', label: 'Status', sortField: 'status' },
+    { key: 'createdAt', label: 'Data do Pedido', sortField: 'createdAt' },
   ];
 
   const paginatedData = useMemo(() => orders, [orders]);
@@ -106,24 +108,32 @@ const SalesManagementTable = ({ onRefresh }) => {
   };
 
   const handleConfirm = async (orderId) => {
+    if (confirmingId || cancellingId) return;
     try {
+      setConfirmingId(orderId);
       await confirmAdminSale(orderId);
       await refreshOrders();
       if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err?.response?.data || err?.message;
       alert(`Não foi possível confirmar a compra: ${msg}`);
+    } finally {
+      setConfirmingId('');
     }
   };
 
   const handleCancel = async (orderId) => {
+    if (confirmingId || cancellingId) return;
     try {
+      setCancellingId(orderId);
       await cancelAdminSale(orderId);
       await refreshOrders();
       if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err?.response?.data || err?.message;
       alert(`Não foi possível cancelar a compra: ${msg}`);
+    } finally {
+      setCancellingId('');
     }
   };
 
@@ -197,12 +207,17 @@ const SalesManagementTable = ({ onRefresh }) => {
               {tableColumns.map(col => (
                 <th
                   key={col.key}
-                  className="p-4 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground whitespace-nowrap"
+                  className={[
+                    "p-4 text-left text-sm font-medium text-muted-foreground whitespace-nowrap",
+                    col.sortField ? "cursor-pointer hover:text-foreground" : "cursor-default",
+                  ].join(" ")}
                   onClick={() => {
-                    if (sortField === col.key) {
+                    if (!col.sortField) return;
+
+                    if (sortField === col.sortField) {
                       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
                     } else {
-                      setSortField(col.key);
+                      setSortField(col.sortField);
                       setSortDirection('asc');
                     }
                     setCurrentPage(1);
@@ -242,7 +257,12 @@ const SalesManagementTable = ({ onRefresh }) => {
                     size="sm"
                     iconName="CheckCircle"
                     onClick={() => handleConfirm(order.id)}
-                    disabled={(order.status || '').toLowerCase() === 'efetivada'}
+                    loading={confirmingId === order.id}
+                    disabled={
+                      (order.status || '').toLowerCase() === 'efetivada' ||
+                      Boolean(confirmingId) ||
+                      Boolean(cancellingId)
+                    }
                     className="text-success border-success hover:bg-success/10"
                   >
                     Confirmar Compra
@@ -252,7 +272,13 @@ const SalesManagementTable = ({ onRefresh }) => {
                     size="sm"
                     iconName="XCircle"
                     onClick={() => handleCancel(order.id)}
-                    disabled={(order.status || '').toLowerCase() === 'cancelada'}
+                    loading={cancellingId === order.id}
+                    disabled={
+                      (order.status || '').toLowerCase() === 'cancelada' ||
+                      (order.status || '').toLowerCase() === 'efetivada' ||
+                      Boolean(confirmingId) ||
+                      Boolean(cancellingId)
+                    }
                     className="text-error border-error hover:bg-error/10"
                   >
                     Cancelar Compra

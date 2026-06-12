@@ -7,7 +7,7 @@ export class SalesOrdersService {
   constructor(private readonly salesOrderRepository: SalesOrderRepository) {}
 
   async create(userId: string, dto: CreateSalesOrderDto) {
-    const order = await this.salesOrderRepository.create(userId, dto);
+    const order = await this.salesOrderRepository.createForUser(userId, dto);
     return this.toResponse(order);
   }
 

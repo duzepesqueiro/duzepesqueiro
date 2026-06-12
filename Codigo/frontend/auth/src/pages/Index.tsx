@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import heroImage from "@/assets/hero-lake.jpg";
 import DuzeLogo from "@/assets/DuZeImg.jpg";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  clearSession,
   ensureValidSession,
   forgotPasswordRequest,
   loginRequest,
@@ -31,7 +30,6 @@ const Index = () => {
   const { toast } = useToast();
   const USER_APP_URL: string = (import.meta as any).env?.VITE_USER_APP_URL || "/user/";
   const ADMIN_APP_URL: string = (import.meta as any).env?.VITE_ADMIN_APP_URL || "/admin/";
-  const googlePopupRef = useRef<Window | null>(null);
 
   const resolveTargetByRole = (role: BackendRole) =>
     role === "ADMIN" || role === "MANAGER" || role === "EMPLOYEE"
@@ -50,27 +48,6 @@ const Index = () => {
     };
     void bootstrap();
   }, []);
-
-  const handleGoogleLogin = () => {
-    clearSession();
-    const width = 520;
-    const height = 640;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    const popup = window.open(
-      "/api/auth/google",
-      "duze_google_oauth",
-      `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=no`,
-    );
-    googlePopupRef.current = popup;
-    if (!popup) {
-      toast({
-        title: "Popup bloqueado",
-        description: "Permita popups para concluir o login com Google.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,58 +85,6 @@ const Index = () => {
       setSubmitting(false);
     }
   };
-
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) {
-        return;
-      }
-      const payload: any = event.data;
-      if (!payload || payload.type !== "DUZE_AUTH_GOOGLE") {
-        return;
-      }
-      if (payload.error) {
-        clearSession();
-        toast({
-          title: "Falha no Google",
-          description: payload.error,
-          variant: "destructive",
-        });
-        try {
-          googlePopupRef.current?.close();
-        } catch {}
-        return;
-      }
-
-      const token = String(payload.accessToken || "");
-      const refreshToken = String(payload.refreshToken || "");
-      const role = String(payload.role || "").trim().toUpperCase() as BackendRole;
-      const email = String(payload.email || "");
-
-      if (!token || !refreshToken || role !== "CUSTOMER") {
-        clearSession();
-        toast({
-          title: "Falha no Google",
-          description: "Autenticação inválida ou role não permitida.",
-          variant: "destructive",
-        });
-        try {
-          googlePopupRef.current?.close();
-        } catch {}
-        return;
-      }
-
-      setSession({ accessToken: token, refreshToken, role, email });
-      toast({ title: "Login efetuado", description: "Bem-vindo(a)!" });
-      try {
-        googlePopupRef.current?.close();
-      } catch {}
-      window.location.assign(USER_APP_URL);
-    };
-
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [USER_APP_URL, toast]);
 
   const handleForgotPassword = async () => {
     if (!email || !email.includes("@")) {
@@ -273,14 +198,6 @@ const Index = () => {
               disabled={submitting}
             >
               {submitting ? "Entrando..." : "Entrar"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-11 text-base font-semibold"
-              onClick={handleGoogleLogin}
-            >
-              Entrar com Google
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">

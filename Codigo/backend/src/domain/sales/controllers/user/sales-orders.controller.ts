@@ -31,7 +31,7 @@ import { SalesOrdersService } from '../../services';
 @ApiTags('Sales - Orders (User)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.CUSTOMER)
+@Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE, UserRole.CUSTOMER)
 @UsePipes(
   new ValidationPipe({
     transform: true,

@@ -8,7 +8,6 @@ import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
 import VerificarEmail from "./pages/VerificarEmail";
 import ResetPassword from "./pages/ResetPassword";
-import OAuthCallback from "./pages/OAuthCallback";
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -24,7 +23,6 @@ const App = () => (
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/verificar-email" element={<VerificarEmail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/oauth-callback" element={<OAuthCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

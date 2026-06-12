@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -30,11 +31,13 @@ class SalesAnalyticsQueryDto {
 
 class ListSalesOrdersQueryDto {
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number;
@@ -66,8 +69,13 @@ class CreateAdminSaleItemDto {
 }
 
 class CreateAdminSaleDto {
+  @IsOptional()
   @IsString()
-  userId: string;
+  customerName?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 
   @IsArray()
   @ArrayMinSize(1)
@@ -149,7 +157,12 @@ export class SalesAdminController {
     @Body() payload: CreateAdminSaleDto,
     @CurrentUser() currentUser: { id: string; role: UserRole },
   ) {
-    const data = await this.salesAdminService.createSale(payload);
+    const hasCustomerName = Boolean(String(payload.customerName || '').trim());
+    const hasUserId = Boolean(String(payload.userId || '').trim());
+    if (!hasCustomerName && !hasUserId) {
+      throw new BadRequestException('Informe customerName ou userId.');
+    }
+    const data = await this.salesAdminService.createSale(payload, currentUser.id);
     await this.logsService.info('sales', 'AdminSaleCreated', {
       adminId: currentUser.id,
       orderId: data.id,
@@ -173,8 +186,11 @@ export class SalesAdminController {
 
   @Post('sales/:id/cancel')
   @ApiOperation({ summary: 'Cancelar venda (admin)' })
-  async cancel(@Param('id', ParseUUIDPipe) id: string) {
-    const data = await this.salesAdminService.cancelSale(id);
+  async cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: { id: string; role: UserRole },
+  ) {
+    const data = await this.salesAdminService.cancelSale(id, currentUser.id);
     return { message: 'Venda cancelada com sucesso', data };
   }
 }

@@ -32,7 +32,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import logo from "@/assets/logo.jpg";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import {
   Sheet,
@@ -46,9 +46,9 @@ import { toast } from "sonner";
 
 interface HeaderProps {
   transparent?: boolean;
-  // Escopo de busca: 'events' | 'rental' | 'purchase' | 'home'.
+  // Escopo de busca: 'events' | 'rental' | 'purchase' | 'hosting' | 'home'.
   // Se não fornecido, será inferido pela rota atual.
-  searchScope?: "events" | "rental" | "purchase" | "home";
+  searchScope?: "events" | "rental" | "purchase" | "hosting" | "home";
 }
 
 const Header = ({ transparent = false, searchScope }: HeaderProps) => {
@@ -159,16 +159,17 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
   // ===== Busca em tempo real =====
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Array<{ id: string | number; name: string; image?: string; type: "event" | "rental" | "product" }>>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string | number; name: string; image?: string; type: "event" | "rental" | "product" | "room" }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  const inferredScope: "events" | "home" | "rental" | "purchase" = (() => {
+  const inferredScope: "events" | "home" | "rental" | "purchase" | "hosting" = (() => {
     if (searchScope) return searchScope;
     const path = location.pathname || "";
     if (path === "/" || path === "") return "home";
     if (path.startsWith("/events")) return "events";
     if (path.startsWith("/store")) return "rental"; 
+    if (path.startsWith("/hospedagem")) return "hosting";
     return "home";
   })();
 
@@ -181,6 +182,8 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
       navigate(`/store?tab=rental&q=${encodeURIComponent(q)}`);
     } else if (inferredScope === "purchase") {
       navigate(`/store?tab=purchase&q=${encodeURIComponent(q)}`);
+    } else if (inferredScope === "hosting") {
+      navigate(`/hospedagem/rooms?q=${encodeURIComponent(q)}`);
     } else {
       // home: por padrão enviar para eventos
       navigate(`/events?q=${encodeURIComponent(q)}`);
@@ -188,14 +191,26 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     setShowSuggestions(false);
   };
 
+  const normalizeText = (value: string) => {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  };
+
   const fetchEventSuggestions = async (q: string) => {
     try {
-      const { data } = await api.get("/eventos/filtrar", { params: { title: q } });
-      const arr = Array.isArray(data) ? data : [];
+      const { data } = await api.get("/events", {
+        params: { name: q, page: 1, limit: 8, status: "ALL" },
+      });
+      const arr = Array.isArray(data?.items) ? data.items : [];
       return arr.slice(0, 8).map((e: any) => ({
-        id: Number(e.id),
+        id: String(e.id),
         name: String(e.title ?? "Evento"),
-        image: e.image ?? "https://placehold.co/64x64?text=E",
+        image:
+          (Array.isArray(e.images) ? e.images?.[0] : undefined) ||
+          (typeof e.imageUrl === "string" ? e.imageUrl : undefined) ||
+          "https://placehold.co/64x64?text=E",
         type: "event" as const,
       }));
     } catch {
@@ -235,6 +250,119 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     }
   };
 
+  const roomsCacheRef = useRef<{ data: any[]; fetchedAt: number } | null>(null);
+  const roomImageCacheRef = useRef<Map<string, string>>(new Map());
+
+  const fetchRoomSuggestions = async (q: string) => {
+    const needle = normalizeText(q);
+    const now = Date.now();
+    try {
+      const cached = roomsCacheRef.current;
+      const shouldRefetch = !cached || now - cached.fetchedAt > 1000 * 60 * 5;
+      const list = shouldRefetch
+        ? (await api.get("/api/chales")).data
+        : cached.data;
+      const arr = Array.isArray(list) ? list : [];
+      if (shouldRefetch) {
+        roomsCacheRef.current = { data: arr, fetchedAt: now };
+      }
+
+      const matches = arr.filter((item: any) => {
+        const haystack = [
+          item?.name,
+          item?.description,
+          item?.unitType,
+          item?.type,
+          ...(Array.isArray(item?.amenities) ? item.amenities : []),
+          ...(Array.isArray(item?.extras) ? item.extras : []),
+          ...(Array.isArray(item?.characteristics) ? item.characteristics : []),
+        ]
+          .filter(Boolean)
+          .map((v: any) => normalizeText(String(v)));
+        return haystack.some((v: string) => v.includes(needle));
+      });
+
+      const top = matches.slice(0, 8);
+
+      const resolved = await Promise.all(
+        top.map(async (item: any) => {
+          const id = String(item?.id ?? "");
+          const images = Array.isArray(item?.images) ? item.images : [];
+          const first = images?.[0];
+          const listImage =
+            typeof first === "string"
+              ? first
+              : typeof first?.imageUrl === "string"
+                ? first.imageUrl
+                : undefined;
+
+          if (listImage) {
+            return {
+              id,
+              name: String(item?.name ?? "Quarto"),
+              image: listImage,
+              type: "room" as const,
+            };
+          }
+
+          const cachedImage = id ? roomImageCacheRef.current.get(id) : undefined;
+          if (cachedImage) {
+            return {
+              id,
+              name: String(item?.name ?? "Quarto"),
+              image: cachedImage,
+              type: "room" as const,
+            };
+          }
+
+          const imagesCount = Number(item?.imagesCount ?? 0);
+          if (!id || imagesCount <= 0) {
+            return {
+              id: id || item?.id,
+              name: String(item?.name ?? "Quarto"),
+              image: "https://placehold.co/64x64?text=H",
+              type: "room" as const,
+            };
+          }
+
+          try {
+            const { data: detail } = await api.get(`/api/chales/${id}`);
+            const detailImages = Array.isArray(detail?.images) ? detail.images : [];
+            const firstDetail = detailImages?.[0];
+            const imageUrl =
+              typeof firstDetail === "string"
+                ? firstDetail
+                : typeof firstDetail?.imageUrl === "string"
+                  ? firstDetail.imageUrl
+                  : undefined;
+
+            if (imageUrl) {
+              roomImageCacheRef.current.set(id, imageUrl);
+            }
+
+            return {
+              id,
+              name: String(item?.name ?? "Quarto"),
+              image: imageUrl || "https://placehold.co/64x64?text=H",
+              type: "room" as const,
+            };
+          } catch {
+            return {
+              id,
+              name: String(item?.name ?? "Quarto"),
+              image: "https://placehold.co/64x64?text=H",
+              type: "room" as const,
+            };
+          }
+        }),
+      );
+
+      return resolved;
+    } catch {
+      return [];
+    }
+  };
+
   useEffect(() => {
     let timeout: number | undefined;
     const run = async () => {
@@ -251,26 +379,55 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
         const ev = await fetchEventSuggestions(q);
         setSuggestions(ev);
       } else if (inferredScope === "rental") {
-        const rn = await fetchRentalSuggestions(q);
-        setSuggestions(rn);
+        const [rn, ev] = await Promise.all([fetchRentalSuggestions(q), fetchEventSuggestions(q)]);
+        const combined: typeof suggestions = [];
+        const max = 12;
+        let i = 0;
+        while (combined.length < max && (rn[i] || ev[i])) {
+          if (rn[i]) combined.push(rn[i]);
+          if (ev[i]) combined.push(ev[i]);
+          i++;
+        }
+        setSuggestions(combined);
       } else if (inferredScope === "purchase") {
-        const pr = await fetchProductSuggestions(q);
-        setSuggestions(pr);
+        const [pr, ev] = await Promise.all([fetchProductSuggestions(q), fetchEventSuggestions(q)]);
+        const combined: typeof suggestions = [];
+        const max = 12;
+        let i = 0;
+        while (combined.length < max && (pr[i] || ev[i])) {
+          if (pr[i]) combined.push(pr[i]);
+          if (ev[i]) combined.push(ev[i]);
+          i++;
+        }
+        setSuggestions(combined);
+      } else if (inferredScope === "hosting") {
+        const [rm, ev] = await Promise.all([fetchRoomSuggestions(q), fetchEventSuggestions(q)]);
+        const combined: typeof suggestions = [];
+        const max = 12;
+        let i = 0;
+        while (combined.length < max && (rm[i] || ev[i])) {
+          if (rm[i]) combined.push(rm[i]);
+          if (ev[i]) combined.push(ev[i]);
+          i++;
+        }
+        setSuggestions(combined);
       } else {
         // home: agregar
-        const [ev, rn, pr] = await Promise.all([
+        const [ev, rn, pr, rm] = await Promise.all([
           fetchEventSuggestions(q),
           fetchRentalSuggestions(q),
           fetchProductSuggestions(q),
+          fetchRoomSuggestions(q),
         ]);
         // limitar total a 12, intercalando
         const combined: typeof suggestions = [];
         const max = 12;
         let i = 0;
-        while (combined.length < max && (ev[i] || rn[i] || pr[i])) {
+        while (combined.length < max && (ev[i] || rn[i] || pr[i] || rm[i])) {
           if (ev[i]) combined.push(ev[i]);
           if (rn[i]) combined.push(rn[i]);
           if (pr[i]) combined.push(pr[i]);
+          if (rm[i]) combined.push(rm[i]);
           i++;
         }
         setSuggestions(combined);
@@ -306,12 +463,14 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, inferredScope, location.search]);
 
-  const handleSuggestionClick = (s: { id: string | number; type: "event" | "rental" | "product" }) => {
+  const handleSuggestionClick = (s: { id: string | number; type: "event" | "rental" | "product" | "room" }) => {
     // Navega com parâmetros para abrir modal correspondente
     if (s.type === "event") {
       navigate(`/events?eventId=${s.id}`);
     } else if (s.type === "rental") {
       navigate(`/store?tab=rental&rentalId=${s.id}`);
+    } else if (s.type === "room") {
+      navigate(`/hospedagem/rooms/${s.id}`);
     } else {
       navigate(`/store?tab=purchase&productId=${s.id}`);
     }
@@ -426,7 +585,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                     <img src={s.image} alt={s.name} className="h-8 w-8 rounded-full object-cover ring-1 ring-border" />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">{s.name}</p>
-                      <p className="text-xs text-muted-foreground">{s.type === "event" ? "Evento" : s.type === "rental" ? "Aluguel" : "Produto"}</p>
+                      <p className="text-xs text-muted-foreground">{s.type === "event" ? "Evento" : s.type === "rental" ? "Aluguel" : s.type === "product" ? "Produto" : "Hospedagem"}</p>
                     </div>
                   </button>
                 ))}
@@ -531,11 +690,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
         <Button
           variant="outline"
           size="icon"
-          className={`min-[769px]:hidden ml-2 bg-transparent ${
-            transparent
-              ? "border-white/30 text-white hover:bg-black/20"
-              : "border-border text-foreground hover:bg-accent"
-          }`}
+          className="min-[769px]:hidden ml-2 bg-navbar-foreground/10 border-navbar-foreground/30 text-navbar-foreground active:bg-navbar-foreground/20"
           onClick={() => setMobileMenuOpen(true)}
         >
           <Menu className="h-4 w-4" />
@@ -544,7 +699,11 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
       {/* Mobile Navigation Sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-[85vw] sm:max-w-xs flex flex-col h-full">
+        <SheetContent
+          side="left"
+          className="w-[85vw] sm:max-w-xs flex flex-col h-full"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader className="text-left">
             <SheetTitle>Menu</SheetTitle>
             <SheetDescription>Navegue pelo DuZé Pesqueiro</SheetDescription>
@@ -575,7 +734,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
               <RouterLink
                 to="/events"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-lg font-medium active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
               >
                 <Calendar className="h-5 w-5" />
                 Eventos
@@ -583,7 +742,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
               <RouterLink
                 to="/store"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-lg font-medium active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
               >
                 <Package className="h-5 w-5" />
                 Loja
@@ -591,7 +750,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
               <RouterLink
                 to="/hospedagem/home"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-lg font-medium active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
               >
                 <MapPin className="h-5 w-5" />
                 Hospedagem
@@ -600,14 +759,14 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
                 <RouterLink
                   to="/hospedagem/rooms"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent rounded-md transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
                 >
                   Quartos
                 </RouterLink>
                 <RouterLink
                   to="/hospedagem/my-reservations"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent rounded-md transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 text-base font-medium text-muted-foreground active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
                 >
                   Minhas reservas
                 </RouterLink>
@@ -615,7 +774,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
               <RouterLink
                 to="/about"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-lg font-medium hover:bg-accent rounded-md transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-lg font-medium active:bg-accent focus-visible:bg-accent rounded-md transition-colors"
               >
                 <HelpCircle className="h-5 w-5" />
                 Sobre

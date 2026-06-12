@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import Header from '../../components/ui/Header';
 import AlertNotificationCenter from '../../components/ui/AlertNotificationCenter';
 import Button from '../../components/ui/Button';
@@ -69,18 +70,19 @@ const MarketingDashboard = () => {
 
   const send = async () => {
     if (!subject.trim()) {
-      alert('Informe o assunto.');
+      toast.error('Informe o assunto.');
       return;
     }
     if (!html.trim()) {
-      alert('Informe o conteúdo.');
+      toast.error('Informe o conteúdo.');
       return;
     }
     if (mode === 'selected' && selectedIds.size === 0) {
-      alert('Selecione ao menos 1 usuário.');
+      toast.error('Selecione ao menos 1 usuário.');
       return;
     }
     setSending(true);
+    const loadingToastId = toast.loading('Enviando emails...');
     try {
       const payload = {
         subject: subject.trim(),
@@ -90,13 +92,19 @@ const MarketingDashboard = () => {
       };
       const res = await sendMarketingCampaign(payload);
       const data = res?.data?.data;
-      alert(`Envio finalizado. Solicitados: ${data?.requested ?? 0} • Enviados: ${data?.sent ?? 0} • Falhas: ${data?.failed ?? 0}`);
+      toast.dismiss(loadingToastId);
+      toast.success('Campanha enviada com sucesso.', {
+        description: `Solicitados: ${data?.requested ?? 0} • Enviados: ${data?.sent ?? 0} • Falhas: ${data?.failed ?? 0}`,
+      });
       if (mode === 'selected') {
         setSelectedIds(new Set());
       }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.response?.data || err?.message;
-      alert(`Falha ao enviar campanha: ${msg}`);
+      toast.dismiss(loadingToastId);
+      toast.error('Falha ao enviar campanha.', {
+        description: msg ? String(msg) : undefined,
+      });
     } finally {
       setSending(false);
     }
