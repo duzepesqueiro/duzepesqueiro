@@ -16,6 +16,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();
+    const requestId = (request as any).requestId as string | undefined;
+    const isProduction = process.env.NODE_ENV === 'production';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Erro interno do servidor';
@@ -39,19 +41,32 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error = 'Database Error';
     }
 
+    if (isProduction) {
+      details = null;
+      if (status >= 500) {
+        message = 'Erro interno do servidor';
+        error = 'Internal Server Error';
+      }
+    }
+
     this.logger.error(
       `${request.method} ${request.url} - ${status} - ${Array.isArray(message) ? message.join(', ') : message}`,
       exception instanceof Error ? exception.stack : undefined,
     );
 
-    response.status(status).json({
+    const responseBody: Record<string, unknown> = {
       statusCode: status,
       error,
       message,
-      details,
       timestamp: new Date().toISOString(),
       path: request.url,
-    });
+      requestId,
+    };
+    if (!isProduction && details) {
+      responseBody.details = details;
+    }
+
+    response.status(status).json(responseBody);
   }
 
   private handlePrismaError(error: Prisma.PrismaClientKnownRequestError): string {

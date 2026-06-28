@@ -13,9 +13,10 @@ const baseURL = configuredBaseURL || (isUnifiedProxyAccess ? window.location.ori
 
 const api = axios.create({
   baseURL,
+  withCredentials: true,
 });
 
-const refreshClient = axios.create({ baseURL });
+const refreshClient = axios.create({ baseURL, withCredentials: true });
 let isRefreshing = false;
 let pendingRefreshResolvers = [];
 
@@ -64,12 +65,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const refreshToken = localStorage.getItem('auth_refresh_token');
-    if (!refreshToken) {
-      clearSessionAndRedirect();
-      return Promise.reject(error);
-    }
-
     originalRequest._retry = true;
 
     if (isRefreshing) {
@@ -85,17 +80,15 @@ api.interceptors.response.use(
 
     isRefreshing = true;
     try {
-      const refreshResponse = await refreshClient.post('/auth/refresh', { refreshToken });
+      const refreshResponse = await refreshClient.post('/auth/refresh', {});
       const newAccessToken = refreshResponse?.data?.accessToken;
-      const newRefreshToken = refreshResponse?.data?.refreshToken;
       const newRole = refreshResponse?.data?.user?.role;
       const newEmail = refreshResponse?.data?.user?.email;
-      if (!newAccessToken || !newRefreshToken) {
+      if (!newAccessToken) {
         throw new Error('Invalid refresh response');
       }
       localStorage.setItem('auth_token', newAccessToken);
       localStorage.setItem('auth_access_token', newAccessToken);
-      localStorage.setItem('auth_refresh_token', newRefreshToken);
       if (newRole) {
         localStorage.setItem('auth_role', String(newRole).trim().toUpperCase());
       }

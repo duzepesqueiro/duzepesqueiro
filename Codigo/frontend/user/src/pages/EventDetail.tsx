@@ -143,8 +143,8 @@ const EventDetail = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header searchScope="events" />
-        <div className="pt-28 pb-20 px-4 md:px-8">
-          <div className="max-w-6xl mx-auto py-16">
+        <div className="pt-28 pb-20">
+          <div className="duze-container max-w-6xl py-16">
             <LoadingSpinner />
           </div>
         </div>
@@ -156,8 +156,8 @@ const EventDetail = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header searchScope="events" />
-        <div className="pt-28 pb-20 px-4 md:px-8">
-          <div className="max-w-6xl mx-auto">
+        <div className="pt-28 pb-20">
+          <div className="duze-container max-w-6xl">
             <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/events")}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Voltar
@@ -175,8 +175,8 @@ const EventDetail = () => {
     <div className="min-h-screen bg-background">
       <Header searchScope="events" />
 
-      <div className="pt-28 pb-20 px-4 md:px-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="pt-28 pb-20">
+        <div className="duze-container max-w-6xl">
           <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/events")}>
             <ChevronLeft className="h-4 w-4 mr-2" />
             Voltar

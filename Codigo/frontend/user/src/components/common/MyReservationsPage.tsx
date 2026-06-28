@@ -334,8 +334,8 @@ const MyReservationsPage = () => {
     <div className="min-h-screen bg-[#fcf9f2]"> 
       {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
-      <main className={`pt-28 pb-16 px-4 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="container mx-auto max-w-5xl">
+      <main className={`pt-28 pb-16 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="duze-container max-w-5xl">
           <header className="mb-10">
             <motion.h1
               initial={{ opacity: 0, y: -10 }}

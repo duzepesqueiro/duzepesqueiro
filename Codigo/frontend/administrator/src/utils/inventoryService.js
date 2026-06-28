@@ -3,7 +3,7 @@ import api from "./api";
 export const getInventoryItems = async (filters) => {
   const search = typeof filters?.search === "string" ? filters.search.trim() : "";
   const params = search ? { search } : undefined;
-  const response = await api.get('/api/admin/inventory/items', { params });
+  const response = await api.get('/admin/inventory/items', { params });
   return response.data;
 };
 

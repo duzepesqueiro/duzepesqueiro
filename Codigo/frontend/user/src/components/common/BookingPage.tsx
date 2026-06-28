@@ -477,14 +477,16 @@ const BookingPage = () => {
       <div className="relative min-h-screen bg-background">
         {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
         <div className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="pt-24 pb-16 px-4 text-center">
-            <p className="text-muted-foreground mt-16">Selecione um quarto primeiro.</p>
-            <button
-              onClick={() => navigate('/hospedagem/rooms')}
-              className="btn-gold mt-4 inline-block"
-            >
-              Ver quartos
-            </button>
+          <div className="pt-24 pb-16">
+            <div className="duze-container text-center">
+              <p className="text-muted-foreground mt-16">Selecione um quarto primeiro.</p>
+              <button
+                onClick={() => navigate('/hospedagem/rooms')}
+                className="btn-gold mt-4 inline-block"
+              >
+                Ver quartos
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -868,8 +870,8 @@ const BookingPage = () => {
       {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
       <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-3xl">
+        <div className="pt-24 pb-16">
+        <div className="duze-container max-w-3xl">
           {/* Stepper */}
           <div className="flex items-center justify-center mb-10 gap-2">
             {steps.map((s, i) => (
@@ -1427,7 +1429,7 @@ const BookingPage = () => {
                     Proximo <ChevronRight className="h-4 w-4" />
                   </motion.button>
                 ) : (
-                  <div className="w-full max-w-[320px]">
+                  <div className="w-full sm:max-w-[420px] md:max-w-[520px]">
                     {mercadoPagoPublicKey ? (
                       <Wallet
                         id="booking-wallet-brick"
@@ -1458,7 +1460,7 @@ const BookingPage = () => {
       ) : null}
       {step === 0 ? (
         <div className="fixed bottom-6 right-6 z-[80] flex items-end gap-3">
-          <div className="max-w-[250px] rounded-2xl border border-[#25D366]/30 bg-white px-4 py-3 text-sm text-foreground shadow-lg">
+          <div className="max-w-[90vw] sm:max-w-[250px] rounded-2xl border border-[#25D366]/30 bg-white px-4 py-3 text-sm text-foreground shadow-lg">
             Precisa de mais espaço? Podemos combinar o número de hospedes!
           </div>
           <button

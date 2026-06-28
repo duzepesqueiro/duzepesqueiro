@@ -145,7 +145,7 @@ export const RentalProductDetail = ({
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto py-16">
+      <div className="duze-container py-16">
         <LoadingSpinner />
       </div>
     );
@@ -153,7 +153,7 @@ export const RentalProductDetail = ({
 
   if (!id || !item) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="duze-container py-10">
         <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/store?tab=rental")}>
           <ChevronLeft className="h-4 w-4 mr-2" />
           Voltar
@@ -166,7 +166,7 @@ export const RentalProductDetail = ({
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="duze-container space-y-8 py-8">
       <Button variant="ghost" className="mb-2 h-11" onClick={() => navigate("/store?tab=rental")}>
         <ChevronLeft className="h-4 w-4 mr-2" />
         Voltar

@@ -168,9 +168,9 @@ const Index = () => {
           </div>
         </section>
 
-        <section id="destaques" className="relative overflow-hidden py-24 px-4">
+        <section id="destaques" className="relative overflow-hidden py-24">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-muted to-muted/40" aria-hidden="true" />
-          <div className="relative container mx-auto max-w-6xl space-y-12">
+          <div className="relative duze-container max-w-6xl space-y-12">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -215,9 +215,9 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="relative overflow-hidden bg-muted/30 py-24 px-4">
+        <section className="relative overflow-hidden bg-muted/30 py-24">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-card/40 to-muted/30" aria-hidden="true" />
-          <div className="relative container mx-auto max-w-6xl space-y-12">
+          <div className="relative duze-container max-w-6xl space-y-12">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -279,9 +279,9 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="relative overflow-hidden px-4 pb-14 pt-24">
+        <section className="relative overflow-hidden pb-14 pt-24">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-muted/30 to-muted/60" aria-hidden="true" />
-          <div className="relative container mx-auto max-w-6xl space-y-12">
+          <div className="relative duze-container max-w-6xl space-y-12">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}

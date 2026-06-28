@@ -84,7 +84,7 @@ export const SaleProductDetail = ({
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto py-16">
+      <div className="duze-container py-16">
         <LoadingSpinner />
       </div>
     );
@@ -92,7 +92,7 @@ export const SaleProductDetail = ({
 
   if (!id || !product) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="duze-container py-10">
         <Button variant="ghost" className="mb-6 h-11" onClick={() => navigate("/store?tab=purchase")}>
           <ChevronLeft className="h-4 w-4 mr-2" />
           Voltar
@@ -105,7 +105,7 @@ export const SaleProductDetail = ({
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="duze-container space-y-8 py-8">
       <Button variant="ghost" className="mb-2 h-11" onClick={() => navigate("/store?tab=purchase")}>
         <ChevronLeft className="h-4 w-4 mr-2" />
         Voltar

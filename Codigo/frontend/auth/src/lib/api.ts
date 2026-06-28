@@ -40,7 +40,6 @@ export type ResetPasswordRequest = {
 
 export type SessionData = {
   accessToken: string;
-  refreshToken: string;
   role: BackendRole;
   email: string;
 };
@@ -54,7 +53,7 @@ export type LoginResponse = {
     role: BackendRole;
   };
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
 };
 
 export type RegisterResponse = {
@@ -95,6 +94,7 @@ async function requestJson<T>(
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    credentials: init?.credentials ?? "include",
     ...init,
   });
   return resp;
@@ -154,14 +154,13 @@ export async function resetPasswordRequest(payload: ResetPasswordRequest): Promi
   return postJson("/auth/reset-password", payload);
 }
 
-export async function refreshTokenRequest(refreshToken: string): Promise<Response> {
-  return postJson("/auth/refresh", { refreshToken });
+export async function refreshTokenRequest(refreshToken?: string): Promise<Response> {
+  return postJson("/auth/refresh", refreshToken ? { refreshToken } : {});
 }
 
 export function setSession(session: SessionData): void {
   localStorage.setItem("auth_token", session.accessToken);
   localStorage.setItem("auth_access_token", session.accessToken);
-  localStorage.setItem("auth_refresh_token", session.refreshToken);
   localStorage.setItem("auth_role", session.role);
   localStorage.setItem("auth_email", session.email);
 }
@@ -176,8 +175,7 @@ export function clearSession(): void {
 
 export async function ensureValidSession(): Promise<boolean> {
   const accessToken = localStorage.getItem("auth_token");
-  const refreshToken = localStorage.getItem("auth_refresh_token");
-  if (!accessToken || !refreshToken) {
+  if (!accessToken) {
     return false;
   }
 
@@ -192,19 +190,18 @@ export async function ensureValidSession(): Promise<boolean> {
     return false;
   }
 
-  const refreshResp = await refreshTokenRequest(refreshToken);
+  const refreshResp = await refreshTokenRequest();
   if (!refreshResp.ok) {
     clearSession();
     return false;
   }
   const refreshed = await parseJson<LoginResponse>(refreshResp);
-  if (!refreshed?.accessToken || !refreshed?.refreshToken || !refreshed?.user?.role) {
+  if (!refreshed?.accessToken || !refreshed?.user?.role) {
     clearSession();
     return false;
   }
   setSession({
     accessToken: refreshed.accessToken,
-    refreshToken: refreshed.refreshToken,
     role: refreshed.user.role,
     email: refreshed.user.email || localStorage.getItem("auth_email") || "",
   });

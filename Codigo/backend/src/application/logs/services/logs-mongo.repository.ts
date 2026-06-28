@@ -53,8 +53,8 @@ export class LogsMongoRepository implements OnModuleInit, OnModuleDestroy {
     const collection = this.getCollection(entry.context);
     await collection.insertOne({
       ...entry,
-      payload: this.sanitize(entry.payload),
-      meta: this.sanitize(entry.meta),
+      payload: this.sanitizeAndRedact(entry.payload),
+      meta: this.sanitizeAndRedact(entry.meta),
     });
   }
 
@@ -119,11 +119,53 @@ export class LogsMongoRepository implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private sanitize(value: unknown): unknown {
+  private sanitizeAndRedact(value: unknown): unknown {
     if (value === undefined) {
       return undefined;
     }
-    return JSON.parse(JSON.stringify(value));
+    const sanitized = JSON.parse(JSON.stringify(value));
+    return this.redactSensitive(sanitized);
+  }
+
+  private redactSensitive(value: unknown): unknown {
+    const sensitiveKeys = new Set([
+      'password',
+      'senha',
+      'token',
+      'accessToken',
+      'refreshToken',
+      'authorization',
+      'cookie',
+      'set-cookie',
+      'jwt',
+      'jwt_secret',
+      'jwtsecret',
+      'mail_password',
+      'mercadopago_access_token',
+      'mercadopago_webhook_secret',
+      'document',
+      'cpf',
+      'cnpj',
+    ]);
+
+    const visit = (current: any): any => {
+      if (current === null || current === undefined) return current;
+      if (Array.isArray(current)) return current.map(visit);
+      if (typeof current !== 'object') return current;
+
+      const out: Record<string, unknown> = {};
+      for (const [rawKey, rawValue] of Object.entries(current)) {
+        const key = rawKey.toLowerCase();
+        if (sensitiveKeys.has(key)) {
+          out[rawKey] = '[redacted]';
+          continue;
+        }
+        out[rawKey] = visit(rawValue);
+      }
+      return out;
+    };
+
+    return visit(value as any);
   }
 
   private sanitizeErrorMessage(message?: string | null): string | null {

@@ -190,7 +190,7 @@ const Select = React.forwardRef(({
                                         placeholder="Pesquisar opções..."
                                         value={searchTerm}
                                         onChange={handleSearchChange}
-                                        className="pl-8 bg-white text-black placeholder:text-gray-500"
+                                        className="pl-8"
                                     />
                                 </div>
                             </div>

@@ -21,7 +21,7 @@ const About = () => {
             className="w-full h-full object-cover brightness-[0.65] scale-105 animate-slow-zoom"
           />
         </div>
-        <div className="relative z-10 container px-4 text-center text-white">
+        <div className="relative z-10 duze-container text-center text-white">
           <span className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-sm font-medium tracking-wider mb-6 animate-fade-in-up">
             DESDE 2010
           </span>
@@ -47,8 +47,9 @@ const About = () => {
       </section>
 
       {/* A Jornada (Storytelling) */}
-      <section className="py-24 md:py-32 container mx-auto px-4">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
+      <section className="py-24 md:py-32">
+        <div className="duze-container">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
           <div className="order-2 md:order-1 relative">
             <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] md:aspect-square">
               <img 
@@ -85,12 +86,13 @@ const About = () => {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Imagem Parallax / Visual Break */}
       <section className="relative py-32 md:py-48 bg-fixed bg-center bg-cover bg-no-repeat" style={{ backgroundImage: `url(${fishingPark3})` }}>
         <div className="absolute inset-0 bg-black/60"></div>
-        <div className="relative z-10 container mx-auto px-4 text-center">
+        <div className="relative z-10 duze-container text-center">
           <h3 className="text-3xl md:text-5xl font-bold text-white mb-6 max-w-4xl mx-auto leading-tight">
             "A pesca é a arte de esperar com propósito. Aqui, cada espera é recompensada pela beleza ao redor."
           </h3>
@@ -106,7 +108,7 @@ const About = () => {
 
       {/* Valores e Pilares (Minimalista) */}
       <section className="py-24 bg-muted/20">
-        <div className="container mx-auto px-4">
+        <div className="duze-container">
           <div className="text-center mb-20">
             <span className="text-primary font-medium tracking-widest uppercase text-sm">Nossa Filosofia</span>
             <h2 className="text-4xl font-bold mt-3 mb-6">O que nos guia</h2>
@@ -151,7 +153,7 @@ const About = () => {
 
       {/* Localização com Design Visual */}
       <section className="py-0 grid md:grid-cols-2 min-h-[600px]">
-        <div className="bg-foreground text-background flex flex-col justify-center p-12 md:p-24">
+        <div className="bg-foreground text-background flex flex-col justify-center p-6 sm:p-10 md:p-24">
            <div className="max-w-md mx-auto md:mx-0">
              <MapPin className="w-12 h-12 text-primary mb-6" />
              <h2 className="text-3xl md:text-4xl font-bold mb-6">Um refúgio perto de você</h2>
@@ -187,24 +189,26 @@ const About = () => {
       </section>
 
       {/* Final CTA Sutis */}
-      <section className="py-32 container mx-auto px-4 text-center">
-        <h2 className="text-4xl md:text-5xl font-bold mb-8">Pronto para sua próxima história?</h2>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
-          Seja para uma tarde tranquila ou um evento emocionante, estamos esperando por você.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Button asChild size="lg" className="rounded-full px-8 h-14 text-lg">
-            <RouterLink to="/store">
-              <Fish className="mr-2 h-5 w-5" />
-              Equipar-se na Loja
-            </RouterLink>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="rounded-full px-8 h-14 text-lg border-2">
-            <RouterLink to="/events">
-              <Users className="mr-2 h-5 w-5" />
-              Ver Agenda de Eventos
-            </RouterLink>
-          </Button>
+      <section className="py-32 text-center">
+        <div className="duze-container">
+          <h2 className="text-4xl md:text-5xl font-bold mb-8">Pronto para sua próxima história?</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
+            Seja para uma tarde tranquila ou um evento emocionante, estamos esperando por você.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button asChild size="lg" className="rounded-full px-8 h-14 text-lg">
+              <RouterLink to="/store">
+                <Fish className="mr-2 h-5 w-5" />
+                Equipar-se na Loja
+              </RouterLink>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="rounded-full px-8 h-14 text-lg border-2">
+              <RouterLink to="/events">
+                <Users className="mr-2 h-5 w-5" />
+                Ver Agenda de Eventos
+              </RouterLink>
+            </Button>
+          </div>
         </div>
       </section>
     </div>

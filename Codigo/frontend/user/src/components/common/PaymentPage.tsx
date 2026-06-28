@@ -233,11 +233,13 @@ const PaymentPage = () => {
       <div className="relative min-h-screen bg-background">
         {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
         <div className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="pt-24 pb-16 px-4 text-center">
-            <p className="text-muted-foreground mt-16">Dados da reserva não encontrados.</p>
-            <button onClick={() => navigate('/hospedagem/booking')} className="btn-gold mt-4 inline-block">
-              Voltar para reserva
-            </button>
+          <div className="pt-24 pb-16">
+            <div className="duze-container text-center">
+              <p className="text-muted-foreground mt-16">Dados da reserva não encontrados.</p>
+              <button onClick={() => navigate('/hospedagem/booking')} className="btn-gold mt-4 inline-block">
+                Voltar para reserva
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -248,8 +250,8 @@ const PaymentPage = () => {
     <div className="relative min-h-screen bg-[#F2F2F2]">
       {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
       <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="pt-24 pb-16 px-4">
-          <div className="container mx-auto max-w-4xl">
+        <div className="pt-24 pb-16">
+          <div className="duze-container max-w-4xl">
             <button
               type="button"
               onClick={() => navigate('/hospedagem/booking')}

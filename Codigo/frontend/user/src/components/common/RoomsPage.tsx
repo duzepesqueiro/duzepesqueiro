@@ -300,8 +300,8 @@ const RoomsPage = () => {
       {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
       <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="px-4 pb-16 pt-24">
-        <div className="container mx-auto max-w-[1400px]">
+        <div className="pb-16 pt-24">
+        <div className="duze-container max-w-[1400px]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

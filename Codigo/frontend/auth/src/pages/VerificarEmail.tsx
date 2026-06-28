@@ -68,7 +68,6 @@ export default function VerificarEmail() {
       const emailToUse = data?.user?.email || email;
       setSession({
         accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
         role,
         email: emailToUse,
       });

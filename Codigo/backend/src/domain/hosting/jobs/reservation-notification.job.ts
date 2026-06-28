@@ -9,6 +9,7 @@ import { LogsService } from '../../../application/logs/services';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { EventTypes } from '../../../shared/events/event-types';
 import { HospedagemNotificationService } from '../services';
+import { runExclusiveJob } from './job-runner';
 
 type BookingEventPayload = {
   reservationId?: string;
@@ -179,9 +180,13 @@ export class ReservationNotificationJob implements OnModuleInit, OnModuleDestroy
     const initialDelay = Math.max(0, nextMidnight.getTime() - now.getTime());
 
     this.midnightTimeout = setTimeout(async () => {
-      await this.processarLembretesPendentes();
-      this.dailyInterval = setInterval(async () => {
+      await runExclusiveJob(this.prisma, 'hosting.reservation-notification.reminders', async () => {
         await this.processarLembretesPendentes();
+      });
+      this.dailyInterval = setInterval(async () => {
+        await runExclusiveJob(this.prisma, 'hosting.reservation-notification.reminders', async () => {
+          await this.processarLembretesPendentes();
+        });
       }, 24 * 60 * 60 * 1000);
     }, initialDelay);
   }

@@ -2,6 +2,7 @@ import { BadRequestException, Controller, Get, Param, Res, UseGuards } from '@ne
 import { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { ExportService } from './export.service';
@@ -12,7 +13,7 @@ type Format = 'csv' | 'excel' | 'json';
 @Controller('api/admin/export')
 @ApiTags('Admin - Export')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.MANAGER)
 export class ExportController {
   constructor(private readonly exportService: ExportService) {}

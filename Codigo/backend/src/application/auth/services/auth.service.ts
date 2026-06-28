@@ -25,6 +25,7 @@ export class AuthService {
   private static readonly PASSWORD_RESET_SESSION_PREFIX = 'PWDSESSION';
   private static readonly PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10;
   private static readonly PASSWORD_RESET_SESSION_EXPIRY_MINUTES = 10;
+  private static readonly EMAIL_CONFIRMATION_EXPIRY_MINUTES = 30;
 
   constructor(
     private prisma: PrismaService,
@@ -157,6 +158,9 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const emailToken = await this.generateConfirmationCode();
+    const emailTokenExpiresAt = new Date(
+      Date.now() + AuthService.EMAIL_CONFIRMATION_EXPIRY_MINUTES * 60 * 1000,
+    );
 
     const user = await this.prisma.user.create({
       data: {
@@ -194,6 +198,12 @@ export class AuthService {
         },
       },
     });
+
+    await this.prisma.$executeRaw`
+      UPDATE "user_emails"
+      SET "token_expires_at" = ${emailTokenExpiresAt}
+      WHERE "email" = ${email} AND "token" = ${emailToken}
+    `;
 
     const primaryEmail =
       user.emails.find((item: { isPrimary: boolean }) => item.isPrimary) ??
@@ -267,8 +277,8 @@ export class AuthService {
 
   private async generateTokens(user: any) {
     const payload = { sub: user.id, email: user.email ?? '', role: user.role };
-    const { accessToken, refreshToken } =
-      await this.tokenService.generateTokens(payload);
+    const { accessToken, refreshToken } = await this.tokenService.generateTokens(payload);
+    const refreshSessionId = await this.persistRefreshToken(user.id, refreshToken);
 
     return {
       user: {
@@ -280,6 +290,7 @@ export class AuthService {
       },
       accessToken,
       refreshToken,
+      refreshSessionId,
     };
   }
 
@@ -303,8 +314,27 @@ export class AuthService {
         throw new UnauthorizedException();
       }
 
-      return this.generateTokens(this.buildIdentity(user));
-    } catch {
+      const existingSession = await this.findRefreshSession(refreshToken);
+      if (existingSession && existingSession.userId !== user.id) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      if (existingSession && (existingSession.revokedAt || existingSession.expiresAt.getTime() < Date.now())) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const issued = await this.generateTokens(this.buildIdentity(user));
+
+      if (existingSession) {
+        await this.revokeRefreshSession(existingSession.id, issued.refreshSessionId);
+      } else {
+        await this.bootstrapAndRevokeUnknownRefreshToken(refreshToken, user.id, issued.refreshSessionId);
+      }
+
+      return issued;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -391,6 +421,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid confirmation token');
     }
 
+    const expiryRow = await this.prisma.$queryRaw<
+      Array<{ token_expires_at: Date | null }>
+    >`SELECT "token_expires_at" FROM "user_emails" WHERE "id" = ${email.id} LIMIT 1`;
+    const tokenExpiresAt = expiryRow[0]?.token_expires_at ?? null;
+    if (!tokenExpiresAt || tokenExpiresAt.getTime() < Date.now()) {
+      void this.logsService.warn('auth', 'EmailConfirmationFailedExpiredToken', {
+        email: email.email,
+        userId: email.userId,
+      });
+      throw new UnauthorizedException('Invalid confirmation token');
+    }
+
     await this.prisma.$transaction([
       this.prisma.userEmail.update({
         where: { id: email.id },
@@ -401,6 +443,12 @@ export class AuthService {
         data: { isActive: true, status: UserStatus.ACTIVE },
       }),
     ]);
+
+    await this.prisma.$executeRaw`
+      UPDATE "user_emails"
+      SET "token_expires_at" = NULL
+      WHERE "id" = ${email.id}
+    `;
 
     const refreshedUser = await this.prisma.user.findUnique({
       where: { id: email.userId },
@@ -505,6 +553,14 @@ export class AuthService {
       where: { id: userEmail.id },
       data: { token: confirmationCode },
     });
+    const emailTokenExpiresAt = new Date(
+      Date.now() + AuthService.EMAIL_CONFIRMATION_EXPIRY_MINUTES * 60 * 1000,
+    );
+    await this.prisma.$executeRaw`
+      UPDATE "user_emails"
+      SET "token_expires_at" = ${emailTokenExpiresAt}
+      WHERE "id" = ${userEmail.id}
+    `;
 
     const primaryEmail =
       userEmail.user.emails.find((item) => item.isPrimary) ?? userEmail.user.emails[0];
@@ -760,6 +816,95 @@ export class AuthService {
 
   private generatePasswordResetCode(): string {
     return randomInt(0, 1_000_000).toString().padStart(6, '0');
+  }
+
+  async logout(userId: string) {
+    await (this.prisma as any).userRefreshToken?.updateMany?.({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { message: 'Logged out successfully' };
+  }
+
+  private async persistRefreshToken(userId: string, refreshToken: string): Promise<string> {
+    const decoded = await this.jwtService.verifyAsync(refreshToken, {
+      secret: this.configService.get('jwt.refreshSecret'),
+    });
+    const exp = typeof decoded?.exp === 'number' ? decoded.exp : null;
+    const expiresAt = exp ? new Date(exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const tokenHash = this.hashToken(refreshToken);
+
+    const created = await (this.prisma as any).userRefreshToken.create({
+      data: {
+        userId,
+        tokenHash,
+        expiresAt,
+      },
+      select: { id: true },
+    });
+
+    return created.id as string;
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async findRefreshSession(refreshToken: string): Promise<{
+    id: string;
+    userId: string;
+    expiresAt: Date;
+    revokedAt: Date | null;
+  } | null> {
+    const tokenHash = this.hashToken(refreshToken);
+    const found = await (this.prisma as any).userRefreshToken?.findUnique?.({
+      where: { tokenHash },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        revokedAt: true,
+      },
+    });
+    return found ?? null;
+  }
+
+  private async revokeRefreshSession(sessionId: string, replacedById?: string): Promise<void> {
+    await (this.prisma as any).userRefreshToken?.update?.({
+      where: { id: sessionId },
+      data: {
+        revokedAt: new Date(),
+        replacedById: replacedById ?? null,
+      },
+    });
+  }
+
+  private async bootstrapAndRevokeUnknownRefreshToken(
+    refreshToken: string,
+    userId: string,
+    replacedById: string,
+  ): Promise<void> {
+    const tokenHash = this.hashToken(refreshToken);
+    const decoded = await this.jwtService.verifyAsync(refreshToken, {
+      secret: this.configService.get('jwt.refreshSecret'),
+    });
+    const exp = typeof decoded?.exp === 'number' ? decoded.exp : null;
+    const expiresAt = exp ? new Date(exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    try {
+      const created = await (this.prisma as any).userRefreshToken.create({
+        data: {
+          userId,
+          tokenHash,
+          expiresAt,
+          revokedAt: new Date(),
+          replacedById,
+        },
+        select: { id: true },
+      });
+      void created;
+    } catch {
+    }
   }
 
   private hashPasswordResetValue(value: string): string {

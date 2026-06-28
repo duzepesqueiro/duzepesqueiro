@@ -5,6 +5,7 @@ import { LogsService } from '../../../application/logs/services';
 import { NotificationsService } from '../../../application/notifications/services/notifications.service';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { HospedagemMetricsService } from '../services';
+import { runExclusiveJob } from './job-runner';
 
 type ComputedKpis = {
   occupancyRate: number;
@@ -208,9 +209,13 @@ export class HospedagemKPICalculationJob implements OnModuleInit, OnModuleDestro
     const initialDelay = Math.max(0, nextMidnight.getTime() - now.getTime());
 
     this.midnightTimeout = setTimeout(async () => {
-      await this.executar(this.getPreviousDay(new Date()));
-      this.dailyInterval = setInterval(async () => {
+      await runExclusiveJob(this.prisma, 'hosting.kpi-calculation', async () => {
         await this.executar(this.getPreviousDay(new Date()));
+      });
+      this.dailyInterval = setInterval(async () => {
+        await runExclusiveJob(this.prisma, 'hosting.kpi-calculation', async () => {
+          await this.executar(this.getPreviousDay(new Date()));
+        });
       }, 24 * 60 * 60 * 1000);
     }, initialDelay);
   }

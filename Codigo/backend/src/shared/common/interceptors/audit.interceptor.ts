@@ -14,20 +14,19 @@ export class AuditInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const { method, url, user, body, ip, headers } = request;
+    const { method, url, user, ip, headers } = request;
+    const requestId = (request as any).requestId as string | undefined;
 
     if (method === 'GET') {
       return next.handle();
     }
 
     return next.handle().pipe(
-      tap(async (response) => {
+      tap(async () => {
         const entityId = this.extractEntityId(url) ?? 'unknown';
-        const author = {
-          userId: user?.id ?? 'anonymous',
-          name: user?.name ?? user?.username ?? 'Anonymous',
-          email: user?.email ?? 'anonymous@local',
-        };
+        const author = { userId: user?.id ?? 'anonymous' };
+        const response = context.switchToHttp().getResponse();
+        const statusCode = response?.statusCode;
         await this.logsService.info(
           'inventory',
           'HttpMutationSuccess',
@@ -36,7 +35,6 @@ export class AuditInterceptor implements NestInterceptor {
             entity: this.extractEntity(url),
             entityId,
             author,
-            changes: { request: body, response },
             description: `${method} ${url}`,
           },
           entityId,
@@ -47,6 +45,8 @@ export class AuditInterceptor implements NestInterceptor {
             ip,
             userAgent: headers['user-agent'],
             userId: author.userId,
+            statusCode,
+            requestId,
           },
         );
       }),
@@ -54,11 +54,7 @@ export class AuditInterceptor implements NestInterceptor {
         from(
           (() => {
             const entityId = this.extractEntityId(url) ?? 'unknown';
-            const author = {
-              userId: user?.id ?? 'anonymous',
-              name: user?.name ?? user?.username ?? 'Anonymous',
-              email: user?.email ?? 'anonymous@local',
-            };
+            const author = { userId: user?.id ?? 'anonymous' };
             return this.logsService.error(
               'inventory',
               'HttpMutationError',
@@ -67,7 +63,6 @@ export class AuditInterceptor implements NestInterceptor {
                 entity: this.extractEntity(url),
                 entityId,
                 author,
-                changes: { request: body, error: error?.message ?? 'Unknown error' },
                 description: `ERROR ${method} ${url} - ${error?.status ?? 500}`,
               },
               entityId,
@@ -79,6 +74,7 @@ export class AuditInterceptor implements NestInterceptor {
                 ip,
                 userAgent: headers['user-agent'],
                 userId: author.userId,
+                requestId,
               },
             );
           })(),

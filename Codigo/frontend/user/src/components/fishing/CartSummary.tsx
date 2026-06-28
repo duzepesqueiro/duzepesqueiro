@@ -10,17 +10,6 @@ import { Info, Minus, Package2, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { CartItem } from "@/pages/FishingGear";
 import { toast } from "sonner";
 import { createSalesOrder } from "@/lib/api";
-import { isAuthenticated, redirectToLogin } from "@/lib/auth";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface CartSummaryProps {
   cartItems: CartItem[];
@@ -30,7 +19,6 @@ interface CartSummaryProps {
 
 export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSummaryProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCheckoutNotice, setShowCheckoutNotice] = useState(false);
 
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -41,10 +29,11 @@ export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSu
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const handleFinalize = async () => {
-    if (!isAuthenticated()) {
-      redirectToLogin("purchase");
-      return;
-    }
+    // Require authentication on action
+    // if (!isAuthenticated()) {
+    //   redirectToLogin("purchase");
+    //   return;
+    // }
 
     setIsSubmitting(true);
     const purchasedSnapshot = cartItems.map((i) => ({ ...i }));
@@ -191,13 +180,7 @@ export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSu
           </Alert>
 
           <Button
-            onClick={() => {
-              if (!isAuthenticated()) {
-                redirectToLogin("purchase");
-                return;
-              }
-              setShowCheckoutNotice(true);
-            }}
+            onClick={handleFinalize}
             disabled={isSubmitting || cartItems.length === 0}
             className="w-full h-11 font-semibold"
             size="lg"
@@ -217,31 +200,6 @@ export const CartSummary = ({ cartItems, onUpdateQuantity, onPurchased }: CartSu
           </Button>
         </>
       )}
-
-      <AlertDialog open={showCheckoutNotice} onOpenChange={setShowCheckoutNotice}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Importante</AlertDialogTitle>
-            <AlertDialogDescription>
-              <span className="block">Os produtos não são enviados automaticamente.</span>
-              <span className="block mt-3">O pedido realizado através do sistema funciona apenas como uma reserva dos itens.</span>
-              <span className="block mt-3">O pagamento e a retirada deverão ser realizados presencialmente no pesqueiro.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Voltar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isSubmitting || cartItems.length === 0}
-              onClick={() => {
-                setShowCheckoutNotice(false);
-                handleFinalize();
-              }}
-            >
-              Confirmar pedido
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

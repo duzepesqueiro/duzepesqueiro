@@ -6,11 +6,22 @@ import tagger from "@dhiwise/component-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const disableSourcemap = mode === "production" || mode === "qa";
 
   return {
     base: env.VITE_BASE_PATH || "/",
     build: {
       chunkSizeWarningLimit: 2000,
+      sourcemap: !disableSourcemap,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              return "vendor";
+            }
+          },
+        },
+      },
     },
     plugins: [tsconfigPaths({ projects: ["./jsconfig.json"] }), react(), tagger()],
     server: {

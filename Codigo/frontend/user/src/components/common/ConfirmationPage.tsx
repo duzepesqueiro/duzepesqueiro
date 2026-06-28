@@ -15,7 +15,9 @@ const ConfirmationPage = () => {
     return (
       <div className="min-h-screen bg-background pt-24 text-center">
         <Header />
-        <p className="text-muted-foreground mt-16">Nenhuma reserva encontrada.</p>
+        <div className="duze-container">
+          <p className="text-muted-foreground mt-16">Nenhuma reserva encontrada.</p>
+        </div>
       </div>
     );
   }
@@ -29,8 +31,8 @@ const ConfirmationPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-lg text-center">
+      <main className="pt-24 pb-16">
+        <div className="duze-container max-w-lg text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}

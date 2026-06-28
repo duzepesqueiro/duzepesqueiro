@@ -44,14 +44,15 @@ const SalesAnalyticsDashboard = () => {
         getCustomerAnalytics(range)
       ]);
 
-      const nextKpis = Array.isArray(kpiRes?.data?.data) ? kpiRes.data.data : [];
-      const nextPerformance = Array.isArray(perfRes?.data?.data) ? perfRes.data.data : [];
-      const nextCustomers = custRes?.data?.data ?? {};
+      const kpisPayload = kpiRes?.data?.data ?? kpiRes?.data ?? [];
+      const perfPayload = perfRes?.data?.data ?? perfRes?.data ?? [];
+      const customersPayload = custRes?.data?.data ?? custRes?.data ?? {};
 
-      setKpiData(nextKpis);
-      setSalesChartData(nextPerformance);
-      setCustomerBehaviorData(nextCustomers.customerData || {});
-      setCustomerSegmentData(nextCustomers.segmentData || []);
+      setKpiData(Array.isArray(kpisPayload) ? kpisPayload : []);
+      setSalesChartData(Array.isArray(perfPayload) ? perfPayload : []);
+
+      setCustomerBehaviorData(customersPayload?.customerData || {});
+      setCustomerSegmentData(customersPayload?.segmentData || []);
     } catch (error) {
       console.error("Erro ao buscar dados de analytics:", error);
     } finally {

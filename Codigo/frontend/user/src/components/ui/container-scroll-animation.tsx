@@ -24,7 +24,7 @@ export function ContainerScrollAnimation({ children, className }: PropsWithChild
     <section className={cn("relative w-full", className)}>
       <div ref={containerRef} className="relative py-40" style={{ perspective: 1000 }}>
         <motion.div style={{ rotateX, scale, translateY }} className="sticky top-0">
-          <div className="mx-auto max-w-5xl px-4">
+          <div className="duze-container max-w-5xl">
             {children}
           </div>
         </motion.div>

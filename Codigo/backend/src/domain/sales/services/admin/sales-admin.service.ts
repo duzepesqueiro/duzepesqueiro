@@ -175,6 +175,7 @@ export class SalesAdminService {
       where: {
         createdAt: { gte: start, lte: end },
         status: SalesOrderStatus.CONFIRMED,
+        userId: { not: null },
       },
       select: { userId: true, totalAmount: true },
     });
@@ -183,44 +184,25 @@ export class SalesAdminService {
       new Set(periodOrders.map((o) => o.userId).filter((id): id is string => Boolean(id))),
     );
 
-    let lifetimeCounts: Array<{ userId: string; _count: { _all: number } }> = [];
-    let firstOrders: Array<{ userId: string; _min: { createdAt: Date | null } }> = [];
+    const [lifetimeCounts, firstOrders] = await Promise.all([
+      activeUserIds.length
+        ? this.prisma.salesOrder.groupBy({
+            by: ['userId'],
+            where: { userId: { in: activeUserIds }, status: SalesOrderStatus.CONFIRMED },
+            _count: { _all: true },
+          })
+        : [],
+      activeUserIds.length
+        ? this.prisma.salesOrder.groupBy({
+            by: ['userId'],
+            where: { userId: { in: activeUserIds }, status: SalesOrderStatus.CONFIRMED },
+            _min: { createdAt: true },
+          })
+        : [],
+    ]);
 
-    if (activeUserIds.length) {
-      const [counts, firsts] = await Promise.all([
-        this.prisma.salesOrder.groupBy({
-          by: ['userId'],
-          where: { userId: { in: activeUserIds }, status: SalesOrderStatus.CONFIRMED },
-          _count: { _all: true },
-        }),
-        this.prisma.salesOrder.groupBy({
-          by: ['userId'],
-          where: { userId: { in: activeUserIds }, status: SalesOrderStatus.CONFIRMED },
-          _min: { createdAt: true },
-        }),
-      ]);
-
-      lifetimeCounts = counts
-        .filter((row): row is typeof row & { userId: string } => Boolean(row.userId))
-        .map((row) => ({
-          userId: row.userId as string,
-          _count: { _all: (row as any)._count?._all ?? 0 },
-        }));
-
-      firstOrders = firsts
-        .filter((row): row is typeof row & { userId: string } => Boolean(row.userId))
-        .map((row) => ({
-          userId: row.userId as string,
-          _min: { createdAt: (row as any)._min?.createdAt ?? null },
-        }));
-    }
-
-    const lifetimeCountMap = new Map<string, number>(
-      lifetimeCounts.map((row) => [row.userId, row._count._all]),
-    );
-    const firstOrderMap = new Map<string, Date | null>(
-      firstOrders.map((row) => [row.userId, row._min.createdAt]),
-    );
+    const lifetimeCountMap = new Map(lifetimeCounts.map((row) => [row.userId, row._count._all]));
+    const firstOrderMap = new Map(firstOrders.map((row) => [row.userId, row._min.createdAt]));
 
     const activeCustomers = activeUserIds.length;
     const returningCustomers = activeUserIds.filter((id) => (lifetimeCountMap.get(id) || 0) >= 2).length;
@@ -235,7 +217,10 @@ export class SalesAdminService {
     const revenueByUser = new Map<string, number>();
     periodOrders.forEach((order) => {
       if (!order.userId) return;
-      revenueByUser.set(order.userId, (revenueByUser.get(order.userId) || 0) + this.currency(order.totalAmount));
+      revenueByUser.set(
+        order.userId,
+        (revenueByUser.get(order.userId) || 0) + this.currency(order.totalAmount),
+      );
     });
 
     const segmentBuckets = new Map<string, { count: number; revenue: number }>();
@@ -351,7 +336,6 @@ export class SalesAdminService {
 
     const mapped = items.map((order) => {
       const buyerName =
-        order.customerName ||
         order.user?.profile?.fullName ||
         order.user?.username ||
         order.user?.emails?.[0]?.email ||
@@ -417,24 +401,8 @@ export class SalesAdminService {
     return order;
   }
 
-  async createSale(
-    payload: { customerName?: string; userId?: string; items: Array<{ productId: string; quantity: number }>; note?: string },
-    actorUserId: string,
-  ) {
-    const customerName = String(payload.customerName || '').trim();
-    const userId = String(payload.userId || '').trim();
-    if (customerName) {
-      return this.salesOrderRepository.createManualSale({
-        actorUserId,
-        customerName,
-        items: payload.items,
-        note: payload.note,
-      });
-    }
-    return this.salesOrderRepository.createSaleForUserAsAdmin(actorUserId, userId, {
-      items: payload.items,
-      note: payload.note,
-    });
+  async createSale(payload: { userId: string; items: Array<{ productId: string; quantity: number }>; note?: string }) {
+    return this.salesOrderRepository.create(payload.userId, { items: payload.items, note: payload.note });
   }
 
   async updateSale(id: string, payload: { note?: string }) {
@@ -473,7 +441,54 @@ export class SalesAdminService {
     if (order.status !== SalesOrderStatus.PENDING || order.paymentStatus !== PaymentStatus.PENDING) {
       throw new ConflictException('Pedido não pode ser cancelado neste estado');
     }
-    await this.salesOrderRepository.cancelAsAdmin(actorUserId, order.id);
+    if (order.userId) {
+      await this.salesOrderRepository.cancelForUser(order.userId, order.id);
+      return this.prisma.salesOrder.findUnique({ where: { id } });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of order.items ?? []) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, deletedAt: true, stockQuantity: true },
+        });
+        if (!product || product.deletedAt) {
+          continue;
+        }
+
+        const previousBalance = Number(product.stockQuantity);
+        const nextBalance = previousBalance + Math.abs(Number(item.quantity));
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQuantity: new Prisma.Decimal(nextBalance) },
+        });
+
+        await tx.inventoryMovement.create({
+          data: {
+            productId: item.productId,
+            movementType: 'INBOUND',
+            movementReason: 'SALE',
+            quantity: new Prisma.Decimal(Math.abs(Number(item.quantity))),
+            previousBalance: new Prisma.Decimal(previousBalance),
+            nextBalance: new Prisma.Decimal(nextBalance),
+            referenceId: order.id,
+            referenceType: 'sales_order',
+            userId: actorUserId,
+            note: 'Cancelamento de venda (admin)',
+          },
+        });
+      }
+
+      await (tx as any).salesOrder.update({
+        where: { id: order.id },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    });
     return this.prisma.salesOrder.findUnique({ where: { id } });
   }
 

@@ -1,151 +1,156 @@
 # Executive Summary
 
-Overall deployment readiness score:
-34/100
-
-Deployment recommendation:
-
-- NOT READY FOR PRODUCTION
+Data do relatório: 2026-06-28
 
 Escopo auditado:
 - `Codigo/backend`
 - `Codigo/frontend/auth`
 - `Codigo/frontend/user`
 - `Codigo/frontend/administrator`
-- Dockerfiles, compose files, variaveis de ambiente, documentacao, observabilidade, testes e readiness operacional
+- Workflows GitHub Actions, Dockerfiles, Compose, variáveis de ambiente, segurança, observabilidade, testes e prontidão operacional
 
-Evidencias executadas:
-- `npm ci` no backend e nos 3 frontends
-- `npm run build` no backend, `auth`, `user` e `administrator`
-- `npm run lint` no backend, `auth` e `user`
-- `npm test -- --runInBand` no backend
-- varredura estrutural de arquivos, configuracoes, envs, documentacao e artefatos de deploy
+Evidências (reexecutadas):
+- Backend:
+  - `npm ci`
+  - `npm run build`
+  - `npm run lint` (falhou)
+  - `npm test -- --runInBand` (falhou)
+  - `npm audit --omit=dev` (26 vulnerabilidades: 1 critical, 17 high, 8 moderate)
+- Frontend `auth`:
+  - `npm ci`
+  - `npm run build` (ok)
+  - `npm run lint` (falhou)
+  - `npm audit --omit=dev` (9 vulnerabilidades: 7 high, 2 moderate)
+- Frontend `user`:
+  - `npm ci`
+  - `npm run build` (ok; chunk principal ~913 kB minificado)
+  - `npm run lint` (falhou)
+  - `npm audit --omit=dev` (12 vulnerabilidades: 9 high, 3 moderate)
+- Frontend `administrator`:
+  - `npm ci`
+  - `npm run build` (ok; `index` ~1.4 MB e `vendor` ~1.6 MB minificados)
+  - `npm audit --omit=dev` (24 vulnerabilidades: 1 critical, 11 high, 10 moderate, 2 low)
 
-Resumo executivo:
-- O sistema compila em partes centrais, mas nao apresenta controles suficientes para ser considerado pronto para producao.
-- Existe falha real de controle de acesso em endpoint administrativo de exportacao.
-- O pipeline de qualidade nao esta operacional: lint falha no backend e nos frontends, e os testes do backend nao executam.
-- Observabilidade, CI/CD, rollback, backup/restore e documentacao obrigatoria estao incompletos ou sem evidencias versionadas.
-- O modelo operacional de jobs em memoria nao suporta escala horizontal nem recuperacao confiavel apos restart.
+Overall deployment readiness score:
+41/100
+
+Deployment recommendation:
+- NOT READY FOR PRODUCTION
+
+Resumo executivo (mudanças desde o último relatório):
+- Correção validada de RBAC do export administrativo: agora `JwtAuthGuard` + `RolesGuard` são aplicados no controller ([export.controller.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/application/export/export.controller.ts#L13-L18)).
+- Observabilidade mínima melhorou: agora existe `X-Request-Id` por request ([request-context.middleware.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/application/security/middlewares/request-context.middleware.ts#L8-L19)), o auditor não persiste body bruto ([audit.interceptor.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/shared/common/interceptors/audit.interceptor.ts#L15-L84)) e a resposta de erro em produção não expõe details ([http-exception.filter.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/shared/common/filters/http-exception.filter.ts#L19-L69)).
+- Normalização de env para MongoDB aplicada como fallback (`MONGODB_URL || MONGO_URI`) ([database.config.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/config/database.config.ts#L12-L19)).
+- Frontend admin deixou de gerar sourcemap em `production/qa` por configuração ([vite.config.mjs](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/administrator/vite.config.mjs#L7-L25)).
+- Workflows de deploy passaram a existir em `.github/workflows` ([deploy-prod.yml](file:///c:/Users/clevi/Desktop/duzepesqueiro/.github/workflows/deploy-prod.yml), [deploy-staging.yml](file:///c:/Users/clevi/Desktop/duzepesqueiro/.github/workflows/deploy-staging.yml)), porém ainda sem gates de qualidade (lint/test/audit/scan antes do deploy).
+
+O que ainda bloqueia produção:
+- Dependências com vulnerabilidade crítica explorável em runtime no backend (ex.: `liquidjs` reportado por `npm audit --omit=dev`).
+- Gate de qualidade ainda quebrado: lint do backend falha por dependência ausente (`typescript-eslint`), e testes do backend não executam por falta de transformação TypeScript/Jest.
+- Frontends continuam persistindo tokens em `localStorage` (risco alto de sequestro de sessão em caso de XSS).
+- CORS do WebSocket permanece permissivo (`origin: '*'`) ([events.gateway.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/domain/events/gateways/events.gateway.ts#L28-L34)).
+- Drift/fragilidade em env: `ConfigModule` aponta para `.env.qa` (não versionado) em não-produção ([app.module.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/app.module.ts#L26-L33)).
 
 ========================
 
 # Critical Findings
 
-1. Broken Access Control em exportacao administrativa
-- O endpoint `api/admin/export` aplica `@Roles(...)`, mas nao usa `RolesGuard`.
-- Impacto: qualquer usuario autenticado com JWT pode acessar exportacao administrativa.
-- Evidencia: `Codigo/backend/src/application/export/export.controller.ts` e `Codigo/backend/src/application/security/security.module.ts`.
+1) Vulnerabilidades críticas em dependências (runtime)
+- O que foi encontrado: `npm audit --omit=dev` do backend reporta vulnerabilidade `critical` em `liquidjs` (inclui advisory de RCE), além de múltiplas `high` (ex.: axios, nodemailer, multer, ws).
+- Impacto: exposição direta a exploração remota (inclui execução de código e DoS), dependendo de superfície atingível (email templates/render, parsing, etc).
+- Evidência: execução local `npm audit --omit=dev` em `Codigo/backend` (relatório do npm); dependências declaradas em [package.json](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/package.json).
+- Prioridade: P0 (bloqueante)
 
-2. Gate de qualidade nao operacional para release
-- `npm run lint` falha no backend por dependencia ausente na configuracao do ESLint.
-- `npm test -- --runInBand` falha no backend porque o Jest nao esta configurado para TypeScript.
-- `npm run lint` falha nos frontends `auth` e `user` com dezenas de erros.
-- Impacto: nao existe garantia minima de qualidade para promover build com seguranca.
+2) Gate de qualidade ainda não operacional (backend e frontends)
+- O que foi encontrado:
+  - Backend: `npm run lint` falha com `Cannot find package 'typescript-eslint'` porque o ESLint config importa `typescript-eslint` ([eslint.config.mjs](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/eslint.config.mjs#L1-L34)) mas a dependência não está no [package.json](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/package.json#L48-L76).
+  - Backend: `npm test` falha por Jest não transformar TypeScript (erros de parser em `.spec.ts`).
+  - Frontends `auth` e `user`: `npm run lint` falha com múltiplos erros (hooks, any, regras).
+- Impacto: ausência de garantia mínima contra regressão; risco elevado de liberar build quebrado ou inseguro.
+- Evidência: comandos reexecutados (ver seção de evidências acima) e estrutura de scripts em [backend/package.json](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/package.json#L6-L13), [auth/package.json](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/auth/package.json#L6-L13), [user/package.json](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/user/package.json#L6-L12).
+- Prioridade: P0 (bloqueante)
 
 ========================
 
 # High Severity Findings
 
-1. Servico de exportacao com mapeamentos inconsistentes com o schema Prisma
-- O codigo usa campos/modelos que nao existem ou nao correspondem ao schema atual (`price`, `stock`, `aluguel`, `order`).
-- Impacto: exportacoes administrativas podem retornar dados incorretos, vazios ou mascarar falhas.
+1) Sessão/token persistido em `localStorage` (3 frontends)
+- O que foi encontrado: múltiplos usos de `localStorage` para autenticação e estado de sessão no `auth`, `user` e `administrator`.
+- Impacto: qualquer XSS (incluindo em dependências de UI, conteúdo de terceiros, ou falhas em sanitização) permite exfiltrar tokens e sequestrar contas.
+- Evidência: ocorrências em [auth/api.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/auth/src/lib/api.ts), [user/api.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/user/src/lib/api.ts), [administrator/api.js](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/administrator/src/utils/api.js).
+- Prioridade: P1
 
-2. Inconsistencia de variaveis para logs MongoDB
-- O codigo espera `MONGODB_URL`, enquanto compose e runbook usam `MONGO_URI`.
-- Impacto: persistencia de logs pode ficar silenciosamente desabilitada em ambientes produtivos.
+2) WebSocket com CORS permissivo (`origin: '*'`)
+- O que foi encontrado: gateway em `/events` permite qualquer origem.
+- Impacto: aumenta superfície de ataque cross-origin e dificulta endurecimento (origens confiáveis por ambiente).
+- Evidência: [events.gateway.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/domain/events/gateways/events.gateway.ts#L28-L34).
+- Prioridade: P1
 
-3. Jobs e agendamentos em memoria
-- Lembretes e processos diarios usam `setTimeout`/`setInterval` no processo da aplicacao.
-- Impacto: perda de execucao em restart, duplicidade em replicas e comportamento nao deterministico em escala horizontal.
+3) Mapeamentos do export ainda inconsistentes com o schema Prisma (integridade/qualidade dos dados)
+- O que foi encontrado: `ExportService` usa campos que não existem no schema (ex.: `Product.price`), enquanto o schema define `salePrice/costPrice/stockQuantity` etc.
+- Impacto: exportações administrativas podem sair erradas, incompletas ou gerar falsa confiança em auditoria/relatórios.
+- Evidência: uso de `p.price` em [export.service.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/application/export/export.service.ts#L291-L300) vs schema `Product.salePrice` em [schema.prisma](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/prisma/schema.prisma#L587-L626).
+- Prioridade: P1
 
-4. Tokens de autenticacao armazenados em `localStorage`
-- `auth`, `user` e `administrator` persistem access/refresh token no browser.
-- Impacto: qualquer XSS bem-sucedido compromete sessao e renovacao de credenciais.
+4) CI/CD existe, mas ainda sem gates de segurança/qualidade antes do deploy
+- O que foi encontrado: workflows de staging e production fazem build/push e deploy no ECS, porém não executam lint/test/audit/scan antes do deploy.
+- Impacto: pipeline pode promover imagens vulneráveis e com regressões para produção.
+- Evidência: [deploy-prod.yml](file:///c:/Users/clevi/Desktop/duzepesqueiro/.github/workflows/deploy-prod.yml#L17-L139), [deploy-staging.yml](file:///c:/Users/clevi/Desktop/duzepesqueiro/.github/workflows/deploy-staging.yml#L17-L128).
+- Prioridade: P1
 
-5. WebSocket com CORS permissivo
-- Gateways expostos com `origin: '*'`, inclusive namespace de notificacoes.
-- Impacto: amplia superficie de ataque cross-origin e dificulta endurecimento de origem confiavel.
-
-6. Dependencias com vulnerabilidades conhecidas
-- Backend: `24` vulnerabilidades (`1 critical`, `4 high`, `19 moderate`) reportadas apos `npm ci`.
-- Frontend `auth`: `15` vulnerabilidades (`9 high`).
-- Frontend `user`: `17` vulnerabilidades (`10 high`).
-- Frontend `administrator`: `22` vulnerabilidades (`1 critical`, `9 high`, `11 moderate`, `1 low`).
-
-7. CI/CD inexistente no repositorio
-- Nao foram encontrados workflows versionados em `.github/workflows`.
-- Impacto: sem validacao automatica, sem deploy rastreavel, sem rollback automatizado e sem scans de seguranca no pipeline.
-
-8. Documentacao tecnica obrigatoria incompleta
-- README raiz, README do backend e READMEs do frontend estao genericos ou placeholders.
-- Impacto: onboarding, operacao, rollback, ambiente e suporte ficam dependentes de conhecimento tacito.
+5) Docker hardening insuficiente (root/no healthcheck)
+- O que foi encontrado:
+  - Backend e frontend runtime não definem usuário não-root.
+  - Não há `HEALTHCHECK` nas imagens.
+- Impacto: aumenta blast radius em caso de exploração e reduz previsibilidade de orquestração/auto-healing.
+- Evidência: [backend/Dockerfile](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/docker/Dockerfile#L17-L42), [frontend/Dockerfile.prod](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/docker/Dockerfile.prod#L61-L70).
+- Prioridade: P1
 
 ========================
 
 # Medium Severity Findings
 
-1. Filtro global de excecoes expõe mensagens internas
-- Para erros nao tratados, a resposta inclui `exception.message` e `details`.
-- Impacto: vazamento de internals, mensagens de integracao e detalhes sensiveis para clientes.
+1) Gestão de variáveis de ambiente com drift e acoplamento a arquivos não versionados
+- O que foi encontrado: em não-produção, `ConfigModule` tenta carregar `.env.qa`, que não existe no repositório.
+- Impacto: comportamento divergente entre ambientes; risco de falhas em runtime por env faltante; reprodutibilidade fraca.
+- Evidência: [app.module.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/app.module.ts#L26-L33) + inexistência de `.env.qa` em `Codigo/backend`.
+- Prioridade: P2
 
-2. Segredos/configuracoes de fallback inseguros ou fracos
-- OAuth Google sobe com credenciais fake por fallback.
-- Reset de senha usa fallback fixo `duze-reset-fallback` se `JWT_SECRET` nao existir.
-- Impacto: comportamento inseguro ou quebrado em ambientes mal configurados.
+2) Ausência de validação central de configuração (schema)
+- O que foi encontrado: não há validação declarativa de envs obrigatórias no bootstrap; a app sobe com defaults/fallbacks.
+- Impacto: falhas aparecem tarde (em runtime), inclusive em integrações de pagamento/email/auth.
+- Evidência: [app.module.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/app.module.ts#L26-L33), [app.config.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/config/app.config.ts#L1-L12), [jwt.config.ts](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/backend/src/config/jwt.config.ts).
+- Prioridade: P2
 
-3. Ausencia de validacao central de configuracao
-- Nao ha schema formal de validacao de envs obrigatorias na inicializacao.
-- Impacto: falhas aparecem tardiamente em runtime, inclusive em integracoes criticas.
+3) Bundles grandes (performance e custo)
+- O que foi encontrado:
+  - `user`: chunk principal ~913 kB minificado, com warning de chunks > 500 kB no build.
+  - `administrator`: chunks `index` ~1.4 MB e `vendor` ~1.6 MB minificados.
+- Impacto: piora de TTI, consumo de banda e UX em mobile; pode elevar custo de CDN.
+- Evidência: execução de `npm run build` e configuração de bundling em [vite.config.mjs](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/administrator/vite.config.mjs#L11-L25).
+- Prioridade: P2
 
-4. Bundle de frontend grande
-- `user` gerou bundle principal de ~`892 kB` minificado.
-- `administrator` gerou bundle principal de ~`2.8 MB` minificado.
-- Impacto: piora de latencia, TTI, consumo de banda e experiencia movel.
-
-5. Build do frontend administrador gera sourcemaps em producao
-- Script de build usa `vite build --sourcemap`.
-- Impacto: ampliacao de exposicao de codigo-fonte e metadados em ambiente produtivo.
-
-6. Controles de container hardening insuficientes
-- Dockerfiles nao definem `USER` nao-root.
-- Nao ha evidencias versionadas de `HEALTHCHECK` em imagem, limites de recursos, filesystem read-only ou policies de runtime.
-
-7. Observabilidade sem correlacao de requisicoes
-- Nao foram encontradas evidencias de `requestId`, `traceId` ou correlacao ponta a ponta.
-- Impacto: troubleshooting e analise forense ficam limitados.
-
-8. Testes de frontend inexistentes
-- Nao foram encontrados arquivos de testes versionados nos frontends.
-- Impacto: regressao funcional no cliente sem cobertura automatizada.
-
-9. Readiness de disaster recovery sem evidencias
-- Nao ha artefatos versionados de backup automatizado, restore testado, RPO/RTO ou failover.
-- Impacto: risco operacional alto em incidente real.
-
-10. Gestao de ambiente com drift
-- Dev usa `.env.qa`, o projeto publica apenas `.env.example`, e existem `.env` locais no workspace.
-- Impacto: reprodutibilidade fraca e risco de diferenca entre ambientes.
+4) Readiness de DR/backup sem evidências versionadas
+- O que foi encontrado: não há artefatos de backup automatizado, restore testado, metas RPO/RTO, ou runbook versionado de restore.
+- Impacto: risco operacional alto em incidente real (perda de dados/tempo de indisponibilidade).
+- Evidência: ausência de IaC/runbooks de DR em `Codigo/` (somente runbook de deploy ECS fora do escopo de DR completo).
+- Prioridade: P2
 
 ========================
 
 # Low Severity Findings
 
-1. Logs registram PII em excesso
-- Servico de e-mail e notificacoes registram destinatarios e metadados sensiveis.
-- Impacto: aumento de risco de privacidade e LGPD se logs forem expostos.
+1) Artefatos de build versionados no frontend admin (`dist/`)
+- O que foi encontrado: diretório `Codigo/frontend/administrator/dist/` está presente no repositório.
+- Impacto: aumenta ruído, risco de desatualização e conflitos; pode vazar builds antigos se alguém publicar artefatos por engano.
+- Evidência: [administrator/dist](file:///c:/Users/clevi/Desktop/duzepesqueiro/Codigo/frontend/administrator/dist).
+- Prioridade: P3
 
-2. README raiz ainda esta em formato de template
-- Instrucao de uso principal do projeto nao foi preenchida.
-- Impacto: reduz maturidade operacional percebida.
-
-3. Avisos de baseline/browserslist desatualizados no build
-- Dependencias de navegadores estao antigas.
-- Impacto: previsoes de compatibilidade ficam menos confiaveis.
-
-4. Configuracoes e artefatos residuais de ferramentas de geracao
-- Ha sinais de origem em `Lovable`/`Rocket.new` e documentacao padrao.
-- Impacto: aumenta ruido tecnico e dificulta governanca do codigo.
+2) Warnings de baseline/browserslist desatualizados nos builds
+- O que foi encontrado: builds informam `caniuse-lite` desatualizado e baseline mapping antigo.
+- Impacto: baixo; mas sinaliza higiene de dependências e compatibilidade.
+- Evidência: logs de build dos frontends (Vite/Browserslist).
+- Prioridade: P3
 
 ========================
 
@@ -155,185 +160,172 @@ Resumo executivo:
 Status:
 - WARNING
 Evidence:
-- Separacao basica entre `application`, `domain`, `infrastructure` e tres apps frontend.
-- Porem ha jobs em memoria, inconsistencias de exportacao e falta de controles operacionais.
+- Separação em camadas no backend (`application/domain/infrastructure`) e apps frontend separados.
+- Jobs em memória ainda aparecem em módulos de domínio (p.ex. jobs em hosting).
 Impact:
-- Crescimento horizontal e operacao multi-instancia ficam arriscados.
+- Risco em escala horizontal e em restart.
 Recommendation:
-- Externalizar agendamentos para fila/worker/scheduler dedicado e revisar fronteiras de modulo.
+- Externalizar scheduler/worker ou implementar lock distribuído (mínimo) e idempotência.
 
 ## Backend
 Status:
 - FAIL
 Evidence:
-- Lint quebrado.
-- Testes quebrados.
-- Filtro de excecao expoe mensagens internas.
-- Fallbacks inseguros em autenticacao.
+- Build passa (`npm run build`), porém lint e testes falham.
+- Vulnerabilidades críticas/altas em runtime via `npm audit --omit=dev`.
 Impact:
-- Risco de regressao, vazamento de informacao e falha de release.
+- Alto risco de regressão e exploração.
 Recommendation:
-- Corrigir lint/teste, adicionar validacao de configuracao e endurecer tratamento de erro.
+- Corrigir lint/test e remediar vulnerabilidades P0 antes de qualquer release.
 
 ## Frontend
 Status:
 - FAIL
 Evidence:
 - Tokens em `localStorage`.
-- `auth` e `user` com lint falhando.
-- `administrator` com build grande e sourcemap de producao.
-- Sem testes automatizados encontrados.
+- Lint falha em `auth` e `user`; `administrator` não possui script de lint.
+- Bundles grandes em `user` e `administrator`.
 Impact:
-- Maior risco de sequestro de sessao, regressao e degradacao de performance.
+- Sequestro de sessão em XSS + regressões e performance ruim.
 Recommendation:
-- Migrar sessao para cookie `HttpOnly`/`SameSite`, corrigir lint, adicionar testes e reduzir bundles.
+- Migrar refresh token para cookie HttpOnly; ativar lint (admin) e corrigir erros.
 
 ## Banco de Dados
 Status:
 - WARNING
 Evidence:
-- Schema Prisma com varios indices e constraints.
-- Migrations presentes.
-- Nao ha evidencias versionadas de backup, restore, replicacao ou rollback de migration.
+- Prisma schema e migrations presentes.
+- Sem evidências versionadas de backup/restore/rollback de migration.
 Impact:
-- Boa modelagem transacional, mas operacao de recuperacao continua fragil.
+- Operação de recuperação frágil.
 Recommendation:
-- Versionar runbook de backup/restore, janelas de manutencao e estrategia de rollback.
+- Versionar procedimentos e exercitar restore periodicamente.
 
-## Seguranca
+## Segurança
 Status:
 - FAIL
 Evidence:
-- Falha de autorizacao no export.
-- Sessao em `localStorage`.
+- Dependências com vulnerabilidade critical/high.
+- Tokens em `localStorage`.
 - WebSocket com `origin: '*'`.
-- Dependencias com vulnerabilidades conhecidas.
 Impact:
-- Exfiltracao de dados administrativos, comprometimento de sessao e ampliacao da superficie de ataque.
+- Comprometimento de sessão, ampliação de superfície e exploração via supply chain.
 Recommendation:
-- Corrigir RBAC do export, restringir origens, revisar armazenamento de tokens e remediar vulnerabilidades.
+- Remediar CVEs exploráveis em runtime; endurecer sessão e WebSocket.
 
 ## Docker
 Status:
 - WARNING
 Evidence:
-- Multi-stage build presente em backend e frontend.
-- `npm ci` utilizado.
-- Falta `USER` nao-root e nao ha limites/versionamento de runtime hardening.
+- Multi-stage builds presentes.
+- Falta `USER` não-root e `HEALTHCHECK`.
 Impact:
-- Imagens sao reproduziveis, mas com endurecimento insuficiente.
+- Hardening insuficiente e menor previsibilidade em orquestração.
 Recommendation:
-- Executar como usuario sem privilegio, adicionar healthcheck na imagem quando cabivel e definir recursos.
+- Executar como usuário sem privilégio, definir healthcheck e reduzir pacotes no runtime.
 
 ## Kubernetes
 Status:
 - WARNING
 Evidence:
-- Nenhum manifesto Kubernetes/Helm encontrado.
+- Não foram encontrados manifests/Helm.
 Impact:
-- Categoria nao aplicavel por falta de uso versionado, mas sem readiness caso a plataforma mude.
+- Não aplicável no momento; sem baseline se migração ocorrer.
 Recommendation:
-- Se houver plano de K8s, versionar manifests, probes, HPA, RBAC e network policies.
+- Se houver plano de K8s, versionar manifests com probes/limits/RBAC/NetworkPolicy.
 
 ## Infraestrutura
 Status:
-- FAIL
+- WARNING
 Evidence:
-- Existe apenas runbook textual para ECS/ALB/CloudWatch.
-- Nao ha IaC versionada, task definition versionada, SG/WAF/CDN/HA como codigo.
+- Há workflows de deploy para ECS, porém não há IaC versionada no repo.
 Impact:
-- Ambiente dificil de auditar, reproduzir e revisar sob controle de mudanca.
+- Revisão/auditoria de mudanças infra fica difícil.
 Recommendation:
-- Versionar infraestrutura com Terraform/CloudFormation/CDK e task definitions por ambiente.
+- Versionar infraestrutura por ambiente (Terraform/CloudFormation/CDK) e task defs.
 
-## Variaveis de Ambiente
+## Variáveis de Ambiente
 Status:
 - FAIL
 Evidence:
-- Drift entre `.env.example`, `.env.qa`, `.env.production`, `MONGO_URI` e `MONGODB_URL`.
-- Arquivos `.env` existem no workspace.
+- `envFilePath` aponta para `.env.qa` e `.env.production`, mas apenas `.env.example` está presente.
+- Não há validação central de envs obrigatórias.
 Impact:
-- Ambientes inconsistentes, risco de startup quebrado e observabilidade silenciosamente desativada.
+- Drift e falhas tardias.
 Recommendation:
-- Definir schema unico de envs, alinhar nomenclaturas e remover dependencia de arquivos locais.
+- Remover dependência de arquivos não versionados e validar envs na inicialização.
 
-## Dependencias
+## Dependências
 Status:
 - FAIL
 Evidence:
-- Vulnerabilidades conhecidas em backend e frontends.
-- Backend referencia `typescript-eslint` sem declarar a dependencia.
+- `npm audit --omit=dev` aponta severidades altas e críticas.
 Impact:
-- Exposicao a CVEs e toolchain instavel.
+- CVEs potencialmente exploráveis.
 Recommendation:
-- Executar remediation de lockfiles, atualizar pacotes criticos e congelar politica de upgrades.
+- Atualizar dependências críticas e adicionar rotina de scans no pipeline.
 
 ## Performance
 Status:
 - WARNING
 Evidence:
-- Bundles grandes em `user` e principalmente `administrator`.
-- Sem evidencias de testes de carga, apdex ou benchmarks.
+- Bundles grandes (user/admin).
 Impact:
-- Risco de lentidao percebida e degradacao sob carga.
+- UX ruim e custo de entrega.
 Recommendation:
-- Aplicar code splitting, lazy loading, analise de bundle e testes de carga.
+- Code splitting e análise de bundle; estabelecer budgets.
 
 ## Observabilidade
 Status:
-- FAIL
+- WARNING
 Evidence:
-- Logs Mongo dependem de env inconsistente.
-- Sem traces, `requestId` ou dashboards/alertas versionados.
-- Runbook cita CloudWatch, mas nao ha configuracao versionada.
+- RequestId implementado e propagado.
+- Não há tracing distribuído/SLIs/SLOs/dashboards/alertas versionados.
 Impact:
-- Baixa visibilidade de incidentes e troubleshooting lento.
+- Troubleshooting ainda limitado em incidentes complexos.
 Recommendation:
-- Padronizar correlacao, centralizar logs, definir metricas SLI/SLO e versionar alertas.
+- Evoluir para OpenTelemetry + dashboards/alertas por SLI.
 
 ## Testes
 Status:
 - FAIL
 Evidence:
-- Backend possui alguns testes, mas eles nao executam.
-- Frontends nao apresentam suite de testes encontrada.
+- Jest do backend não executa TS.
+- Frontends sem suíte de testes.
 Impact:
-- Sem barreira automatizada contra regressao.
+- Regressão sem barreira.
 Recommendation:
-- Corrigir configuracao do Jest/Nest, adicionar testes criticos de frontend e integrar tudo ao pipeline.
+- Configurar Jest/ts-jest e adicionar testes críticos (RBAC/export, auth, pagamentos).
 
 ## CI/CD
 Status:
-- FAIL
+- WARNING
 Evidence:
-- Nenhum workflow GitHub Actions encontrado.
-- Sem evidence de scans, gates, artifact management ou rollback automatizado.
+- Workflows de deploy existem, mas sem gates de qualidade/segurança.
 Impact:
-- Deploy manual, sem rastreabilidade e sem politica de promocao segura.
+- Deploy pode promover vulnerabilidades/regressões.
 Recommendation:
-- Implementar pipeline com lint, teste, build, audit, scan de imagem, deploy e rollback.
+- Adicionar jobs de lint/test/audit/scan e política de promoção (staging → prod).
 
-## Recuperacao de Desastre
+## Recuperação de Desastre
 Status:
 - FAIL
 Evidence:
-- Nao foram encontrados artefatos versionados para backup automatizado, restore validado, RPO ou RTO.
+- Sem evidências versionadas de backup/restore e metas RPO/RTO.
 Impact:
-- Sistema sem prova de recuperacao operacional.
+- Alta exposição a perda de dados e downtime prolongado.
 Recommendation:
-- Definir e testar backup/restore, metas RPO/RTO e failover por ambiente.
+- Definir e testar backup/restore; automatizar e auditar.
 
-## Documentacao Tecnica
+## Documentação Técnica
 Status:
-- FAIL
+- WARNING
 Evidence:
-- README principal placeholder.
-- Backend README padrao do Nest.
-- Frontend README e user/admin README genericos.
+- Existem READMEs, `.env.example` e runbook de deploy; porém documentação operacional ainda não cobre DR, rollback validado e gates do pipeline.
 Impact:
-- Operacao, suporte e transferencia de conhecimento comprometidos.
+- Operação depende de conhecimento tácito.
 Recommendation:
-- Documentar arquitetura, envs, deploy, rollback, build, execucao local, testes e OpenAPI.
+- Consolidar runbooks mínimos (deploy, rollback, DR) e políticas de segurança/observabilidade.
 
 ========================
 
@@ -341,28 +333,17 @@ Recommendation:
 
 | Finding | Category | Severity | Likelihood | Impact | Priority |
 |---|---|---|---|---|---|
-| Export admin sem `RolesGuard` | Security | Critical | High | High | P0 |
-| Lint/test gates quebrados | Testing/Quality | Critical | High | High | P0 |
-| ExportService inconsistente com schema | Backend/Data Integrity | High | High | High | P1 |
-| `MONGO_URI` vs `MONGODB_URL` | Observability/Env | High | High | Medium | P1 |
-| Jobs em memoria | Architecture/Reliability | High | High | High | P1 |
-| Sessao em `localStorage` | Frontend/Security | High | High | High | P1 |
-| WebSocket com `origin: '*'` | Security | High | Medium | High | P1 |
-| Vulnerabilidades de dependencias | Dependency/Security | High | High | High | P1 |
-| CI/CD ausente | CI/CD | High | High | High | P1 |
-| Documentacao obrigatoria incompleta | Documentation/Operations | High | High | Medium | P1 |
-| Excecoes expostas ao cliente | Backend/Security | Medium | Medium | Medium | P2 |
-| Fallbacks fracos de segredo/config | Security/Config | Medium | Medium | Medium | P2 |
-| Sem validacao central de env | Env/Operations | Medium | High | Medium | P2 |
-| Bundle frontend excessivo | Performance | Medium | High | Medium | P2 |
-| Sourcemap em producao no admin | Frontend/Security | Medium | Medium | Medium | P2 |
-| Containers sem usuario nao-root | Docker/Security | Medium | Medium | Medium | P2 |
-| Sem correlacao de logs/traces | Observability | Medium | High | Medium | P2 |
-| Frontend sem testes | Testing | Medium | High | Medium | P2 |
-| Sem evidencias DR/backup | Disaster Recovery | Medium | Medium | High | P2 |
-| Logs com PII | Compliance/Privacy | Low | Medium | Medium | P3 |
-| README raiz placeholder | Documentation | Low | High | Low | P3 |
-| Dados de browserslist desatualizados | Dependency/Build | Low | High | Low | P3 |
+| Vulnerabilidades críticas em runtime (ex.: liquidjs) | Dependency/Security | Critical | High | High | P0 |
+| Lint/test gates quebrados (backend + frontends) | Testing/Quality | Critical | High | High | P0 |
+| Sessão em `localStorage` | Frontend/Security | High | High | High | P1 |
+| WebSocket `origin: '*'` | Security | High | Medium | High | P1 |
+| ExportService inconsistente com schema | Backend/Data Integrity | High | High | Medium | P1 |
+| CI/CD sem gates antes do deploy | CI/CD | High | High | High | P1 |
+| Containers sem usuário não-root/healthcheck | Docker/Security | High | Medium | Medium | P1 |
+| Env drift (envFilePath aponta para arquivos ausentes) | Env/Operations | Medium | High | Medium | P2 |
+| Bundles grandes | Performance | Medium | High | Medium | P2 |
+| DR sem evidência | Disaster Recovery | Medium | Medium | High | P2 |
+| Build artifacts versionados (admin/dist) | Operations | Low | Medium | Low | P3 |
 
 ========================
 
@@ -370,85 +351,63 @@ Recommendation:
 
 ## Phase 1 (Blocking Issues)
 
-1. Corrigir controle de acesso do export
-- O que corrigir: adicionar `RolesGuard` ao `ExportController` ou registrar guard global adequado.
-- Como corrigir: usar `@UseGuards(JwtAuthGuard, RolesGuard)` e criar teste de autorizacao negativa/positiva.
-- Impacto: elimina vazamento de dados administrativos.
+1) Remediar vulnerabilidades críticas/altas exploráveis em runtime
+- O que corrigir: atualizar/substituir dependências com `critical/high` no backend e frontends.
+- Como corrigir: usar `npm audit --omit=dev` como baseline; atualizar lockfiles; validar compatibilidade; repetir build e testes.
+- Impacto: reduz risco direto de exploração.
 - Prioridade: P0
 
-2. Restaurar gate de qualidade
-- O que corrigir: ajustar ESLint do backend, declarar dependencias faltantes e configurar Jest para TypeScript.
-- Como corrigir: adicionar `typescript-eslint`, configurar `ts-jest`/`jest.config`, criar scripts `test:e2e` e `test:cov`.
-- Impacto: viabiliza CI confiavel.
+2) Restaurar gate de qualidade (lint/test)
+- O que corrigir:
+  - Backend: adicionar `typescript-eslint` (dependência) ou ajustar config; configurar Jest para TS (ts-jest) com `jest.config`/transform.
+  - Frontends: corrigir erros de lint e criar script de lint no `administrator`.
+- Como corrigir: alinhar `eslint.config.mjs` ao `package.json` e garantir `npm run lint`/`npm test` “verdes” em todos os módulos.
+- Impacto: cria barreira mínima contra regressão.
 - Prioridade: P0
-
-3. Corrigir inconsistencias do modulo de exportacao
-- O que corrigir: alinhar `ExportService` ao schema Prisma real.
-- Como corrigir: substituir modelos/campos incorretos por `Rental`, `SalesOrder`, `salePrice`, `stockQuantity` etc. e cobrir com testes.
-- Impacto: evita exportacoes incorretas ou vazias.
-- Prioridade: P1
-
-4. Normalizar variaveis de observabilidade
-- O que corrigir: padronizar `MONGODB_URL` vs `MONGO_URI`.
-- Como corrigir: escolher um nome oficial, refletir em compose, docs, runbook e codigo.
-- Impacto: reativa logs persistentes com previsibilidade.
-- Prioridade: P1
 
 ## Phase 2 (High Priority)
 
-1. Implementar CI/CD versionado
-- O que corrigir: workflow GitHub Actions com lint, teste, build, audit, scan e deploy.
-- Como corrigir: criar pipelines por ambiente com tags imutaveis, artifacts e rollback.
-- Impacto: reduz risco de deploy manual e regressao.
+1) Migrar refresh token para cookie HttpOnly e remover dependência de `localStorage`
+- O que corrigir: armazenamento de credenciais em JS.
+- Como corrigir: refresh token em cookie `HttpOnly` + `Secure` + `SameSite`; access token curto (memória) e rotação.
+- Impacto: reduz sequestro de sessão por XSS.
 - Prioridade: P1
 
-2. Migrar autenticacao do frontend para cookies seguros
-- O que corrigir: remover armazenamento de access/refresh token em `localStorage`.
-- Como corrigir: adotar cookie `HttpOnly`, `Secure`, `SameSite` e fluxo de refresh no backend.
-- Impacto: reduz risco de sequestro de sessao por XSS.
+2) Restringir CORS do WebSocket por allowlist em env
+- O que corrigir: `origin: '*'`.
+- Como corrigir: permitir apenas origens confiáveis por ambiente (ex.: `WEBSOCKET_ALLOWED_ORIGINS`), com validação e logs.
+- Impacto: reduz superfície cross-origin.
 - Prioridade: P1
 
-3. Endurecer WebSocket e tratamento de erro
-- O que corrigir: restringir `origin`, adicionar allowlist por ambiente e remover mensagens internas de erro.
-- Como corrigir: usar `ConfigService`, lista de origens confiaveis e resposta sanitizada.
-- Impacto: reduz superficie de ataque e vazamento de internals.
+3) Inserir gates no CI/CD antes do deploy
+- O que corrigir: workflows de deploy sem lint/test/audit/scan.
+- Como corrigir: adicionar jobs para `npm ci`, `lint`, `test`, `build`, `npm audit --omit=dev`, scan de imagem (ex.: Trivy/Grype) e política de promoção.
+- Impacto: reduz risco de promover regressões e CVEs.
 - Prioridade: P1
 
-4. Substituir jobs em memoria por scheduler/worker resiliente
-- O que corrigir: `setInterval`/`setTimeout` de lembretes e metricas.
-- Como corrigir: usar fila com persistencia, cron dedicado, scheduler externo ou worker distribuido.
-- Impacto: suporta replicas, restart e rastreabilidade.
-- Prioridade: P1
-
-5. Remediar vulnerabilidades de dependencias
-- O que corrigir: lockfiles e bibliotecas com advisories.
-- Como corrigir: rodar `npm audit`, atualizar pacotes vulneraveis, revisar breaking changes e repetir testes.
-- Impacto: reduz risco de CVEs exploraveis.
+4) Docker hardening básico
+- O que corrigir: execução como root e ausência de healthcheck.
+- Como corrigir: criar usuário não-root, ajustar permissões, adicionar `HEALTHCHECK`, reduzir pacotes no runtime.
+- Impacto: menor blast radius e melhor auto-healing.
 - Prioridade: P1
 
 ## Phase 3 (Improvements)
 
-1. Melhorar observabilidade
-- O que corrigir: request correlation, tracing, dashboards, alertas, logs estruturados e redacao de PII.
-- Como corrigir: introduzir `requestId`, OpenTelemetry, dashboard e alertas por SLI.
-- Impacto: acelera resposta a incidentes.
+1) Normalizar estratégia de env e validar schema na inicialização
+- O que corrigir: dependência em `.env.qa` inexistente e ausência de validação.
+- Como corrigir: usar `envFilePath` opcional por ambiente; validar com schema (Joi/Zod) e falhar fast.
+- Impacto: reduz drift e falhas tardias.
 - Prioridade: P2
 
-2. Otimizar performance do frontend
-- O que corrigir: bundles grandes e sourcemaps em producao.
-- Como corrigir: lazy loading, chunking manual, analise de bundle e desligar sourcemap publico quando nao necessario.
-- Impacto: melhora UX e custo de entrega.
+2) Performance/bundle budgets
+- O que corrigir: bundles grandes.
+- Como corrigir: lazy loading por rota, manualChunks mais granular, remover dependências não usadas, budgets de bundle.
+- Impacto: melhora UX e custo.
 - Prioridade: P2
 
-3. Consolidar documentacao tecnica
-- O que corrigir: README, arquitetura, envs, deploy, rollback, testes e OpenAPI.
-- Como corrigir: publicar runbooks e guias reais por ambiente.
-- Impacto: melhora operacao e manutencao.
-- Prioridade: P2
-
-4. Formalizar DR
-- O que corrigir: backup, restore, RPO, RTO e failover.
-- Como corrigir: definir rotina automatizada e testes periodicos.
+3) DR/Backup/Restore
+- O que corrigir: ausência de evidências e exercícios.
+- Como corrigir: automatizar backup, definir RPO/RTO, testar restore periodicamente e registrar resultados.
 - Impacto: reduz risco de indisponibilidade prolongada.
 - Prioridade: P2
 
@@ -457,23 +416,18 @@ Recommendation:
 # Final Verdict
 
 - Can the application be deployed?
-- Nao para producao neste estado.
+- Não para produção no estado atual.
 
 - What risks remain?
-- Exfiltracao de dados administrativos, regressao sem gate de qualidade, observabilidade inconsistente, operacao manual sem CI/CD, e baixa resiliência em escala horizontal.
+- Exploração via dependências críticas/altas, regressões por ausência de gates (lint/test), sequestro de sessão por tokens em `localStorage`, e fragilidade operacional (env drift + DR sem evidência).
 
 - What must be fixed before production?
-- Controle de acesso do export.
-- Lint/testes executaveis e passando.
-- Correcoes do `ExportService`.
-- Normalizacao de variaveis de observabilidade.
-- Pipeline CI/CD minimo com rollback.
-- Remediacao de vulnerabilidades de alta/critica severidade.
+- Remediar vulnerabilidades `critical/high` exploráveis em runtime.
+- Tornar `npm run lint` e `npm test` executáveis e “verdes” (backend e frontends).
+- Remover refresh token de `localStorage` (cookie HttpOnly) e endurecer WebSocket CORS.
+- Inserir gates de qualidade/segurança no CI/CD antes do deploy.
 
 - What should be improved after deployment?
-- Migracao de sessao para cookies seguros.
-- Tracing/request correlation.
-- Otimizacao de bundles.
-- Hardening de containers.
-- DR com restore validado.
-- Documentacao operacional completa.
+- Evoluir observabilidade (OTel, dashboards, alertas).
+- Reduzir bundles e estabelecer budgets.
+- Formalizar DR com restore testado e metas RPO/RTO.

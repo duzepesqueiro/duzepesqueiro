@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LogContext, LogEntry, LogLevel } from '../interfaces/log-entry.interface';
 import { LogsMongoRepository } from './logs-mongo.repository';
+import { requestContext } from '../../../shared/common/request-context';
 
 @Injectable()
 export class LogsService {
@@ -46,6 +47,12 @@ export class LogsService {
     aggregateId?: string,
     meta?: LogEntry['meta'],
   ): Promise<void> {
+    const store = requestContext.getStore();
+    const mergedMeta =
+      store?.requestId && !meta?.requestId
+        ? { ...(meta ?? {}), requestId: store.requestId }
+        : meta;
+
     const entry: LogEntry = {
       context,
       event,
@@ -53,7 +60,7 @@ export class LogsService {
       payload,
       level,
       timestamp: new Date().toISOString(),
-      meta,
+      meta: mergedMeta,
     };
 
     try {

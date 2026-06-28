@@ -22,8 +22,6 @@ const SalesManagementTable = ({ onRefresh }) => {
   const [error, setError] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [detailsId, setDetailsId] = useState('');
-  const [confirmingId, setConfirmingId] = useState('');
-  const [cancellingId, setCancellingId] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -44,9 +42,9 @@ const SalesManagementTable = ({ onRefresh }) => {
         setTotal(Number(payload?.total || 0));
       })
       .catch((err) => {
-        console.error('Falha ao carregar vendas:', err);
+        console.error('Falha ao carregar ordens de compra:', err);
         if (!mounted) return;
-        setError('Não foi possível carregar as vendas.');
+        setError('Não foi possível carregar as ordens de compra.');
       })
       .finally(() => {
         if (!mounted) return;
@@ -108,32 +106,24 @@ const SalesManagementTable = ({ onRefresh }) => {
   };
 
   const handleConfirm = async (orderId) => {
-    if (confirmingId || cancellingId) return;
     try {
-      setConfirmingId(orderId);
       await confirmAdminSale(orderId);
       await refreshOrders();
       if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err?.response?.data || err?.message;
       alert(`Não foi possível confirmar a compra: ${msg}`);
-    } finally {
-      setConfirmingId('');
     }
   };
 
   const handleCancel = async (orderId) => {
-    if (confirmingId || cancellingId) return;
     try {
-      setCancellingId(orderId);
       await cancelAdminSale(orderId);
       await refreshOrders();
       if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err?.response?.data || err?.message;
       alert(`Não foi possível cancelar a compra: ${msg}`);
-    } finally {
-      setCancellingId('');
     }
   };
 
@@ -257,12 +247,7 @@ const SalesManagementTable = ({ onRefresh }) => {
                     size="sm"
                     iconName="CheckCircle"
                     onClick={() => handleConfirm(order.id)}
-                    loading={confirmingId === order.id}
-                    disabled={
-                      (order.status || '').toLowerCase() === 'efetivada' ||
-                      Boolean(confirmingId) ||
-                      Boolean(cancellingId)
-                    }
+                    disabled={(order.status || '').toLowerCase() === 'efetivada'}
                     className="text-success border-success hover:bg-success/10"
                   >
                     Confirmar Compra
@@ -272,13 +257,7 @@ const SalesManagementTable = ({ onRefresh }) => {
                     size="sm"
                     iconName="XCircle"
                     onClick={() => handleCancel(order.id)}
-                    loading={cancellingId === order.id}
-                    disabled={
-                      (order.status || '').toLowerCase() === 'cancelada' ||
-                      (order.status || '').toLowerCase() === 'efetivada' ||
-                      Boolean(confirmingId) ||
-                      Boolean(cancellingId)
-                    }
+                    disabled={(order.status || '').toLowerCase() === 'cancelada'}
                     className="text-error border-error hover:bg-error/10"
                   >
                     Cancelar Compra

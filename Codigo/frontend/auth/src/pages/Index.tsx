@@ -66,10 +66,9 @@ const Index = () => {
       }
 
       const data = await parseJson<LoginResponse>(resp);
-      if (data?.accessToken && data?.refreshToken && data?.user?.role) {
+      if (data?.accessToken && data?.user?.role) {
         setSession({
           accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
           role: data.user.role,
           email: data.user.email || email,
         });

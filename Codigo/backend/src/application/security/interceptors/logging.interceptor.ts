@@ -18,6 +18,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const { method, url, ip } = request;
     const userAgent = request.get('user-agent') || '';
+    const requestId = (request as any).requestId as string | undefined;
     const now = Date.now();
 
     return next.handle().pipe(
@@ -28,7 +29,7 @@ export class LoggingInterceptor implements NestInterceptor {
         const duration = Date.now() - now;
 
         this.logger.log(
-          `${method} ${url} ${statusCode} ${contentLength || '-'} - ${duration}ms - ${ip} - ${userAgent}`,
+          `${method} ${url} ${statusCode} ${contentLength || '-'} - ${duration}ms - ${ip} - ${userAgent} - ${requestId ?? '-'}`,
         );
         void this.logsService.info(
           'security',
@@ -45,6 +46,7 @@ export class LoggingInterceptor implements NestInterceptor {
             ip,
             userAgent,
             userId: request.user?.id,
+            requestId,
           },
         );
       }),

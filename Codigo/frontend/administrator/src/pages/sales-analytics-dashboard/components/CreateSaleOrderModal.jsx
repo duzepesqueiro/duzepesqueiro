@@ -3,14 +3,16 @@ import { createPortal } from 'react-dom';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
+import { listUsers } from '../../../services/usersService';
 import { getInventoryItems } from '../../../utils/inventoryService';
 import { createAdminSale } from '../../../utils/salesManagementService';
 
 const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
-  const [values, setValues] = useState({ customerName: '', note: '' });
+  const [values, setValues] = useState({ userId: '', note: '' });
   const [currentItem, setCurrentItem] = useState({ productId: '', quantity: 1 });
   const [items, setItems] = useState([]);
 
@@ -28,7 +30,7 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
     if (!isOpen) return;
     setIsSubmitting(false);
     setError('');
-    setValues({ customerName: '', note: '' });
+    setValues({ userId: '', note: '' });
     setCurrentItem({ productId: '', quantity: 1 });
     setItems([]);
     const previousOverflow = document.body.style.overflow;
@@ -41,24 +43,33 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
   useEffect(() => {
     if (!isOpen) return;
     let mounted = true;
-    Promise.all([getInventoryItems()])
-      .then(([productsRes]) => {
+    Promise.all([listUsers(), getInventoryItems()])
+      .then(([usersRes, productsRes]) => {
         if (!mounted) return;
+        setUsers(Array.isArray(usersRes) ? usersRes : []);
         const arr = Array.isArray(productsRes) ? productsRes : [];
         const saleProducts = arr.filter((p) => {
-          const source = String(p?.source || '').toUpperCase();
-          return source ? source === 'SALE' : true;
+          const status = String(p?.status || p?.productStatus || p?.source || '').toUpperCase();
+          return status ? status.includes('SALE') : true;
         });
         setProducts(saleProducts);
       })
       .catch(() => {
         if (!mounted) return;
+        setUsers([]);
         setProducts([]);
       });
     return () => {
       mounted = false;
     };
   }, [isOpen]);
+
+  const userOptions = useMemo(() => {
+    return (users || []).map((u) => ({
+      value: u?.id,
+      label: u?.nome || u?.name || u?.username || u?.email || u?.id,
+    }));
+  }, [users]);
 
   const productOptions = useMemo(() => {
     return (products || []).map((p) => ({
@@ -102,8 +113,8 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
 
   const submit = async () => {
     setError('');
-    if (!String(values.customerName || '').trim()) {
-      setError('Informe o nome do cliente.');
+    if (!values.userId) {
+      setError('Selecione um cliente.');
       return;
     }
     if (!items.length) {
@@ -113,7 +124,7 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
     setIsSubmitting(true);
     try {
       const res = await createAdminSale({
-        customerName: String(values.customerName || '').trim(),
+        userId: values.userId,
         items: items.map((i) => ({ productId: i.productId, quantity: Number(i.quantity) })),
         note: values.note || undefined,
       });
@@ -144,11 +155,12 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
         <div className="p-6 space-y-5">
           {error ? <div className="text-sm text-error">{error}</div> : null}
 
-          <Input
+          <Select
             label="Cliente"
-            value={values.customerName}
-            onChange={(e) => setValues((prev) => ({ ...prev, customerName: e.target.value }))}
-            placeholder="Nome do cliente (venda presencial)"
+            options={userOptions}
+            value={values.userId}
+            onChange={(value) => setValues((prev) => ({ ...prev, userId: value }))}
+            placeholder="Selecione um cliente"
           />
 
           <Input
@@ -166,7 +178,6 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
                 value={currentItem.productId}
                 onChange={(value) => setCurrentItem((prev) => ({ ...prev, productId: value }))}
                 placeholder="Selecione um produto"
-                searchable
               />
             </div>
             <div className="md:col-span-3">
@@ -225,3 +236,4 @@ const CreateSaleOrderModal = ({ isOpen, onClose, onCreated }) => {
 };
 
 export default CreateSaleOrderModal;
+

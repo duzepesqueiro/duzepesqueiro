@@ -32,12 +32,12 @@ const SalesChart = ({ chartData, range, onRangeChange, growthValue = 0, classNam
                   className="w-3 h-3 rounded-full" 
                   style={{ backgroundColor: entry?.color }}
                 />
-                <span className="text-sm text-muted-foreground">{entry?.name || entry?.dataKey}</span>
+                <span className="text-sm text-muted-foreground">{entry?.dataKey}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
-                {entry?.dataKey === 'orders'
-                  ? Number(entry?.value || 0).toLocaleString('pt-BR')
-                  : formatCurrency(entry?.value)}
+                  entry?.dataKey === 'orders'
+                    ? Number(entry?.value || 0).toLocaleString('pt-BR')
+                    : formatCurrency(entry?.value)
               </span>
             </div>
           ))}

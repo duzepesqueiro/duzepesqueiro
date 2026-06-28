@@ -22,7 +22,18 @@ import {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: (origin, callback) => {
+      const allowed = (process.env.WEBSOCKET_ALLOWED_ORIGINS ?? '*')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (!origin) return callback(null, true);
+      if (allowed.includes('*')) return callback(null, true);
+      if (allowed.includes(origin)) return callback(null, true);
+
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   },
   namespace: '/notifications',

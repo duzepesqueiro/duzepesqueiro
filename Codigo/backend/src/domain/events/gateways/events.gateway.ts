@@ -28,7 +28,21 @@ type RateLimitState = {
 @Injectable()
 @WebSocketGateway({
   namespace: '/events',
-  cors: { origin: '*' },
+  cors: {
+    origin: (origin, callback) => {
+      const allowed = (process.env.WEBSOCKET_ALLOWED_ORIGINS ?? '*')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (!origin) return callback(null, true);
+      if (allowed.includes('*')) return callback(null, true);
+      if (allowed.includes(origin)) return callback(null, true);
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  },
   pingInterval: 25_000,
   pingTimeout: 60_000,
 })
@@ -197,9 +211,8 @@ export class EventsGateway
   private validateClientToken(socket: Socket): AuthUser {
     const authToken = (socket.handshake.auth?.token as string | undefined) ?? '';
     const headerToken = (socket.handshake.headers.authorization as string | undefined) ?? '';
-    const queryToken = (socket.handshake.query?.token as string | undefined) ?? '';
 
-    const rawToken = authToken || headerToken || queryToken;
+    const rawToken = authToken || headerToken;
     const token = rawToken.startsWith('Bearer ')
       ? rawToken.slice('Bearer '.length)
       : rawToken;

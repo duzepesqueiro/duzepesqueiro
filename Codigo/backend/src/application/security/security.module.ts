@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuditInterceptor } from '../../shared/common';
 import { HelmetMiddleware } from './middlewares/helmet.middleware';
+import { RequestContextMiddleware } from './middlewares/request-context.middleware';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 
 @Module({
@@ -31,6 +32,6 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 })
 export class SecurityModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(HelmetMiddleware).forRoutes('*');
+    consumer.apply(RequestContextMiddleware, HelmetMiddleware).forRoutes('*');
   }
 }

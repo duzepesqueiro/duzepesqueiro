@@ -21,7 +21,7 @@ const WppChatBubble = () => {
   const textLine2 = "Podemos combinar o número de hospedes!";
   
   return (
-    <div className="relative rounded-2xl border border-border/50 bg-background px-4 py-3 text-sm shadow-xl max-w-[280px]">
+    <div className="relative rounded-2xl border border-border/50 bg-background px-4 py-3 text-sm shadow-xl max-w-[90vw] sm:max-w-[280px]">
       <div className="text-foreground">{textLine1}</div>
       <div className="text-muted-foreground">{textLine2}</div>
       

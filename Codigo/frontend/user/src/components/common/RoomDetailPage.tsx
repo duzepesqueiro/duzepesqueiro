@@ -294,8 +294,8 @@ const RoomDetailPage = () => {
       {!isMobile ? <Header open={sidebarOpen} setOpen={setSidebarOpen} /> : null}
 
       <main className={`relative z-10 transition-all duration-300 ${isMobile ? '' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="pt-24 pb-16 px-4">
-          <div className="container mx-auto max-w-[1400px]">
+        <div className="pt-24 pb-16">
+          <div className="duze-container max-w-[1400px]">
             <button
               onClick={() => navigate('/hospedagem/rooms')}
               className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

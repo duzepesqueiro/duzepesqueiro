@@ -15,14 +15,14 @@ async function safeRequest(promise, fallback = { data: [] }) {
 export const getSalesKpis = async (range = "month") => {
   return safeRequest(
     api.get("/api/admin/vendas/analytics/kpis", { params: { range } }),
-    { data: [] }
+    { data: { data: [] } }
   );
 };
 
 export const getSalesPerformance = async (range = "month") => {
   return safeRequest(
     api.get("/api/admin/vendas/analytics/performance", { params: { range } }),
-    { data: [] }
+    { data: { data: [] } }
   );
 };
 
@@ -36,6 +36,6 @@ export const getTopProducts = async () => {
 export const getCustomerAnalytics = async (range = "month") => {
   return safeRequest(
     api.get('/api/admin/vendas/analytics/customers', { params: { range } }),
-    { data: { customerData: [], segmentData: [] } }
+    { data: { data: { customerData: {}, segmentData: [] } } }
   );
 };

@@ -83,8 +83,8 @@ const CheckoutReturnPage = ({ status }: CheckoutReturnPageProps) => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="px-4 pb-16 pt-24">
-        <div className="container mx-auto max-w-2xl">
+      <main className="pb-16 pt-24">
+        <div className="duze-container max-w-2xl">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
             <div className="flex items-center gap-3">
               <motion.div

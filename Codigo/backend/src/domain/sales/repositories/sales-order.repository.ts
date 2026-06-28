@@ -20,55 +20,11 @@ type PaginatedResult<T> = {
 export class SalesOrderRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createForUser(userId: string, input: { items: Array<{ productId: string; quantity: number }>; note?: string }) {
-    return this.createInternal({
-      buyerUserId: userId,
-      actorUserId: userId,
-      items: input.items,
-      note: input.note,
-    });
-  }
-
-  async createSaleForUserAsAdmin(
-    actorUserId: string,
-    buyerUserId: string,
-    input: { items: Array<{ productId: string; quantity: number }>; note?: string },
-  ) {
-    return this.createInternal({
-      buyerUserId,
-      actorUserId,
-      items: input.items,
-      note: input.note,
-    });
-  }
-
-  async createManualSale(input: {
-    actorUserId: string;
-    customerName: string;
-    items: Array<{ productId: string; quantity: number }>;
-    note?: string;
-  }) {
-    return this.createInternal({
-      buyerUserId: null,
-      customerName: input.customerName,
-      actorUserId: input.actorUserId,
-      items: input.items,
-      note: input.note,
-    });
-  }
-
-  private async createInternal(input: {
-    buyerUserId: string | null;
-    customerName?: string;
-    actorUserId: string;
-    items: Array<{ productId: string; quantity: number }>;
-    note?: string;
-  }) {
+  async create(userId: string, input: { items: Array<{ productId: string; quantity: number }>; note?: string }) {
     return this.prisma.$transaction(async (tx) => {
       const order = await (tx as any).salesOrder.create({
         data: {
-          userId: input.buyerUserId,
-          customerName: input.customerName,
+          userId,
           note: input.note,
           status: 'PENDING',
           paymentStatus: 'PENDING',
@@ -123,7 +79,7 @@ export class SalesOrderRepository {
             nextBalance: new Prisma.Decimal(nextBalance),
             referenceId: order.id,
             referenceType: 'sales_order',
-            userId: input.actorUserId,
+            userId,
             note: 'Pedido de venda criado',
           },
         });
@@ -239,60 +195,6 @@ export class SalesOrderRepository {
             referenceType: 'sales_order_cancel',
             userId,
             note: 'Cancelamento de pedido de venda',
-          },
-        });
-      }
-
-      return (tx as any).salesOrder.update({
-        where: { id: order.id },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
-        include: { items: true },
-      });
-    });
-  }
-
-  async cancelAsAdmin(actorUserId: string, id: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const order = await (tx as any).salesOrder.findUnique({
-        where: { id },
-        include: { items: true },
-      });
-      if (!order) {
-        throw new NotFoundException('Pedido não encontrado');
-      }
-      if (order.status !== 'PENDING' || order.paymentStatus !== 'PENDING') {
-        throw new ConflictException('Pedido não pode ser cancelado neste estado');
-      }
-
-      for (const item of order.items ?? []) {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { id: true, deletedAt: true, stockQuantity: true },
-        });
-        if (!product || product.deletedAt) {
-          continue;
-        }
-
-        const previousBalance = Number(product.stockQuantity);
-        const nextBalance = previousBalance + Math.abs(Number(item.quantity));
-
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stockQuantity: new Prisma.Decimal(nextBalance) },
-        });
-
-        await tx.inventoryMovement.create({
-          data: {
-            productId: item.productId,
-            movementType: 'INBOUND',
-            movementReason: 'RETURN',
-            quantity: new Prisma.Decimal(Math.abs(Number(item.quantity))),
-            previousBalance: new Prisma.Decimal(previousBalance),
-            nextBalance: new Prisma.Decimal(nextBalance),
-            referenceId: order.id,
-            referenceType: 'sales_order_cancel',
-            userId: actorUserId,
-            note: 'Cancelamento de pedido de venda (admin)',
           },
         });
       }

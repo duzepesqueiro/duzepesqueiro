@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -13,7 +12,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../../../application/auth/decorators/current-user.decorator';
@@ -31,12 +30,14 @@ class SalesAnalyticsQueryDto {
 
 class ListSalesOrdersQueryDto {
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -69,13 +70,8 @@ class CreateAdminSaleItemDto {
 }
 
 class CreateAdminSaleDto {
-  @IsOptional()
   @IsString()
-  customerName?: string;
-
-  @IsOptional()
-  @IsString()
-  userId?: string;
+  userId: string;
 
   @IsArray()
   @ArrayMinSize(1)
@@ -157,12 +153,7 @@ export class SalesAdminController {
     @Body() payload: CreateAdminSaleDto,
     @CurrentUser() currentUser: { id: string; role: UserRole },
   ) {
-    const hasCustomerName = Boolean(String(payload.customerName || '').trim());
-    const hasUserId = Boolean(String(payload.userId || '').trim());
-    if (!hasCustomerName && !hasUserId) {
-      throw new BadRequestException('Informe customerName ou userId.');
-    }
-    const data = await this.salesAdminService.createSale(payload, currentUser.id);
+    const data = await this.salesAdminService.createSale(payload);
     await this.logsService.info('sales', 'AdminSaleCreated', {
       adminId: currentUser.id,
       orderId: data.id,
@@ -188,9 +179,9 @@ export class SalesAdminController {
   @ApiOperation({ summary: 'Cancelar venda (admin)' })
   async cancel(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() currentUser: { id: string; role: UserRole },
+    @CurrentUser('id') actorUserId: string,
   ) {
-    const data = await this.salesAdminService.cancelSale(id, currentUser.id);
+    const data = await this.salesAdminService.cancelSale(id, actorUserId);
     return { message: 'Venda cancelada com sucesso', data };
   }
 }

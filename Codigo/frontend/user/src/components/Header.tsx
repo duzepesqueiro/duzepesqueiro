@@ -507,7 +507,7 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
       }`}
     >
 
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="duze-container py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/">
           <div className="flex items-center space-x-3">
@@ -699,9 +699,9 @@ const Header = ({ transparent = false, searchScope }: HeaderProps) => {
 
       {/* Mobile Navigation Sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent
+          <SheetContent
           side="left"
-          className="w-[85vw] sm:max-w-xs flex flex-col h-full"
+          className="w-[90vw] sm:max-w-xs flex flex-col h-full"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SheetHeader className="text-left">

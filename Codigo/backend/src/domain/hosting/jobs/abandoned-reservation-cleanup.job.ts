@@ -8,6 +8,7 @@ import {
 import { LogsService } from '../../../application/logs/services';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { HospedagemNotificationService } from '../services';
+import { runExclusiveJob } from './job-runner';
 
 @Injectable()
 export class AbandonedReservationCleanupJob implements OnModuleInit, OnModuleDestroy {
@@ -20,9 +21,9 @@ export class AbandonedReservationCleanupJob implements OnModuleInit, OnModuleDes
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.executar();
+    await this.executarComLock();
     this.intervalRef = setInterval(async () => {
-      await this.executar();
+      await this.executarComLock();
     }, 60 * 60 * 1000);
   }
 
@@ -75,6 +76,12 @@ export class AbandonedReservationCleanupJob implements OnModuleInit, OnModuleDes
       await this.cancelarReservaAbandonada(reserva.id);
       await this.liberarChaleSeNecessario(reserva.chaletId);
     }
+  }
+
+  private async executarComLock(now = new Date()): Promise<void> {
+    await runExclusiveJob(this.prisma, 'hosting.abandoned-reservation-cleanup', async () => {
+      await this.executar(now);
+    });
   }
 
   private async processarLembretePagamento(reservaId: string): Promise<void> {

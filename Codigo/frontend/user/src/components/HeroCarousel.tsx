@@ -112,7 +112,7 @@ const HeroCarousel = () => {
           <div className="absolute inset-0 bg-black/30" />
         </div>
 
-        <div className="relative z-10 container mx-auto flex min-h-screen items-center px-4 py-20">
+        <div className="relative z-10 duze-container flex min-h-screen items-center py-20">
           <div className="grid w-full grid-cols-1 items-center gap-12">
             <div
               className="space-y-6 text-center transition-all duration-500"

@@ -6,6 +6,9 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
+echo "Gerando Prisma Client..."
+npx prisma generate
+
 DB_WAIT_MAX_RETRIES="${DB_WAIT_MAX_RETRIES:-45}"
 DB_WAIT_INTERVAL_SECONDS="${DB_WAIT_INTERVAL_SECONDS:-2}"
 DB_WAIT_RETRY=0

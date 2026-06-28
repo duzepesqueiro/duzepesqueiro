@@ -240,7 +240,7 @@ const SearchBox = ({
           <button
             onClick={handleSearch}
             disabled={isLoadingBlocked}
-            className="btn-gold w-full max-w-xs h-12 border-0 shadow-none flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            className="btn-gold w-full sm:max-w-xs h-12 border-0 shadow-none flex items-center justify-center gap-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Search className="h-4 w-4" />
             {isLoadingBlocked ? 'Validando datas...' : 'Ver disponibilidade'}

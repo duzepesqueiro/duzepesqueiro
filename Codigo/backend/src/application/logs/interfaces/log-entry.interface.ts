@@ -24,6 +24,7 @@ export interface LogEntry {
     path?: string;
     method?: string;
     statusCode?: number;
+    requestId?: string;
     ip?: string;
     userId?: string;
     userAgent?: string;

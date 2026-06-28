@@ -15,6 +15,6 @@ export default registerAs('database', () => ({
     user: process.env.MONGO_USER,
     password: process.env.MONGO_PASSWORD,
     name: process.env.MONGO_DB || 'duzepesqueiro_logs',
-    url: process.env.MONGODB_URL,
+    url: process.env.MONGODB_URL || process.env.MONGO_URI,
   },
 }));

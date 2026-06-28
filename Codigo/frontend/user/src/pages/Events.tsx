@@ -192,7 +192,7 @@ const Events = () => {
 
       <main className="pt-24">
         <section className="relative overflow-hidden border-b border-border/40 bg-gradient-to-b from-muted/40 to-background">
-          <div className="mx-auto max-w-7xl px-4 md:px-8 py-10 sm:py-12">
+          <div className="duze-container py-10 sm:py-12">
             <div className="mx-auto max-w-3xl text-center space-y-4 animate-fade-in-up">
               <p className="text-sm font-semibold tracking-wide text-primary">DuZe Pesqueiro</p>
               <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight">
@@ -213,7 +213,7 @@ const Events = () => {
 
       {/* Events Carousel or Grid Section */}
         <section className="py-10 sm:py-12">
-          <div className="mx-auto max-w-7xl px-4 md:px-8">
+          <div className="duze-container">
           {isLoadingEvents ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -357,8 +357,8 @@ const Events = () => {
       />
 
       {/* Footer */}
-      <footer className="py-8 px-4 border-t border-border/50">
-        <div className="max-w-7xl mx-auto text-center text-muted-foreground">
+      <footer className="py-8 border-t border-border/50">
+        <div className="duze-container text-center text-muted-foreground">
           <p>
             &copy; 2025 Eventos Duzepesqueiro. Todos os direitos reservados.
           </p>
