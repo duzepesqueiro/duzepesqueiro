@@ -6,3 +6,4 @@ collections.sort().forEach((collectionName) => {
   const result = db.getCollection(collectionName).deleteMany({});
   printjson({ collection: collectionName, deletedCount: result.deletedCount });
 });
+// nao subir prod
