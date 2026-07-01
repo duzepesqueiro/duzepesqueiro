@@ -375,7 +375,7 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
         hourlyPrice: '',
         available: '',
         image: product.image || '',
-        fullDescription: ''
+        fullDescription: product?.description || ''
       });
       const existingImages = Array.isArray(product?.images) && product.images.length
         ? product.images
@@ -427,13 +427,15 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
       let savedProductId = null;
       if (modalType === 'create') {
         if (modalProduct.registrationType === 'Aluguel') {
+          if (!modalProduct.product?.trim()) {
+            throw new Error('Nome do item de aluguel é obrigatório.');
+          }
           const rentalPayload = {
             name: modalProduct.product,
-            description: modalProduct.description || '',
             hourlyPrice: Number(modalProduct.hourlyPrice) || 0,
             available: Number(modalProduct.available) || 0,
             image: null,
-            fullDescription: modalProduct.fullDescription || null,
+            fullDescription: modalProduct.description || modalProduct.fullDescription || null,
           };
           console.debug('create rental payload', rentalPayload);
           const created = await createRentalItem(rentalPayload);
@@ -877,8 +879,8 @@ const InventoryDataTable = ({ items, loading, error, searchTerm, onSearchChange,
                   {renderImageUploader()}
                   <Input
                     label="Descrição Completa"
-                    value={modalProduct.fullDescription || ''}
-                    onChange={(e) => modalType !== 'view' && setModalProduct(prev => ({ ...prev, fullDescription: e.target.value }))}
+                    value={modalProduct.description || ''}
+                    onChange={(e) => modalType !== 'view' && setModalProduct(prev => ({ ...prev, description: e.target.value }))}
                     readOnly={modalType === 'view'}
                   />
                 </>
